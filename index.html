@@ -467,6 +467,12 @@
     }
     .route-pin span { transform: rotate(45deg); }
 
+    .product-management-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .product-form-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .product-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .product-management-grid .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .product-management-grid td.num, .product-management-grid th.num { text-align: right; white-space: nowrap; }
+
     .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
     table { width: 100%; border-collapse: collapse; min-width: 640px; background: #fff; }
     th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
@@ -671,6 +677,8 @@
       }
       .side-nav .nav-btn span { margin: 0; font-size: 20px; }
       .content { width: 100%; padding: 24px 28px 42px; }
+      .product-management-grid { grid-template-columns: minmax(300px, .8fr) minmax(0, 1.6fr); }
+      .product-form-actions { grid-template-columns: 1fr 1fr; }
       .mobile-nav { display: none; }
       .toast-stack { bottom: 24px; }
       .grid-main { grid-template-columns: minmax(0, 1.55fr) minmax(300px, .8fr); }
@@ -1025,6 +1033,45 @@
           <div class="page-head">
             <div><h2>Агуулах</h2><p>Үлдэгдэл болон агуулахын хөдөлгөөн удирдана.</p></div>
           </div>
+          <section id="productManagementCard" class="card manager-only" style="margin-bottom:14px">
+            <div class="page-head" style="margin-bottom:14px">
+              <div><h3 style="margin:0">Бараа удирдах</h3><p>Менежер бараа нэмэх, мэдээллийг засах болон үлдэгдэлгүй барааг устгах боломжтой.</p></div>
+            </div>
+            <div class="product-management-grid">
+              <form id="productForm" class="form-grid" novalidate>
+                <input id="productOriginalName" type="hidden">
+                <div class="field">
+                  <label for="productName">Барааны нэр</label>
+                  <input id="productName" maxlength="120" placeholder="Жишээ: Шоколадтай бялуу" required>
+                </div>
+                <div class="form-grid two">
+                  <div class="field"><label for="productCode">Барааны код</label><input id="productCode" maxlength="50" placeholder="SKU-001"></div>
+                  <div class="field"><label for="productUnit">Хэмжих нэгж</label><input id="productUnit" maxlength="30" value="ш" placeholder="ш, кг, хайрцаг" required></div>
+                </div>
+                <div class="form-grid two">
+                  <div class="field"><label for="productPrice">Нэгж үнэ</label><input id="productPrice" type="number" inputmode="numeric" min="0" step="1" required></div>
+                  <div class="field"><label for="productStock">Эхний / одоогийн үлдэгдэл</label><input id="productStock" type="number" inputmode="decimal" min="0" step="0.01" required></div>
+                </div>
+                <div class="field">
+                  <label for="productThreshold">Бага үлдэгдлийн хязгаар</label>
+                  <input id="productThreshold" type="number" inputmode="decimal" min="0" step="0.01" value="0">
+                  <small class="field-hint">Үлдэгдэл энэ хэмжээнд хүрэхэд анхааруулга харагдана.</small>
+                </div>
+                <div class="product-form-actions">
+                  <button id="saveProductBtn" class="btn btn-primary" type="submit">Бараа хадгалах</button>
+                  <button id="cancelProductEditBtn" class="btn btn-neutral hidden" type="button">Засварыг цуцлах</button>
+                </div>
+              </form>
+              <div>
+                <div class="field" style="margin-bottom:10px">
+                  <label for="productSearch">Бараа хайх</label>
+                  <input id="productSearch" type="search" placeholder="Нэр эсвэл кодоор хайх">
+                </div>
+                <div id="productManagementTable" class="table-wrap"></div>
+              </div>
+            </div>
+          </section>
+
           <div class="grid grid-main">
             <div class="grid">
               <div class="card">
@@ -1605,6 +1652,10 @@
       $('#inventoryForm').addEventListener('submit', handleInventoryMove);
       $('#visitForm').addEventListener('submit', handleVisit);
       $('#userForm').addEventListener('submit', handleSaveUser);
+      $('#productForm').addEventListener('submit', handleSaveProduct);
+      $('#cancelProductEditBtn').addEventListener('click', resetProductForm);
+      $('#productSearch').addEventListener('input', renderProductManagement);
+      $('#productManagementTable').addEventListener('click', handleProductTableClick);
       $('#saleQty').addEventListener('input', updateSaleSummary);
       $('#salePrice').addEventListener('input', updateSaleSummary);
       $('#invType').addEventListener('change', updateInventoryFields);
@@ -1857,6 +1908,10 @@
         }
       ];
       if (isManager()) {
+        steps.push({
+          page: 'inventory', selector: '#productManagementCard', title: 'Бараа удирдах',
+          text: 'Менежер шинэ бараа нэмэх, код, нэгж үнэ, үлдэгдэл болон бага үлдэгдлийн хязгаарыг засах боломжтой. Үлдэгдэл 0 болсон барааг устгаж болно.'
+        });
         steps.push({
           page: 'settings', selector: '#userForm', title: 'Хэрэглэгч удирдах',
           text: 'Менежер шинэ борлуулагч эсвэл менежер нэмэх, мэдээллийг засах боломжтой. Free эрхийн хэрэглэгчийн хязгаарыг сервер талд автоматаар шалгана.'
@@ -2226,6 +2281,7 @@
       renderSelects();
       renderSales();
       renderInventory();
+      renderProductManagement();
       renderVisits();
       renderDashboard();
       renderSettings();
@@ -2269,7 +2325,7 @@
         $('#saleProductHint').textContent = `Бүртгэлтэй үнэ: ${money(product.price)} · Боломжит үлдэгдэл: ${formatNumber(product.stock)}`;
       } else {
         $('#saleProduct').dataset.selectedValue = '';
-        $('#saleProductHint').textContent = state.products.length ? 'Барааны бүртгэлээс хайж сонгоно уу.' : 'Одоогоор бараа бүртгэлгүй байна. Менежер компанийн Бараа хүснэгтэд бараа нэмнэ.';
+        $('#saleProductHint').textContent = state.products.length ? 'Барааны бүртгэлээс хайж сонгоно уу.' : 'Одоогоор бараа бүртгэлгүй байна. Менежер Агуулах → Бараа удирдах хэсгээс бараа нэмнэ.';
       }
       $('#saleStock').textContent = formatNumber(product?.stock || 0);
       updateSaleSummary();
@@ -2627,6 +2683,119 @@
 
     function documentTypeLabel(type) {
       return ({ INVOICE: 'Борлуулалтын баримт', STOCK_OUT: 'Агуулахын зарлагын баримт', DISTRIBUTION: 'Түгээлтийн баримт' })[type] || 'Баримт';
+    }
+
+
+    function renderProductManagement() {
+      const wrap = $('#productManagementTable');
+      if (!wrap || !isManager()) return;
+      const query = ($('#productSearch')?.value || '').trim().toLocaleLowerCase('mn-MN');
+      const rows = state.products.filter(product => {
+        const haystack = `${product.name || ''} ${product.code || ''}`.toLocaleLowerCase('mn-MN');
+        return !query || haystack.includes(query);
+      });
+      wrap.innerHTML = rows.length ? `<table><thead><tr><th>Бараа</th><th>Код / нэгж</th><th class="num">Үнэ</th><th class="num">Үлдэгдэл</th><th>Үйлдэл</th></tr></thead><tbody>${rows.map(product => `
+        <tr>
+          <td><strong>${escapeHtml(product.name)}</strong><br><small>Доод хязгаар: ${escapeHtml(formatNumber(product.threshold || 0))}</small></td>
+          <td><span class="product-code">${escapeHtml(product.code || '—')}</span><br><small>${escapeHtml(product.unit || 'ш')}</small></td>
+          <td class="num">${escapeHtml(money(product.price))}</td>
+          <td class="num">${escapeHtml(formatNumber(product.stock))}</td>
+          <td><div class="row-actions">
+            <button class="btn btn-secondary" type="button" data-product-edit="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px">Засах</button>
+            <button class="btn btn-danger" type="button" data-product-delete="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px" ${numberValue(product.stock) !== 0 ? 'disabled title="Үлдэгдэл 0 болсон үед устгана"' : ''}>Устгах</button>
+          </div></td>
+        </tr>`).join('')}</tbody></table>` : emptyHtml(query ? 'Хайлтад тохирох бараа олдсонгүй.' : 'Бараа бүртгэлгүй байна.');
+    }
+
+    function handleProductTableClick(event) {
+      const editButton = event.target.closest('[data-product-edit]');
+      if (editButton) return editProduct(editButton.dataset.productEdit);
+      const deleteButton = event.target.closest('[data-product-delete]');
+      if (deleteButton && !deleteButton.disabled) deleteProduct(deleteButton.dataset.productDelete);
+    }
+
+    function editProduct(name) {
+      const product = state.products.find(item => item.name === name);
+      if (!product) return toast('Барааны мэдээлэл олдсонгүй.', 'error');
+      $('#productOriginalName').value = product.name || '';
+      $('#productName').value = product.name || '';
+      $('#productCode').value = product.code || '';
+      $('#productUnit').value = product.unit || 'ш';
+      $('#productPrice').value = numberValue(product.price);
+      $('#productStock').value = numberValue(product.stock);
+      $('#productThreshold').value = numberValue(product.threshold);
+      $('#saveProductBtn').textContent = 'Өөрчлөлт хадгалах';
+      $('#cancelProductEditBtn').classList.remove('hidden');
+      $('#productForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('#productName').focus({ preventScroll: true });
+    }
+
+    function resetProductForm() {
+      $('#productForm').reset();
+      $('#productOriginalName').value = '';
+      $('#productUnit').value = 'ш';
+      $('#productThreshold').value = '0';
+      $('#saveProductBtn').textContent = 'Бараа хадгалах';
+      $('#cancelProductEditBtn').classList.add('hidden');
+    }
+
+    async function handleSaveProduct(event) {
+      event.preventDefault();
+      const button = $('#saveProductBtn');
+      setButtonLoading(button, true, 'Хадгалж байна...');
+      try {
+        if (!isManager()) throw new Error('Зөвхөн менежер бараа удирдах эрхтэй.');
+        if (!navigator.onLine) throw new Error('Бараа хадгалахад интернет холболт шаардлагатай.');
+        const payload = {
+          action: 'saveProduct',
+          originalName: $('#productOriginalName').value.trim(),
+          name: $('#productName').value.trim(),
+          code: $('#productCode').value.trim(),
+          unit: $('#productUnit').value.trim() || 'ш',
+          price: numberValue($('#productPrice').value),
+          stock: numberValue($('#productStock').value),
+          threshold: numberValue($('#productThreshold').value)
+        };
+        if (!payload.name) throw new Error('Барааны нэрийг оруулна уу.');
+        if (payload.price < 0) throw new Error('Нэгж үнэ 0-ээс бага байж болохгүй.');
+        if (payload.stock < 0) throw new Error('Үлдэгдэл 0-ээс бага байж болохгүй.');
+        if (payload.threshold < 0) throw new Error('Бага үлдэгдлийн хязгаар 0-ээс бага байж болохгүй.');
+        const data = await postAction(payload);
+        if (!data.success) throw new Error(data.message || 'Бараа хадгалж чадсангүй.');
+        state.serverProducts = Array.isArray(data.products) ? data.products : state.serverProducts;
+        rebuildOptimisticState();
+        resetProductForm();
+        renderAll();
+        saveCache();
+        toast(payload.originalName ? 'Барааны мэдээлэл шинэчлэгдлээ.' : 'Шинэ бараа нэмэгдлээ.', 'success');
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    async function deleteProduct(name) {
+      const product = state.products.find(item => item.name === name);
+      if (!product) return toast('Барааны мэдээлэл олдсонгүй.', 'error');
+      if (numberValue(product.stock) !== 0) return toast('Үлдэгдэлтэй барааг устгах боломжгүй. Эхлээд үлдэгдлийг 0 болгоно уу.', 'error');
+      if (!confirm(`“${name}” барааг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
+      try {
+        if (!navigator.onLine) throw new Error('Бараа устгахад интернет холболт шаардлагатай.');
+        showLoading('Бараа устгаж байна...');
+        const data = await postAction({ action: 'deleteProduct', name });
+        if (!data.success) throw new Error(data.message || 'Бараа устгаж чадсангүй.');
+        state.serverProducts = Array.isArray(data.products) ? data.products : state.serverProducts.filter(item => item.name !== name);
+        rebuildOptimisticState();
+        if ($('#productOriginalName').value === name) resetProductForm();
+        renderAll();
+        saveCache();
+        toast('Бараа устгагдлаа.', 'success');
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        hideLoading();
+      }
     }
 
     function renderInventory() {
