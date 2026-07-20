@@ -1455,6 +1455,7 @@
       historyCursor: '',
       hasMoreTransactions: false,
       loaded: { inventory: false, distribution: false, dashboard: false, settings: false },
+      moduleLoads: {},
       gps: { lat: null, lng: null },
       photoData: '',
       cameraStream: null,
@@ -2179,11 +2180,14 @@
       });
     }
 
-    async function showPage(page, loadData = true) {
+    function showPage(page, loadData = true) {
       $$('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
       $$('.nav-btn[data-page]').forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      if (loadData) loadPageData(page);
+
+      // Menu switching is immediate. Lazy module data loads in the background
+      // without covering the whole app with a blocking overlay.
+      if (loadData) void loadPageData(page);
     }
 
     async function loadPageData(page) {
@@ -2195,39 +2199,49 @@
     }
 
     async function loadModule(module) {
-      showLoading('Мэдээлэл ачаалж байна...');
+      // Reuse an in-flight request when users tap menus quickly. This avoids
+      // duplicate Apps Script calls and prevents the UI from appearing stuck.
+      if (state.moduleLoads[module]) return state.moduleLoads[module];
+
+      const request = (async () => {
+        try {
+          const url = new URL(APP_SCRIPT_URL);
+          url.searchParams.set('action', 'module');
+          url.searchParams.set('module', module);
+          url.searchParams.set('token', state.session.token);
+          url.searchParams.set('_', String(Date.now()));
+          const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
+          const data = await parseResponse(response);
+          if (!data.success) throw new Error(data.message || 'Мэдээлэл ачаалж чадсангүй.');
+          if (module === 'inventory') {
+            state.serverInventoryMoves = Array.isArray(data.inventoryMoves) ? data.inventoryMoves : [];
+            state.loaded.inventory = true;
+          }
+          if (module === 'distribution') {
+            state.visits = Array.isArray(data.visits) ? data.visits : [];
+            state.loaded.distribution = true;
+          }
+          if (module === 'dashboard') {
+            state.dashboard = data.dashboard || null;
+            state.loaded.dashboard = true;
+          }
+          if (module === 'settings') {
+            state.users = Array.isArray(data.users) ? data.users : [];
+            state.loaded.settings = true;
+          }
+          rebuildOptimisticState();
+          renderAll();
+          saveCache();
+        } catch (error) {
+          toast(error.message, 'error');
+        }
+      })();
+
+      state.moduleLoads[module] = request;
       try {
-        const url = new URL(APP_SCRIPT_URL);
-        url.searchParams.set('action', 'module');
-        url.searchParams.set('module', module);
-        url.searchParams.set('token', state.session.token);
-        url.searchParams.set('_', String(Date.now()));
-        const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
-        const data = await parseResponse(response);
-        if (!data.success) throw new Error(data.message || 'Мэдээлэл ачаалж чадсангүй.');
-        if (module === 'inventory') {
-          state.serverInventoryMoves = Array.isArray(data.inventoryMoves) ? data.inventoryMoves : [];
-          state.loaded.inventory = true;
-        }
-        if (module === 'distribution') {
-          state.visits = Array.isArray(data.visits) ? data.visits : [];
-          state.loaded.distribution = true;
-        }
-        if (module === 'dashboard') {
-          state.dashboard = data.dashboard || null;
-          state.loaded.dashboard = true;
-        }
-        if (module === 'settings') {
-          state.users = Array.isArray(data.users) ? data.users : [];
-          state.loaded.settings = true;
-        }
-        rebuildOptimisticState();
-        renderAll();
-        saveCache();
-      } catch (error) {
-        toast(error.message, 'error');
+        return await request;
       } finally {
-        hideLoading();
+        delete state.moduleLoads[module];
       }
     }
 
