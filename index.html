@@ -1,0 +1,3104 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1B5E20">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Борлуулалт, Агуулах, Түгээлтийн систем</title>
+  <style>
+    :root {
+      --green: #1B5E20;
+      --green-2: #2E7D32;
+      --green-soft: #E8F5E9;
+      --bg: #F5F5F5;
+      --card: #FFFFFF;
+      --text: #172018;
+      --muted: #647067;
+      --line: #DDE4DE;
+      --danger: #B3261E;
+      --warning: #8A5800;
+      --success: #1B5E20;
+      --shadow: 0 8px 26px rgba(22, 48, 24, .10);
+      --radius: 18px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--green); }
+    .hidden { display: none !important; }
+
+    .auth-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(46,125,50,.16), transparent 35%),
+        radial-gradient(circle at 0% 100%, rgba(27,94,32,.11), transparent 35%),
+        var(--bg);
+    }
+
+    .auth-card {
+      width: min(100%, 480px);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .auth-brand {
+      padding: 28px 24px 20px;
+      background: var(--green);
+      color: #fff;
+    }
+    .auth-brand h1 { margin: 0; font-size: 26px; line-height: 1.2; }
+    .auth-brand p { margin: 8px 0 0; color: rgba(255,255,255,.82); font-size: 14px; }
+
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 14px 16px 0;
+    }
+    .auth-tab {
+      min-height: 48px;
+      border: 0;
+      border-radius: 12px;
+      background: #EEF2EE;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .auth-tab.active { background: var(--green-soft); color: var(--green); }
+    .auth-body { padding: 18px 20px 24px; }
+
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 68px;
+      padding: 10px 16px;
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(0,0,0,.14);
+    }
+    .topbar-title { min-width: 0; }
+    .topbar-title strong { display: block; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topbar-title small { color: rgba(255,255,255,.76); }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .status-pill.premium { background: #FFF4C2; color: #6C4D00; }
+    .status-pill.inactive { background: #FFE7E4; color: #8B1E16; }
+
+    .icon-btn {
+      width: 48px;
+      min-width: 48px;
+      height: 48px;
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 14px;
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      font-size: 20px;
+    }
+
+    .desktop-layout { display: block; }
+    .side-nav { display: none; }
+    .content {
+      width: min(100%, 1240px);
+      margin: 0 auto;
+      padding: 18px 14px calc(92px + var(--safe-bottom));
+    }
+
+    .mobile-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      padding: 7px 6px calc(7px + var(--safe-bottom));
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 -8px 20px rgba(0,0,0,.08);
+    }
+    .nav-btn {
+      min-width: 0;
+      min-height: 58px;
+      border: 0;
+      border-radius: 13px;
+      background: transparent;
+      color: #6A746C;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.1;
+      padding: 6px 2px;
+    }
+    .nav-btn span { display: block; font-size: 21px; margin-bottom: 4px; }
+    .nav-btn.active { background: var(--green-soft); color: var(--green); }
+
+    .page { display: none; animation: fade .18s ease; }
+    .page.active { display: block; }
+    @keyframes fade { from { opacity: .65; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .page-head h2 { margin: 0; font-size: 23px; }
+    .page-head p { margin: 5px 0 0; color: var(--muted); font-size: 14px; }
+
+    .grid { display: grid; gap: 14px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(19, 52, 22, .05);
+    }
+    .card h3 { margin: 0 0 12px; font-size: 17px; }
+    .card-subtitle { margin: -6px 0 14px; color: var(--muted); font-size: 13px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr; gap: 13px; }
+    .field { display: grid; gap: 7px; }
+    .field label { color: #3B473D; font-size: 13px; font-weight: 800; }
+    .field small { color: var(--muted); }
+    input, select, textarea {
+      width: 100%;
+      min-height: 48px;
+      padding: 11px 13px;
+      border: 1px solid #C9D3CA;
+      border-radius: 12px;
+      outline: none;
+      background: #fff;
+      color: var(--text);
+      transition: border .16s, box-shadow .16s;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--green-2);
+      box-shadow: 0 0 0 3px rgba(46,125,50,.13);
+    }
+    input[readonly] { background: #F2F4F2; color: #59625B; }
+
+    .btn {
+      min-height: 48px;
+      border: 0;
+      border-radius: 13px;
+      padding: 11px 16px;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform .12s, opacity .12s;
+    }
+    .btn:active { transform: scale(.985); }
+    .btn:disabled { opacity: .58; cursor: not-allowed; }
+    .btn-primary { background: var(--green); color: #fff; }
+    .btn-secondary { background: var(--green-soft); color: var(--green); }
+    .btn-neutral { background: #ECEFEC; color: #354038; }
+    .btn-danger { background: #FCE9E7; color: var(--danger); }
+    .btn-block { width: 100%; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,.42);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin .72s linear infinite;
+    }
+    .btn-secondary .spinner, .btn-neutral .spinner, .btn-danger .spinner { border-color: rgba(27,94,32,.2); border-top-color: currentColor; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .summary-box {
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--green-soft);
+      border: 1px solid #CDE7D0;
+    }
+    .summary-row { display: flex; justify-content: space-between; gap: 12px; margin: 7px 0; }
+    .summary-row strong { text-align: right; }
+
+    .metric {
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .metric small { color: var(--muted); font-weight: 800; }
+    .metric strong { font-size: 26px; letter-spacing: -.6px; }
+    .metric-footer { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 8px; font-size: 12px; font-weight: 900; }
+    .badge.up { background: #E2F5E5; color: #166522; }
+    .badge.down { background: #FBE7E5; color: #9A261E; }
+    .badge.flat { background: #ECEFEC; color: #4B544D; }
+
+    .list { display: grid; gap: 9px; }
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 56px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+    .list-main { min-width: 0; }
+    .list-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list-main small { color: var(--muted); }
+    .amount { white-space: nowrap; font-weight: 900; }
+
+    .stock-low { color: var(--danger); }
+    .stock-ok { color: var(--success); }
+
+    .bar-list { display: grid; gap: 13px; }
+    .bar-row { display: grid; gap: 6px; }
+    .bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 800; }
+    .bar-track { height: 12px; border-radius: 999px; background: #E8ECE8; overflow: hidden; }
+    .bar-fill { height: 100%; min-width: 2px; border-radius: 999px; background: var(--green-2); }
+
+    .premium-wrap { position: relative; }
+    .premium-wrap.locked .premium-content { filter: blur(6px); pointer-events: none; user-select: none; }
+    .lock-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(245,245,245,.45);
+      border-radius: var(--radius);
+    }
+    .lock-panel {
+      width: min(100%, 430px);
+      padding: 22px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.96);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .lock-panel .lock-icon { font-size: 42px; }
+    .lock-panel h3 { margin: 8px 0; }
+    .lock-panel p { color: var(--muted); margin: 0 0 14px; }
+
+    .banner {
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid #C8E2CA;
+      background: linear-gradient(135deg, #E8F5E9, #F8FFF9);
+    }
+    .banner.inactive { border-color: #F0C2BD; background: #FFF4F2; }
+    .banner h3 { margin: 0 0 5px; }
+    .banner p { margin: 0; color: var(--muted); }
+
+    .camera-preview-card {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #EFF3EF;
+      border: 1px dashed #B8C4B9;
+    }
+    .camera-thumb {
+      width: 100%;
+      max-height: 240px;
+      object-fit: cover;
+      border-radius: 12px;
+      background: #DDE4DE;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(0,0,0,.78);
+    }
+    .modal-card {
+      width: min(100%, 620px);
+      max-height: 92vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 20px;
+      padding: 14px;
+    }
+    .video-wrap { position: relative; overflow: hidden; border-radius: 16px; background: #111; }
+    #cameraVideo { width: 100%; display: block; max-height: 66vh; object-fit: cover; }
+    .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+
+    .route-map {
+      position: relative;
+      min-height: 210px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(30deg, rgba(27,94,32,.06) 12%, transparent 12.5%, transparent 87%, rgba(27,94,32,.06) 87.5%),
+        linear-gradient(150deg, rgba(27,94,32,.06) 12%, transparent 12.5%, transparent 87%, rgba(27,94,32,.06) 87.5%),
+        #F8FAF8;
+      background-size: 42px 72px;
+    }
+    .route-pin {
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 5px 14px rgba(0,0,0,.2);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .route-pin span { transform: rotate(45deg); }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; background: #fff; }
+    th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
+    th { background: #F2F5F2; color: #465048; }
+    tr:last-child td { border-bottom: 0; }
+
+    .empty {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed #C9D3CA;
+      border-radius: 14px;
+      background: #FBFCFB;
+    }
+
+    .toast-stack {
+      position: fixed;
+      left: 50%;
+      bottom: calc(84px + var(--safe-bottom));
+      z-index: 150;
+      width: min(calc(100% - 28px), 480px);
+      transform: translateX(-50%);
+      display: grid;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      padding: 13px 15px;
+      border-radius: 13px;
+      background: #1F2921;
+      color: #fff;
+      box-shadow: 0 10px 26px rgba(0,0,0,.22);
+      animation: toastIn .22s ease;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .toast.error { background: #8F241D; }
+    .toast.success { background: #185B20; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: grid;
+      place-items: center;
+      background: rgba(245,245,245,.82);
+      backdrop-filter: blur(4px);
+    }
+    .loading-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      font-weight: 900;
+    }
+    .loading-card .spinner { color: var(--green); border-color: #CFE2D0; border-top-color: var(--green); }
+
+
+    .offline-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 500;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: #8A5800;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      text-align: center;
+    }
+    body.is-offline { padding-top: 42px; }
+    body.is-offline .topbar { top: 42px; }
+    .sync-pending { color: var(--warning); font-weight: 900; }
+    .sync-ok { color: var(--success); font-weight: 900; }
+    .load-more-wrap { display: flex; justify-content: center; margin-top: 12px; }
+    .pending-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 5px;
+      border-radius: 50%;
+      background: #F9A825;
+      vertical-align: 1px;
+    }
+
+
+    /* In-app walkthrough */
+    .walkthrough-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      pointer-events: none;
+    }
+    .walk-mask {
+      position: fixed;
+      background: rgba(8, 20, 10, .68);
+      pointer-events: auto;
+      transition: top .18s ease, left .18s ease, width .18s ease, height .18s ease;
+    }
+    .walk-focus-ring {
+      position: fixed;
+      z-index: 902;
+      border: 3px solid #FFFFFF;
+      border-radius: 16px;
+      box-shadow: 0 0 0 4px rgba(46,125,50,.78), 0 14px 40px rgba(0,0,0,.25);
+      pointer-events: auto;
+      transition: top .18s ease, left .18s ease, width .18s ease, height .18s ease;
+    }
+    .walkthrough-card {
+      position: fixed;
+      z-index: 904;
+      width: min(92vw, 390px);
+      max-height: min(52vh, 430px);
+      overflow: auto;
+      padding: 17px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 18px;
+      background: #FFFFFF;
+      color: var(--text);
+      box-shadow: 0 20px 60px rgba(0,0,0,.32);
+      pointer-events: auto;
+    }
+    .walkthrough-progress {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .walkthrough-card h3 { margin: 0 0 8px; font-size: 19px; }
+    .walkthrough-card p { margin: 0; color: #48534A; font-size: 14px; line-height: 1.55; }
+    .walkthrough-actions {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .walkthrough-actions .btn { min-height: 46px; padding-inline: 12px; }
+    .walkthrough-skip {
+      min-height: 44px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .walkthrough-dots { display: flex; justify-content: center; gap: 5px; }
+    .walkthrough-dot { width: 7px; height: 7px; border-radius: 50%; background: #CED7CF; }
+    .walkthrough-dot.active { width: 18px; border-radius: 999px; background: var(--green); }
+    .walkthrough-launch-card p { margin: 0 0 14px; color: var(--muted); line-height: 1.5; }
+    body.walkthrough-open { overscroll-behavior: contain; }
+    @media (max-width: 659px) {
+      .walkthrough-card { max-height: 44vh; }
+      .walkthrough-actions { grid-template-columns: 1fr 1fr; }
+      .walkthrough-skip { grid-column: 1 / -1; grid-row: 2; }
+      .walkthrough-dots { display: none; }
+    }
+
+    @media (min-width: 660px) {
+      .form-grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    }
+
+    @media (min-width: 860px) {
+      .app-shell { display: grid; grid-template-columns: 244px minmax(0, 1fr); }
+      .topbar { grid-column: 1 / -1; padding-inline: 22px; }
+      .desktop-layout { display: contents; }
+      .side-nav {
+        display: flex;
+        position: sticky;
+        top: 68px;
+        height: calc(100vh - 68px);
+        flex-direction: column;
+        gap: 8px;
+        padding: 18px 12px;
+        background: #fff;
+        border-right: 1px solid var(--line);
+      }
+      .side-nav .nav-btn {
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 10px 13px;
+        font-size: 14px;
+      }
+      .side-nav .nav-btn span { margin: 0; font-size: 20px; }
+      .content { width: 100%; padding: 24px 28px 42px; }
+      .mobile-nav { display: none; }
+      .toast-stack { bottom: 24px; }
+      .grid-main { grid-template-columns: minmax(0, 1.55fr) minmax(300px, .8fr); }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="offlineBanner" class="offline-banner hidden" role="status">Сүлжээгүй горим · хадгалсан мэдээлэл холболт сэргэхэд автоматаар илгээгдэнэ.</div>
+  <section id="authScreen" class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1>Борлуулалт ба түгээлт</h1>
+        <p>Жижиг бизнесийн борлуулалт, агуулах, түгээлтийн нэгдсэн систем</p>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" type="button" data-auth-tab="login">Нэвтрэх</button>
+        <button class="auth-tab" type="button" data-auth-tab="register">Шинээр бүртгүүлэх</button>
+      </div>
+      <div class="auth-body">
+        <form id="loginForm" class="form-grid" autocomplete="on">
+          <div class="field">
+            <label for="loginUsername">Хэрэглэгчийн нэр</label>
+            <input id="loginUsername" name="username" autocomplete="username" required>
+          </div>
+          <div class="field">
+            <label for="loginPassword">Нууц үг</label>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          </div>
+          <button id="loginBtn" class="btn btn-primary btn-block" type="submit">Нэвтрэх</button>
+          <small style="color:var(--muted);line-height:1.5">Apps Script Web App URL-ээ JavaScript хэсгийн <b>APP_SCRIPT_URL</b> хувьсагчид оруулна.</small>
+        </form>
+
+        <form id="registerForm" class="form-grid hidden" autocomplete="off">
+          <div class="field">
+            <label for="regCompany">Компанийн нэр</label>
+            <input id="regCompany" required>
+          </div>
+          <div class="form-grid two">
+            <div class="field">
+              <label for="regPhone">Утас</label>
+              <input id="regPhone" inputmode="tel" required>
+            </div>
+            <div class="field">
+              <label for="regEmail">Имэйл</label>
+              <input id="regEmail" type="email" inputmode="email">
+            </div>
+          </div>
+          <div class="field">
+            <label for="regManagerName">Менежерийн бүтэн нэр</label>
+            <input id="regManagerName" required>
+          </div>
+          <div class="form-grid two">
+            <div class="field">
+              <label for="regUsername">Менежерийн username</label>
+              <input id="regUsername" autocomplete="username" required>
+            </div>
+            <div class="field">
+              <label for="regPassword">Нууц үг</label>
+              <input id="regPassword" type="password" minlength="6" autocomplete="new-password" required>
+            </div>
+          </div>
+          <button id="registerBtn" class="btn btn-primary btn-block" type="submit">Free эрхээр шууд нээх</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <main id="appScreen" class="app-shell hidden">
+    <header class="topbar">
+      <div class="topbar-title">
+        <strong id="companyTitle">Компанийн нэр</strong>
+        <small id="userTitle">Хэрэглэгч</small>
+      </div>
+      <div class="topbar-actions">
+        <span id="topStatus" class="status-pill">FREE</span>
+        <button id="helpBtn" class="icon-btn" type="button" aria-label="Ашиглах заавар нээх" title="Ашиглах заавар">?</button>
+        <button id="refreshBtn" class="icon-btn" type="button" aria-label="Өгөгдөл шинэчлэх">↻</button>
+      </div>
+    </header>
+
+    <div class="desktop-layout">
+      <nav class="side-nav" aria-label="Үндсэн цэс">
+        <button class="nav-btn active" type="button" data-page="sales"><span>₮</span>Борлуулалт</button>
+        <button class="nav-btn" type="button" data-page="inventory"><span>▦</span>Агуулах</button>
+        <button class="nav-btn" type="button" data-page="distribution"><span>⌖</span>Түгээлт</button>
+        <button class="nav-btn" type="button" data-page="dashboard"><span>▥</span>Хяналт самбар</button>
+        <button class="nav-btn" type="button" data-page="settings"><span>⚙</span>Тохиргоо</button>
+      </nav>
+
+      <section class="content">
+        <section id="page-sales" class="page active">
+          <div class="page-head">
+            <div><h2>Борлуулалт</h2><p>Бараа сонгон борлуулалтын гүйлгээ бүртгэнэ.</p></div>
+          </div>
+          <div class="grid grid-main">
+            <form id="saleForm" class="card form-grid">
+              <h3>Шинэ борлуулалт</h3>
+              <div class="field">
+                <label for="saleProduct">Бараа</label>
+                <select id="saleProduct" required><option value="">Бараа сонгох</option></select>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="saleQty">Тоо ширхэг</label>
+                  <input id="saleQty" type="number" inputmode="decimal" min="0.01" step="0.01" required>
+                </div>
+                <div class="field">
+                  <label for="salePrice">Нэгж үнэ</label>
+                  <input id="salePrice" type="number" inputmode="numeric" min="0" step="1" required>
+                </div>
+              </div>
+              <div class="field">
+                <label for="saleCustomer">Харилцагч</label>
+                <input id="saleCustomer" list="customerList" placeholder="Сонгох эсвэл шинээр бичих" required>
+                <datalist id="customerList"></datalist>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="salePayment">Төлбөрийн төрөл</label>
+                  <select id="salePayment" required>
+                    <option value="Бэлэн">Бэлэн</option>
+                    <option value="Зээл">Зээл</option>
+                  </select>
+                </div>
+                <div id="saleLocationField" class="field hidden">
+                  <label for="saleLocation">Салбар / байршил</label>
+                  <select id="saleLocation"></select>
+                </div>
+              </div>
+              <div class="summary-box">
+                <div class="summary-row"><span>Боломжит үлдэгдэл</span><strong id="saleStock">0</strong></div>
+                <div class="summary-row"><span>Нийт дүн</span><strong id="saleTotal">0₮</strong></div>
+              </div>
+              <button id="saleBtn" class="btn btn-primary btn-block" type="submit">Борлуулалт хадгалах</button>
+            </form>
+
+            <div class="grid">
+              <div id="saleSuccess" class="card hidden">
+                <h3>Амжилттай бүртгэгдлээ</h3>
+                <div id="saleSuccessBody" class="summary-box"></div>
+              </div>
+              <div class="card">
+                <h3>Сүүлийн гүйлгээ</h3>
+                <div id="recentSalesList" class="list"></div>
+                <div id="loadOlderWrap" class="load-more-wrap hidden">
+                  <button id="loadOlderBtn" class="btn btn-secondary" type="button">Хуучин түүх ачаалах</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-inventory" class="page">
+          <div class="page-head">
+            <div><h2>Агуулах</h2><p>Үлдэгдэл болон агуулахын хөдөлгөөн удирдана.</p></div>
+          </div>
+          <div class="grid grid-main">
+            <div class="grid">
+              <div class="card">
+                <h3>Барааны үлдэгдэл</h3>
+                <div id="productStockList" class="list"></div>
+              </div>
+              <div class="card">
+                <h3>Сүүлийн агуулахын хөдөлгөөн</h3>
+                <div id="recentInventoryList" class="list"></div>
+              </div>
+            </div>
+
+            <form id="inventoryForm" class="card form-grid">
+              <h3>Агуулахын хөдөлгөөн</h3>
+              <div class="field">
+                <label for="invProduct">Бараа</label>
+                <select id="invProduct" required></select>
+              </div>
+              <div class="field">
+                <label for="invType">Хөдөлгөөний төрөл</label>
+                <select id="invType" required>
+                  <option value="орлого">Орлого нэмэх</option>
+                  <option value="зарлага">Зарлага / хорогдол</option>
+                  <option id="transferOption" value="шилжүүлэг" class="hidden">Агуулах хооронд шилжүүлэх</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="invQty">Тоо хэмжээ</label>
+                <input id="invQty" type="number" inputmode="decimal" min="0.01" step="0.01" required>
+              </div>
+              <div id="warehouseFields" class="form-grid two hidden">
+                <div class="field">
+                  <label for="fromWarehouse">Гарах агуулах</label>
+                  <select id="fromWarehouse"></select>
+                </div>
+                <div class="field">
+                  <label for="toWarehouse">Хүлээн авах агуулах</label>
+                  <select id="toWarehouse"></select>
+                </div>
+              </div>
+              <div id="singleWarehouseField" class="field">
+                <label for="singleWarehouse">Агуулах</label>
+                <select id="singleWarehouse"></select>
+              </div>
+              <div class="field">
+                <label for="invReason">Шалтгаан / тайлбар</label>
+                <textarea id="invReason" placeholder="Жишээ: шинэ татан авалт, эвдрэл, буцаалт..."></textarea>
+              </div>
+              <button id="inventoryBtn" class="btn btn-primary btn-block" type="submit">Хөдөлгөөн хадгалах</button>
+            </form>
+          </div>
+        </section>
+
+        <section id="page-distribution" class="page">
+          <div class="page-head">
+            <div><h2>Түгээлт</h2><p>Харилцагч дээр очсон бүртгэл, GPS, зураг хадгална.</p></div>
+          </div>
+          <div class="grid grid-main">
+            <form id="visitForm" class="card form-grid">
+              <h3>Шинэ айлчлал</h3>
+              <div class="field">
+                <label for="visitCustomer">Харилцагч</label>
+                <input id="visitCustomer" list="customerList" required>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label>GPS байршил</label>
+                  <button id="gpsBtn" class="btn btn-secondary" type="button">⌖ Байршил авах</button>
+                </div>
+                <div class="field">
+                  <label>Баталгаажуулах зураг</label>
+                  <button id="cameraBtn" class="btn btn-secondary" type="button">📷 Камер нээх</button>
+                </div>
+              </div>
+              <div class="summary-box">
+                <div class="summary-row"><span>Өргөрөг</span><strong id="latText">—</strong></div>
+                <div class="summary-row"><span>Уртраг</span><strong id="lngText">—</strong></div>
+              </div>
+              <div id="photoPreviewBox" class="camera-preview-card hidden">
+                <img id="photoPreview" class="camera-thumb" alt="Баталгаажуулах зураг">
+                <button id="removePhotoBtn" class="btn btn-danger" type="button">Зураг арилгах</button>
+              </div>
+              <input id="fallbackCameraInput" class="hidden" type="file" accept="image/*" capture="environment">
+              <div class="field">
+                <label for="visitNotes">Тэмдэглэл</label>
+                <textarea id="visitNotes" placeholder="Хүргэлт, захиалга, уулзалтын үр дүн..."></textarea>
+              </div>
+              <button id="visitBtn" class="btn btn-primary btn-block" type="submit">Айлчлал хадгалах</button>
+            </form>
+
+            <div class="grid">
+              <div id="routeCard" class="card premium-only">
+                <h3>Маршрутын түүх</h3>
+                <p class="card-subtitle">Premium эрхтэй үед бүх борлуулагчийн GPS цэг болон маршрут харагдана.</p>
+                <div id="routeMap" class="route-map"></div>
+                <a id="openRouteLink" class="btn btn-secondary btn-block" href="#" target="_blank" rel="noopener" style="margin-top:12px;text-decoration:none">Google Maps дээр маршрут нээх</a>
+              </div>
+              <div class="card">
+                <h3>Сүүлийн айлчлалууд</h3>
+                <div id="visitList" class="list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-dashboard" class="page">
+          <div class="page-head">
+            <div><h2>Хяналт самбар</h2><p>Борлуулалт, бүтээгдэхүүн, борлуулагч, зээлийн тойм.</p></div>
+          </div>
+          <div id="dashboardPremiumWrap" class="premium-wrap">
+            <div id="dashboardLock" class="lock-overlay hidden">
+              <div class="lock-panel">
+                <div class="lock-icon">🔒</div>
+                <h3>Premium хэсэг</h3>
+                <p>Хяналт самбар, борлуулагчийн харьцуулалт, сарын өсөлтийн тайланг идэвхжүүлнэ.</p>
+                <a class="btn btn-primary btn-block" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener" style="text-decoration:none">DataLinx-тэй холбогдох</a>
+              </div>
+            </div>
+            <div class="premium-content grid">
+              <div class="grid grid-3">
+                <div class="card metric">
+                  <small>Энэ сарын борлуулалт</small>
+                  <strong id="dashTotalSales">0₮</strong>
+                  <div class="metric-footer"><span id="dashMoMBadge" class="badge flat">0%</span><span>өмнөх сараас</span></div>
+                </div>
+                <div class="card metric">
+                  <small>Гүйлгээний тоо</small>
+                  <strong id="dashSaleCount">0</strong>
+                  <div class="metric-footer"><span>Энэ сар</span></div>
+                </div>
+                <div class="card metric">
+                  <small>Зээлийн үлдэгдэл</small>
+                  <strong id="dashCreditTotal">0₮</strong>
+                  <div class="metric-footer"><span>Төлөлтийн тусдаа бүртгэлгүй тооцоо</span></div>
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div class="card"><h3>Топ борлуулалттай бараа</h3><div id="productBars" class="bar-list"></div></div>
+                <div class="card"><h3>Борлуулагчийн гүйцэтгэл</h3><div id="repBars" class="bar-list"></div></div>
+              </div>
+              <div class="grid grid-2">
+                <div class="card"><h3>Бараагаар борлуулалт</h3><div id="salesByProductList" class="list"></div></div>
+                <div class="card"><h3>Харилцагчийн зээлийн үлдэгдэл</h3><div id="creditList" class="list"></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-settings" class="page">
+          <div class="page-head">
+            <div><h2>Тохиргоо</h2><p>Эрхийн төлөв, хэрэглэгч болон системийн мэдээлэл.</p></div>
+          </div>
+          <div class="grid">
+            <div id="subscriptionBanner" class="banner">
+              <h3 id="subscriptionTitle">Free эрх</h3>
+              <p id="subscriptionText">Үндсэн функцууд ашиглах боломжтой.</p>
+              <a class="btn btn-primary" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener" style="margin-top:13px;text-decoration:none">Premium эрхийн талаар холбогдох</a>
+            </div>
+
+            <div class="grid grid-2">
+              <div class="card">
+                <h3>Профайл</h3>
+                <div id="profileInfo" class="list"></div>
+                <button id="logoutBtn" class="btn btn-danger btn-block" type="button" style="margin-top:12px">Системээс гарах</button>
+              </div>
+
+              <form id="userForm" class="card form-grid manager-only">
+                <h3>Хэрэглэгч нэмэх / засах</h3>
+                <div class="field">
+                  <label for="userFullName">Бүтэн нэр</label>
+                  <input id="userFullName" required>
+                </div>
+                <div class="form-grid two">
+                  <div class="field"><label for="userUsername">Username</label><input id="userUsername" required></div>
+                  <div class="field"><label for="userPassword">Нууц үг</label><input id="userPassword" type="password" minlength="6" placeholder="Засахгүй бол хоосон"></div>
+                </div>
+                <div class="field">
+                  <label for="userRole">Роль</label>
+                  <select id="userRole"><option value="rep">Борлуулагч</option><option value="manager">Менежер</option></select>
+                </div>
+                <button id="saveUserBtn" class="btn btn-primary btn-block" type="submit">Хэрэглэгч хадгалах</button>
+                <small style="color:var(--muted)">Free эрхийн серверийн хязгаар: нэг компанид 5 хүртэл борлуулагч.</small>
+              </form>
+            </div>
+
+            <div id="walkthroughSettingsCard" class="card walkthrough-launch-card">
+              <h3>Ашиглах заавар</h3>
+              <p>Борлуулалт, агуулах, түгээлт, хяналтын самбар болон тохиргоог дэлгэц дээр алхам алхмаар заалгана.</p>
+              <button id="startWalkthroughBtn" class="btn btn-secondary btn-block" type="button">▶ Зааврыг эхнээс нь үзэх</button>
+            </div>
+
+            <div class="card manager-only">
+              <h3>Компанийн хэрэглэгчид</h3>
+              <div id="userTableWrap" class="table-wrap"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Үндсэн цэс">
+      <button class="nav-btn active" type="button" data-page="sales"><span>₮</span>Борлуулалт</button>
+      <button class="nav-btn" type="button" data-page="inventory"><span>▦</span>Агуулах</button>
+      <button class="nav-btn" type="button" data-page="distribution"><span>⌖</span>Түгээлт</button>
+      <button class="nav-btn" type="button" data-page="dashboard"><span>▥</span>Самбар</button>
+      <button class="nav-btn" type="button" data-page="settings"><span>⚙</span>Тохиргоо</button>
+    </nav>
+  </main>
+
+  <div id="walkthroughLayer" class="walkthrough-layer hidden" aria-live="polite">
+    <div id="walkMaskTop" class="walk-mask"></div>
+    <div id="walkMaskRight" class="walk-mask"></div>
+    <div id="walkMaskBottom" class="walk-mask"></div>
+    <div id="walkMaskLeft" class="walk-mask"></div>
+    <div id="walkFocusRing" class="walk-focus-ring"></div>
+    <section id="walkthroughCard" class="walkthrough-card" role="dialog" aria-modal="true" aria-labelledby="walkthroughTitle">
+      <div class="walkthrough-progress">
+        <span id="walkthroughCounter">1 / 1</span>
+        <button id="walkthroughCloseBtn" class="walkthrough-skip" type="button">Алгасах</button>
+      </div>
+      <h3 id="walkthroughTitle">Тавтай морил</h3>
+      <p id="walkthroughText"></p>
+      <div class="walkthrough-actions">
+        <button id="walkthroughPrevBtn" class="btn btn-neutral" type="button">Өмнөх</button>
+        <div id="walkthroughDots" class="walkthrough-dots" aria-hidden="true"></div>
+        <button id="walkthroughNextBtn" class="btn btn-primary" type="button">Дараах</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="cameraModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Камер">
+    <div class="modal-card">
+      <div class="video-wrap"><video id="cameraVideo" autoplay playsinline muted></video></div>
+      <canvas id="cameraCanvas" class="hidden"></canvas>
+      <div class="modal-actions">
+        <button id="closeCameraBtn" class="btn btn-neutral" type="button">Болих</button>
+        <button id="captureBtn" class="btn btn-primary" type="button">Зураг авах</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingScreen" class="loading-screen hidden">
+    <div class="loading-card"><span class="spinner"></span><span id="loadingText">Уншиж байна...</span></div>
+  </div>
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+
+    // Apps Script Web App-аа deploy хийсний дараа /exec URL-ээ энд тавина.
+    const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiIgDu0EgSPJZSs1pmZvkhykJyDDXdPm8QZRURLaPdw0FhpS0QA14LowqoKPNQY4DN/exec';
+    const FACEBOOK_URL = 'https://www.facebook.com/DataLinxMN';
+    const OFFLINE_QUEUE_KEY = 'datalinxOfflineQueueV3';
+    const SESSION_KEY = 'datalinxSession';
+    const CACHE_KEY = 'datalinxLastPayloadV3';
+    const WALKTHROUGH_KEY_PREFIX = 'datalinxWalkthroughDoneV1';
+
+    const state = {
+      session: null,
+      serverProducts: [],
+      serverTransactions: [],
+      serverInventoryMoves: [],
+      products: [],
+      recentTransactions: [],
+      inventoryMoves: [],
+      customers: [],
+      warehouses: [],
+      locations: [],
+      visits: [],
+      users: [],
+      dashboard: null,
+      historyCursor: '',
+      hasMoreTransactions: false,
+      loaded: { inventory: false, distribution: false, dashboard: false, settings: false },
+      gps: { lat: null, lng: null },
+      photoData: '',
+      cameraStream: null,
+      syncing: false,
+      walkthrough: { active: false, index: 0, steps: [], target: null, scheduled: false }
+    };
+
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      bindAuthTabs();
+      bindNavigation();
+      bindForms();
+      bindCamera();
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', updateConnectivityUi);
+      window.addEventListener('resize', scheduleWalkthroughPosition, { passive: true });
+      window.addEventListener('scroll', scheduleWalkthroughPosition, { passive: true });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && state.walkthrough.active) finishWalkthrough(false);
+      });
+      updateConnectivityUi();
+      restoreSession();
+    }
+
+    function bindAuthTabs() {
+      $$('.auth-tab').forEach(btn => btn.addEventListener('click', () => {
+        $$('.auth-tab').forEach(x => x.classList.toggle('active', x === btn));
+        const login = btn.dataset.authTab === 'login';
+        $('#loginForm').classList.toggle('hidden', !login);
+        $('#registerForm').classList.toggle('hidden', login);
+      }));
+    }
+
+    function bindNavigation() {
+      $$('.nav-btn[data-page]').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
+      $('#refreshBtn').addEventListener('click', async () => {
+        try { await refreshData(true); }
+        catch (error) { toast(error.message, 'error'); }
+      });
+      $('#loadOlderBtn').addEventListener('click', loadOlderHistory);
+      $('#logoutBtn').addEventListener('click', logout);
+      $('#helpBtn').addEventListener('click', () => startWalkthrough(true));
+      $('#startWalkthroughBtn').addEventListener('click', () => startWalkthrough(true));
+      $('#walkthroughCloseBtn').addEventListener('click', () => finishWalkthrough(false));
+      $('#walkthroughPrevBtn').addEventListener('click', previousWalkthroughStep);
+      $('#walkthroughNextBtn').addEventListener('click', nextWalkthroughStep);
+    }
+
+    function bindForms() {
+      $('#loginForm').addEventListener('submit', handleLogin);
+      $('#registerForm').addEventListener('submit', handleRegister);
+      $('#saleForm').addEventListener('submit', handleSale);
+      $('#inventoryForm').addEventListener('submit', handleInventoryMove);
+      $('#visitForm').addEventListener('submit', handleVisit);
+      $('#userForm').addEventListener('submit', handleSaveUser);
+      $('#saleProduct').addEventListener('change', updateSaleProduct);
+      $('#saleQty').addEventListener('input', updateSaleSummary);
+      $('#salePrice').addEventListener('input', updateSaleSummary);
+      $('#invType').addEventListener('change', updateInventoryFields);
+      $('#gpsBtn').addEventListener('click', captureGps);
+      $('#removePhotoBtn').addEventListener('click', clearPhoto);
+    }
+
+    function bindCamera() {
+      $('#cameraBtn').addEventListener('click', openCamera);
+      $('#closeCameraBtn').addEventListener('click', closeCamera);
+      $('#captureBtn').addEventListener('click', capturePhoto);
+      $('#fallbackCameraInput').addEventListener('change', handleFallbackPhoto);
+      $('#cameraModal').addEventListener('click', event => {
+        if (event.target === $('#cameraModal')) closeCamera();
+      });
+    }
+
+    async function restoreSession() {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      try {
+        state.session = JSON.parse(raw);
+        if (!state.session?.token) return;
+        const cached = readCache();
+        if (!navigator.onLine && cached) {
+          applyPayload(cached, false);
+          state.loaded = cached.loaded || { inventory: Boolean(cached.inventoryMoves?.length), distribution: Boolean(cached.visits?.length), dashboard: Boolean(cached.dashboard), settings: Boolean(cached.users?.length) };
+          showApp();
+          toast('Сүлжээгүй тул хамгийн сүүлд хадгалсан мэдээллийг харуулж байна.', 'error');
+          return;
+        }
+        showLoading('Өмнөх нэвтрэлтийг сэргээж байна...');
+        await refreshData(false);
+        showApp();
+        syncOfflineQueue();
+      } catch (error) {
+        const cached = readCache();
+        if (cached && state.session) {
+          applyPayload(cached, false);
+          state.loaded = cached.loaded || { inventory: Boolean(cached.inventoryMoves?.length), distribution: Boolean(cached.visits?.length), dashboard: Boolean(cached.dashboard), settings: Boolean(cached.users?.length) };
+          showApp();
+          toast('Сервертэй холбогдсонгүй. Хадгалсан мэдээлэл нээгдлээ.', 'error');
+        } else {
+          localStorage.removeItem(SESSION_KEY);
+          state.session = null;
+        }
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function ensureUrl() {
+      if (!APP_SCRIPT_URL || APP_SCRIPT_URL.includes('PASTE_YOUR')) {
+        throw new Error('APP_SCRIPT_URL тохируулаагүй байна. HTML файлын JavaScript хэсэгт Apps Script /exec URL-ээ оруулна уу.');
+      }
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const btn = $('#loginBtn');
+      setButtonLoading(btn, true, 'Нэвтэрч байна...');
+      try {
+        if (!navigator.onLine) throw new Error('Анх нэвтрэхэд интернет холболт шаардлагатай.');
+        ensureUrl();
+        const url = new URL(APP_SCRIPT_URL);
+        url.searchParams.set('action', 'login');
+        url.searchParams.set('username', $('#loginUsername').value.trim());
+        url.searchParams.set('password', $('#loginPassword').value);
+        url.searchParams.set('_', String(Date.now()));
+        const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store', redirect: 'follow' });
+        const data = await parseResponse(response);
+        if (!data.success) throw new Error(data.message || 'Нэвтрэхэд алдаа гарлаа.');
+        if (data.companyStatus === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. DataLinx-тэй холбогдоно уу.');
+
+        state.session = {
+          token: data.token,
+          user: data.user,
+          company: data.company,
+          companyStatus: data.companyStatus,
+          expiresAt: data.expiresAt || ''
+        };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+        state.loaded = { inventory: false, distribution: false, dashboard: false, settings: false };
+        applyPayload(data, true);
+        showApp();
+        toast('Амжилттай нэвтэрлээ.', 'success');
+        syncOfflineQueue();
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function handleRegister(event) {
+      event.preventDefault();
+      const btn = $('#registerBtn');
+      setButtonLoading(btn, true, 'Бүртгэж байна...');
+      try {
+        if (!navigator.onLine) throw new Error('Компани бүртгэхэд интернет холболт шаардлагатай.');
+        ensureUrl();
+        const payload = {
+          action: 'registerCompany',
+          companyName: $('#regCompany').value.trim(),
+          phone: $('#regPhone').value.trim(),
+          email: $('#regEmail').value.trim(),
+          managerName: $('#regManagerName').value.trim(),
+          username: $('#regUsername').value.trim(),
+          password: $('#regPassword').value
+        };
+        const data = await postAction(payload, false);
+        if (!data.success) throw new Error(data.message || 'Бүртгэл үүсгэж чадсангүй.');
+        toast('Free эрх амжилттай нээгдлээ. Одоо нэвтэрнэ үү.', 'success');
+        $('#loginUsername').value = payload.username;
+        $('#loginPassword').value = payload.password;
+        $('.auth-tab[data-auth-tab="login"]').click();
+        $('#registerForm').reset();
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function showApp() {
+      $('#authScreen').classList.add('hidden');
+      $('#appScreen').classList.remove('hidden');
+      renderAll();
+      maybeStartWalkthrough();
+    }
+
+    function logout() {
+      finishWalkthrough(false, false);
+      closeCamera();
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(CACHE_KEY);
+      state.session = null;
+      state.serverProducts = [];
+      state.serverTransactions = [];
+      state.serverInventoryMoves = [];
+      $('#appScreen').classList.add('hidden');
+      $('#authScreen').classList.remove('hidden');
+      $('#loginPassword').value = '';
+      showPage('sales', false);
+    }
+
+    function getWalkthroughStorageKey() {
+      const company = state.session?.company?.name || state.session?.user?.company || 'company';
+      const username = state.session?.user?.username || 'user';
+      return `${WALKTHROUGH_KEY_PREFIX}:${company}:${username}`.toLowerCase();
+    }
+
+    function maybeStartWalkthrough() {
+      if (!state.session || state.walkthrough.active || state.walkthrough.scheduled) return;
+      if (localStorage.getItem(getWalkthroughStorageKey()) === '1') return;
+      state.walkthrough.scheduled = true;
+      window.setTimeout(() => {
+        state.walkthrough.scheduled = false;
+        if (state.session && !state.walkthrough.active) startWalkthrough(false);
+      }, 650);
+    }
+
+    function buildWalkthroughSteps() {
+      const steps = [
+        {
+          page: 'sales', selector: '#companyTitle', title: 'Тавтай морил',
+          text: 'Энэ бол зөвхөн танай компанийн тусдаа орчин. Дээд хэсгээс компанийн нэр, нэвтэрсэн хэрэглэгч болон Free/Premium эрхийн төлвийг харна.'
+        },
+        {
+          page: 'sales', selector: '#saleForm', title: 'Борлуулалт бүртгэх',
+          text: 'Бараа, тоо хэмжээ, үнэ, харилцагч болон төлбөрийн төрлийг сонгоод хадгална. Борлуулалт хадгалагдахад барааны үлдэгдэл автоматаар хасагдана.'
+        },
+        {
+          page: 'sales', selector: '#saleProduct', title: 'Бараа сонгох',
+          text: 'Бараагаа сонгоход нэгж үнэ болон боломжит үлдэгдэл автоматаар гарна. Нэгж үнийг тухайн борлуулалтад шаардлагатай бол засаж болно.'
+        },
+        {
+          page: 'sales', selector: '#recentSalesList', title: 'Гүйлгээний түүх',
+          text: 'Шинэ гүйлгээ энд шууд харагдана. Анхны ачаалал хурдан байлгахын тулд сүүлийн 60 хоногийг харуулж, илүү хуучин мэдээллийг “Хуучин түүх ачаалах” товчоор нээнэ.'
+        },
+        {
+          page: 'inventory', selector: '#productStockList', title: 'Агуулахын үлдэгдэл',
+          text: 'Бүх барааны одоогийн үлдэгдлийг эндээс хянана. Premium эрхтэй үед бага үлдэгдлийн хязгаар болон олон агуулахын боломж идэвхжинэ.'
+        },
+        {
+          page: 'inventory', selector: '#inventoryForm', title: 'Орлого, зарлага бүртгэх',
+          text: 'Бараа орлогод авах, зарлагадах эсвэл Premium эрхтэй үед агуулах хооронд шилжүүлэх хөдөлгөөнийг шалтгаантай нь бүртгэнэ.'
+        },
+        {
+          page: 'distribution', selector: '#visitForm', title: 'Түгээлтийн айлчлал',
+          text: 'Харилцагч дээр очсон айлчлалаа нэр, GPS байршил, зураг болон тэмдэглэлтэй хадгална. Камер нээгдэхгүй бол утасны үндсэн камер автоматаар ашиглагдана.'
+        },
+        {
+          page: 'dashboard', selector: '#dashboardPremiumWrap', title: 'Хяналтын самбар',
+          text: isPremium()
+            ? 'Энэ сарын борлуулалт, шилдэг бараа, борлуулагчдын гүйцэтгэл, зээлийн үлдэгдэл болон өмнөх сартай харьцуулалтыг эндээс харна.'
+            : 'Хяналтын самбар нь Premium боломж. Free эрхтэй үед хэсэг түгжээтэй харагдах бөгөөд Premium эрх идэвхжүүлсний дараа тайлангууд нээгдэнэ.'
+        },
+        {
+          page: 'settings', selector: '#subscriptionBanner', title: 'Эрхийн төлөв',
+          text: 'Тохиргоо хэсгээс компанийн Free/Premium/Inactive төлөв болон Premium эрхийн холбоо барих мэдээллийг харна.'
+        }
+      ];
+      if (isManager()) {
+        steps.push({
+          page: 'settings', selector: '#userForm', title: 'Хэрэглэгч удирдах',
+          text: 'Менежер шинэ борлуулагч эсвэл менежер нэмэх, мэдээллийг засах боломжтой. Free эрхийн хэрэглэгчийн хязгаарыг сервер талд автоматаар шалгана.'
+        });
+      }
+      steps.push({
+        page: 'settings', selector: '#walkthroughSettingsCard', title: 'Зааврыг дахин үзэх',
+        text: 'Энэ зааврыг хүссэн үедээ Тохиргоо хэсгийн товч эсвэл дээд талын “?” товчоор дахин эхлүүлж болно. Сүлжээ тасарсан үед борлуулалт, агуулахын бүртгэл төхөөрөмжид хадгалагдаж, интернет сэргэхэд автоматаар илгээгдэнэ.'
+      });
+      return steps;
+    }
+
+    async function startWalkthrough(force = false) {
+      if (!state.session) return;
+      if (state.walkthrough.active) return;
+      if (!force && localStorage.getItem(getWalkthroughStorageKey()) === '1') return;
+      state.walkthrough.steps = buildWalkthroughSteps();
+      state.walkthrough.index = 0;
+      state.walkthrough.active = true;
+      document.body.classList.add('walkthrough-open');
+      $('#walkthroughLayer').classList.remove('hidden');
+      await showWalkthroughStep();
+    }
+
+    async function showWalkthroughStep() {
+      if (!state.walkthrough.active) return;
+      const steps = state.walkthrough.steps;
+      const step = steps[state.walkthrough.index];
+      if (!step) return finishWalkthrough(true);
+
+      await showPage(step.page, true);
+      await waitForWalkthroughTarget(step.selector);
+      const target = getVisibleElement(step.selector);
+      if (!target) {
+        state.walkthrough.index += 1;
+        return showWalkthroughStep();
+      }
+
+      state.walkthrough.target = target;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      $('#walkthroughTitle').textContent = step.title;
+      $('#walkthroughText').textContent = step.text;
+      $('#walkthroughCounter').textContent = `${state.walkthrough.index + 1} / ${steps.length}`;
+      $('#walkthroughPrevBtn').disabled = state.walkthrough.index === 0;
+      $('#walkthroughNextBtn').textContent = state.walkthrough.index === steps.length - 1 ? 'Дуусгах' : 'Дараах';
+      renderWalkthroughDots();
+      window.setTimeout(positionWalkthrough, 260);
+      window.setTimeout(positionWalkthrough, 650);
+    }
+
+    function waitForWalkthroughTarget(selector, timeout = 1800) {
+      return new Promise(resolve => {
+        const started = Date.now();
+        const check = () => {
+          if (getVisibleElement(selector) || Date.now() - started >= timeout) return resolve();
+          window.setTimeout(check, 80);
+        };
+        check();
+      });
+    }
+
+    function getVisibleElement(selector) {
+      return $$(selector).find(element => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      }) || null;
+    }
+
+    function renderWalkthroughDots() {
+      $('#walkthroughDots').innerHTML = state.walkthrough.steps.map((_, index) =>
+        `<span class="walkthrough-dot ${index === state.walkthrough.index ? 'active' : ''}"></span>`
+      ).join('');
+    }
+
+    function scheduleWalkthroughPosition() {
+      if (!state.walkthrough.active || state.walkthrough.scheduled) return;
+      state.walkthrough.scheduled = true;
+      requestAnimationFrame(() => {
+        state.walkthrough.scheduled = false;
+        positionWalkthrough();
+      });
+    }
+
+    function positionWalkthrough() {
+      if (!state.walkthrough.active || !state.walkthrough.target) return;
+      const target = state.walkthrough.target;
+      if (!document.body.contains(target)) return;
+      const rect = target.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const pad = 8;
+      const left = Math.max(pad, rect.left - pad);
+      const top = Math.max(pad, rect.top - pad);
+      const right = Math.min(viewportW - pad, rect.right + pad);
+      const bottom = Math.min(viewportH - pad, rect.bottom + pad);
+      const width = Math.max(0, right - left);
+      const height = Math.max(0, bottom - top);
+
+      setRect($('#walkFocusRing'), left, top, width, height);
+      setRect($('#walkMaskTop'), 0, 0, viewportW, top);
+      setRect($('#walkMaskBottom'), 0, bottom, viewportW, Math.max(0, viewportH - bottom));
+      setRect($('#walkMaskLeft'), 0, top, left, height);
+      setRect($('#walkMaskRight'), right, top, Math.max(0, viewportW - right), height);
+
+      const card = $('#walkthroughCard');
+      const gap = 14;
+      const margin = 12;
+      const cardWidth = Math.min(390, viewportW - margin * 2);
+      card.style.width = `${cardWidth}px`;
+      card.style.left = `${Math.max(margin, Math.min(left, viewportW - cardWidth - margin))}px`;
+      card.style.top = '12px';
+      const cardHeight = card.offsetHeight;
+      const roomBelow = viewportH - bottom;
+      const roomAbove = top;
+      let cardTop;
+      if (roomBelow >= cardHeight + gap + margin) cardTop = bottom + gap;
+      else if (roomAbove >= cardHeight + gap + margin) cardTop = top - cardHeight - gap;
+      else cardTop = Math.max(margin, viewportH - cardHeight - margin);
+      card.style.top = `${Math.max(margin, cardTop)}px`;
+    }
+
+    function setRect(element, left, top, width, height) {
+      element.style.left = `${Math.round(left)}px`;
+      element.style.top = `${Math.round(top)}px`;
+      element.style.width = `${Math.max(0, Math.round(width))}px`;
+      element.style.height = `${Math.max(0, Math.round(height))}px`;
+    }
+
+    function nextWalkthroughStep() {
+      if (!state.walkthrough.active) return;
+      if (state.walkthrough.index >= state.walkthrough.steps.length - 1) return finishWalkthrough(true);
+      state.walkthrough.index += 1;
+      showWalkthroughStep();
+    }
+
+    function previousWalkthroughStep() {
+      if (!state.walkthrough.active || state.walkthrough.index === 0) return;
+      state.walkthrough.index -= 1;
+      showWalkthroughStep();
+    }
+
+    function finishWalkthrough(completed = false, remember = true) {
+      if (!state.walkthrough.active && !$('#walkthroughLayer')) return;
+      $('#walkthroughLayer')?.classList.add('hidden');
+      document.body.classList.remove('walkthrough-open');
+      state.walkthrough.active = false;
+      state.walkthrough.target = null;
+      state.walkthrough.index = 0;
+      state.walkthrough.steps = [];
+      if (remember && state.session) localStorage.setItem(getWalkthroughStorageKey(), '1');
+      if (completed) {
+        showPage('sales', false);
+        toast('Заавар дууслаа. Амжилттай ашиглаарай.', 'success');
+      }
+    }
+
+    async function refreshData(showToast = false) {
+      if (!state.session?.token) throw new Error('Нэвтрэх мэдээлэл хүчингүй байна.');
+      if (!navigator.onLine) throw new Error('Сүлжээгүй үед шинэчлэх боломжгүй. Офлайн бүртгэлүүд хадгалагдсан хэвээр байна.');
+      const btn = $('#refreshBtn');
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        ensureUrl();
+        const url = new URL(APP_SCRIPT_URL);
+        url.searchParams.set('action', 'bootstrap');
+        url.searchParams.set('token', state.session.token);
+        url.searchParams.set('_', String(Date.now()));
+        const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
+        const data = await parseResponse(response);
+        if (!data.success) {
+          if (String(data.message).toLowerCase().includes('session')) logout();
+          throw new Error(data.message || 'Өгөгдөл шинэчилж чадсангүй.');
+        }
+        state.session.user = data.user || state.session.user;
+        state.session.company = data.company || state.session.company;
+        state.session.companyStatus = data.companyStatus || state.session.companyStatus;
+        state.session.expiresAt = data.expiresAt || state.session.expiresAt;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+        applyPayload(data, true);
+        renderAll();
+        if (showToast) toast('Өгөгдөл шинэчлэгдлээ.', 'success');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '↻';
+      }
+    }
+
+    function applyPayload(data, resetModules = false) {
+      if (Array.isArray(data.products)) state.serverProducts = data.products;
+      if (Array.isArray(data.customers)) state.customers = data.customers;
+      if (Array.isArray(data.warehouses)) state.warehouses = data.warehouses;
+      if (Array.isArray(data.locations)) state.locations = data.locations;
+      if (Array.isArray(data.recentTransactions)) state.serverTransactions = data.recentTransactions;
+      if (Array.isArray(data.inventoryMoves)) state.serverInventoryMoves = data.inventoryMoves;
+      if (Array.isArray(data.visits)) state.visits = data.visits;
+      if (Array.isArray(data.users)) state.users = data.users;
+      if (data.dashboard) state.dashboard = data.dashboard;
+      if (Object.prototype.hasOwnProperty.call(data, 'historyCursor')) state.historyCursor = data.historyCursor || '';
+      if (Object.prototype.hasOwnProperty.call(data, 'hasMoreTransactions')) state.hasMoreTransactions = Boolean(data.hasMoreTransactions);
+      if (resetModules) {
+        state.serverInventoryMoves = [];
+        state.visits = [];
+        state.users = [];
+        state.dashboard = null;
+        state.loaded = { inventory: false, distribution: false, dashboard: false, settings: false };
+      }
+      rebuildOptimisticState();
+      saveCache();
+    }
+
+    function rebuildOptimisticState() {
+      state.products = state.serverProducts.map(item => ({ ...item }));
+      state.recentTransactions = state.serverTransactions.map(item => ({ ...item, syncStatus: 'synced' }));
+      state.inventoryMoves = state.serverInventoryMoves.map(item => ({ ...item, syncStatus: 'synced' }));
+
+      const queue = getQueue()
+        .filter(item => sameCompany(item.company, state.session?.company?.name || state.session?.user?.company))
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+      queue.forEach(item => {
+        const p = item.payload || {};
+        if (item.action === 'addSale') {
+          const product = state.products.find(x => x.name === p.product);
+          if (product) product.stock = numberValue(product.stock) - numberValue(p.quantity);
+          if (!state.recentTransactions.some(x => x.clientId === item.id)) {
+            state.recentTransactions.unshift({
+              date: item.createdAt,
+              rep: state.session?.user?.fullName || state.session?.user?.username || '',
+              product: p.product,
+              quantity: p.quantity,
+              unitPrice: p.unitPrice,
+              total: numberValue(p.quantity) * numberValue(p.unitPrice),
+              customer: p.customer,
+              paymentType: p.paymentType,
+              location: p.location,
+              clientId: item.id,
+              syncStatus: 'pending'
+            });
+          }
+        }
+        if (item.action === 'addInventoryMove') {
+          const product = state.products.find(x => x.name === p.product);
+          if (product && p.moveType === 'орлого') product.stock = numberValue(product.stock) + numberValue(p.quantity);
+          if (product && p.moveType === 'зарлага') product.stock = numberValue(product.stock) - numberValue(p.quantity);
+          if (!state.inventoryMoves.some(x => x.clientId === item.id)) {
+            state.inventoryMoves.unshift({
+              date: item.createdAt,
+              product: p.product,
+              moveType: p.moveType,
+              quantity: p.quantity,
+              reason: p.reason,
+              warehouse: p.warehouse,
+              fromWarehouse: p.fromWarehouse,
+              toWarehouse: p.toWarehouse,
+              clientId: item.id,
+              syncStatus: 'pending'
+            });
+          }
+        }
+      });
+    }
+
+    async function showPage(page, loadData = true) {
+      $$('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
+      $$('.nav-btn[data-page]').forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (loadData) loadPageData(page);
+    }
+
+    async function loadPageData(page) {
+      if (!state.session?.token || !navigator.onLine) return;
+      if (page === 'inventory' && !state.loaded.inventory) return loadModule('inventory');
+      if (page === 'distribution' && !state.loaded.distribution) return loadModule('distribution');
+      if (page === 'dashboard' && isPremium() && !state.loaded.dashboard) return loadModule('dashboard');
+      if (page === 'settings' && isManager() && !state.loaded.settings) return loadModule('settings');
+    }
+
+    async function loadModule(module) {
+      showLoading('Мэдээлэл ачаалж байна...');
+      try {
+        const url = new URL(APP_SCRIPT_URL);
+        url.searchParams.set('action', 'module');
+        url.searchParams.set('module', module);
+        url.searchParams.set('token', state.session.token);
+        url.searchParams.set('_', String(Date.now()));
+        const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
+        const data = await parseResponse(response);
+        if (!data.success) throw new Error(data.message || 'Мэдээлэл ачаалж чадсангүй.');
+        if (module === 'inventory') {
+          state.serverInventoryMoves = Array.isArray(data.inventoryMoves) ? data.inventoryMoves : [];
+          state.loaded.inventory = true;
+        }
+        if (module === 'distribution') {
+          state.visits = Array.isArray(data.visits) ? data.visits : [];
+          state.loaded.distribution = true;
+        }
+        if (module === 'dashboard') {
+          state.dashboard = data.dashboard || null;
+          state.loaded.dashboard = true;
+        }
+        if (module === 'settings') {
+          state.users = Array.isArray(data.users) ? data.users : [];
+          state.loaded.settings = true;
+        }
+        rebuildOptimisticState();
+        renderAll();
+        saveCache();
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function loadOlderHistory() {
+      if (!state.hasMoreTransactions || !state.historyCursor) return;
+      const btn = $('#loadOlderBtn');
+      setButtonLoading(btn, true, 'Ачаалж байна...');
+      try {
+        if (!navigator.onLine) throw new Error('Хуучин түүх ачаалахад интернет шаардлагатай.');
+        const url = new URL(APP_SCRIPT_URL);
+        url.searchParams.set('action', 'history');
+        url.searchParams.set('token', state.session.token);
+        url.searchParams.set('beforeRow', state.historyCursor);
+        url.searchParams.set('limit', '100');
+        url.searchParams.set('_', String(Date.now()));
+        const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
+        const data = await parseResponse(response);
+        if (!data.success) throw new Error(data.message || 'Түүх ачаалж чадсангүй.');
+        const existing = new Set(state.serverTransactions.map(x => x.rowNumber || x.clientId || `${x.date}|${x.product}|${x.total}`));
+        (data.transactions || []).forEach(tx => {
+          const key = tx.rowNumber || tx.clientId || `${tx.date}|${tx.product}|${tx.total}`;
+          if (!existing.has(key)) state.serverTransactions.push(tx);
+        });
+        state.serverTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        state.historyCursor = data.historyCursor || '';
+        state.hasMoreTransactions = Boolean(data.hasMoreTransactions);
+        rebuildOptimisticState();
+        renderSales();
+        saveCache();
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function isPremium() { return state.session?.companyStatus === 'Active'; }
+    function isManager() { return state.session?.user?.role === 'manager'; }
+
+    function renderAll() {
+      if (!state.session) return;
+      const company = state.session.company || {};
+      const user = state.session.user || {};
+      $('#companyTitle').textContent = company.name || user.company || 'Компани';
+      $('#userTitle').textContent = `${user.fullName || user.username || ''} · ${user.role === 'manager' ? 'Менежер' : 'Борлуулагч'}`;
+      const status = state.session.companyStatus;
+      const topStatus = $('#topStatus');
+      topStatus.textContent = status === 'Active' ? 'PREMIUM' : status === 'Inactive' ? 'ИДЭВХГҮЙ' : 'FREE';
+      topStatus.className = `status-pill ${status === 'Active' ? 'premium' : status === 'Inactive' ? 'inactive' : ''}`;
+      $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
+      renderSelects();
+      renderSales();
+      renderInventory();
+      renderVisits();
+      renderDashboard();
+      renderSettings();
+      applyTierUi();
+      updateConnectivityUi();
+    }
+
+    function renderSelects() {
+      fillSelect($('#saleProduct'), state.products, item => item.name, item => item.name, 'Бараа сонгох');
+      fillSelect($('#invProduct'), state.products, item => item.name, item => item.name, 'Бараа сонгох');
+      fillSelect($('#singleWarehouse'), state.warehouses, item => item.name, item => item.name, 'Үндсэн агуулах');
+      fillSelect($('#fromWarehouse'), state.warehouses, item => item.name, item => item.name, 'Гарах агуулах');
+      fillSelect($('#toWarehouse'), state.warehouses, item => item.name, item => item.name, 'Хүлээн авах агуулах');
+      fillSelect($('#saleLocation'), state.locations, item => item.name, item => item.name, 'Үндсэн байршил');
+      $('#customerList').innerHTML = state.customers.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+      updateSaleProduct();
+      updateInventoryFields();
+    }
+
+    function fillSelect(select, items, labelFn, valueFn, placeholder) {
+      const previous = select.value;
+      select.innerHTML = [`<option value="">${escapeHtml(placeholder)}</option>`]
+        .concat(items.map(item => `<option value="${escapeHtml(valueFn(item))}">${escapeHtml(labelFn(item))}</option>`)).join('');
+      if (items.some(item => String(valueFn(item)) === previous)) select.value = previous;
+      if (!select.value && items.length === 1) select.value = valueFn(items[0]);
+    }
+
+    function updateSaleProduct() {
+      const product = state.products.find(x => x.name === $('#saleProduct').value);
+      if (product) $('#salePrice').value = product.price || 0;
+      $('#saleStock').textContent = formatNumber(product?.stock || 0);
+      updateSaleSummary();
+    }
+
+    function updateSaleSummary() {
+      $('#saleTotal').textContent = money(numberValue($('#saleQty').value) * numberValue($('#salePrice').value));
+    }
+
+    async function handleSale(event) {
+      event.preventDefault();
+      const btn = $('#saleBtn');
+      setButtonLoading(btn, true, navigator.onLine ? 'Хадгалж байна...' : 'Офлайн хадгалж байна...');
+      try {
+        const product = state.products.find(x => x.name === $('#saleProduct').value);
+        const quantity = numberValue($('#saleQty').value);
+        const unitPrice = numberValue($('#salePrice').value);
+        if (!product) throw new Error('Бараа сонгоно уу.');
+        if (quantity <= 0) throw new Error('Тоо ширхэг 0-ээс их байна.');
+        if (quantity > numberValue(product.stock)) throw new Error('Агуулахын үлдэгдэл хүрэлцэхгүй байна.');
+        const payload = {
+          action: 'addSale',
+          product: product.name,
+          quantity,
+          unitPrice,
+          customer: $('#saleCustomer').value.trim(),
+          paymentType: $('#salePayment').value,
+          location: isPremium() ? $('#saleLocation').value : (state.locations[0]?.name || 'Үндсэн байршил'),
+          warehouse: state.warehouses[0]?.name || 'Үндсэн агуулах'
+        };
+        if (!payload.customer) throw new Error('Харилцагч оруулна уу.');
+        const item = enqueueAction('addSale', payload);
+        rebuildOptimisticState();
+        renderAll();
+        showSaleSuccess(payload, true);
+        $('#saleForm').reset();
+
+        if (!navigator.onLine) {
+          toast('Борлуулалт офлайн хадгалагдлаа. Сүлжээ ороход автоматаар илгээгдэнэ.', 'success');
+          return;
+        }
+        const result = await syncOfflineQueue(item.id);
+        if (result.status === 'rejected') throw new Error(result.message || 'Борлуулалтыг сервер хүлээж авсангүй.');
+        if (result.status === 'synced') {
+          showSaleSuccess(payload, false);
+          toast('Борлуулалт амжилттай хадгалагдлаа.', 'success');
+        } else {
+          toast('Сервертэй холбогдсонгүй. Борлуулалт sync хүлээж байна.', 'error');
+        }
+      } catch (error) {
+        $('#saleSuccess').classList.add('hidden');
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function showSaleSuccess(payload, pending) {
+      $('#saleSuccessBody').innerHTML = [
+        ['Төлөв', pending ? 'Sync хүлээж байна' : 'Серверт хадгалагдсан'],
+        ['Бараа', payload.product],
+        ['Тоо', formatNumber(payload.quantity)],
+        ['Нийт дүн', money(payload.quantity * payload.unitPrice)],
+        ['Харилцагч', payload.customer],
+        ['Төлбөр', payload.paymentType]
+      ].map(([a,b]) => `<div class="summary-row"><span>${escapeHtml(a)}</span><strong>${escapeHtml(String(b))}</strong></div>`).join('');
+      $('#saleSuccess').classList.remove('hidden');
+    }
+
+    function renderSales() {
+      const rows = state.recentTransactions.slice(0, 100);
+      $('#recentSalesList').innerHTML = rows.length ? rows.map(tx => `
+        <div class="list-item">
+          <div class="list-main">
+            <strong>${tx.syncStatus === 'pending' ? '<span class="pending-dot"></span>' : ''}${escapeHtml(tx.product || '')}</strong>
+            <small>${escapeHtml(tx.customer || '')} · ${escapeHtml(formatDate(tx.date))}${tx.syncStatus === 'pending' ? ' · <span class="sync-pending">Sync хүлээж байна</span>' : ''}</small>
+          </div>
+          <div class="amount">${money(tx.total)}</div>
+        </div>`).join('') : emptyHtml('Одоогоор борлуулалтын гүйлгээ алга.');
+      $('#loadOlderWrap').classList.toggle('hidden', !state.hasMoreTransactions);
+    }
+
+    function renderInventory() {
+      $('#productStockList').innerHTML = state.products.length ? state.products.map(product => {
+        const low = numberValue(product.threshold) > 0 && numberValue(product.stock) <= numberValue(product.threshold);
+        return `<div class="list-item">
+          <div class="list-main"><strong>${escapeHtml(product.name)}</strong><small>Нэгж үнэ: ${money(product.price)} · Доод хязгаар: ${formatNumber(product.threshold || 0)}</small></div>
+          <div class="amount ${low ? 'stock-low' : 'stock-ok'}">${formatNumber(product.stock)}</div>
+        </div>`;
+      }).join('') : emptyHtml('Барааны мэдээлэл алга.');
+
+      const moves = state.inventoryMoves.slice(0, 30);
+      $('#recentInventoryList').innerHTML = moves.length ? moves.map(move => `
+        <div class="list-item">
+          <div class="list-main">
+            <strong>${move.syncStatus === 'pending' ? '<span class="pending-dot"></span>' : ''}${escapeHtml(move.product || '')}</strong>
+            <small>${escapeHtml(move.moveType || '')} · ${escapeHtml(formatDate(move.date))}${move.reason ? ` · ${escapeHtml(move.reason)}` : ''}${move.syncStatus === 'pending' ? ' · <span class="sync-pending">Sync хүлээж байна</span>' : ''}</small>
+          </div>
+          <div class="amount">${formatNumber(move.quantity)}</div>
+        </div>`).join('') : emptyHtml(state.loaded.inventory ? 'Агуулахын хөдөлгөөн алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+    }
+
+    function updateInventoryFields() {
+      const transfer = $('#invType').value === 'шилжүүлэг';
+      $('#warehouseFields').classList.toggle('hidden', !transfer);
+      $('#singleWarehouseField').classList.toggle('hidden', transfer);
+      $('#fromWarehouse').required = transfer;
+      $('#toWarehouse').required = transfer;
+      $('#singleWarehouse').required = !transfer;
+    }
+
+    async function handleInventoryMove(event) {
+      event.preventDefault();
+      const btn = $('#inventoryBtn');
+      setButtonLoading(btn, true, navigator.onLine ? 'Хадгалж байна...' : 'Офлайн хадгалж байна...');
+      try {
+        const moveType = $('#invType').value;
+        const payload = {
+          action: 'addInventoryMove',
+          product: $('#invProduct').value,
+          moveType,
+          quantity: numberValue($('#invQty').value),
+          reason: $('#invReason').value.trim(),
+          warehouse: $('#singleWarehouse').value || state.warehouses[0]?.name || 'Үндсэн агуулах',
+          fromWarehouse: $('#fromWarehouse').value,
+          toWarehouse: $('#toWarehouse').value
+        };
+        if (!payload.product) throw new Error('Бараа сонгоно уу.');
+        if (payload.quantity <= 0) throw new Error('Тоо хэмжээ 0-ээс их байна.');
+        const product = state.products.find(x => x.name === payload.product);
+        if (moveType === 'зарлага' && product && payload.quantity > numberValue(product.stock)) throw new Error('Агуулахын үлдэгдэл хүрэлцэхгүй байна.');
+        if (moveType === 'шилжүүлэг' && payload.fromWarehouse === payload.toWarehouse) throw new Error('Хоёр өөр агуулах сонгоно уу.');
+
+        const item = enqueueAction('addInventoryMove', payload);
+        rebuildOptimisticState();
+        renderAll();
+        $('#inventoryForm').reset();
+        updateInventoryFields();
+
+        if (!navigator.onLine) {
+          toast('Агуулахын хөдөлгөөн офлайн хадгалагдлаа.', 'success');
+          return;
+        }
+        const result = await syncOfflineQueue(item.id);
+        if (result.status === 'rejected') throw new Error(result.message || 'Хөдөлгөөнийг сервер хүлээж авсангүй.');
+        if (result.status === 'synced') toast('Агуулахын хөдөлгөөн хадгалагдлаа.', 'success');
+        else toast('Сервертэй холбогдсонгүй. Хөдөлгөөн sync хүлээж байна.', 'error');
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function captureGps() {
+      const btn = $('#gpsBtn');
+      if (!navigator.geolocation) return toast('Энэ төхөөрөмж GPS дэмжихгүй байна.', 'error');
+      setButtonLoading(btn, true, 'Байршил авч байна...');
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          state.gps.lat = Number(pos.coords.latitude.toFixed(6));
+          state.gps.lng = Number(pos.coords.longitude.toFixed(6));
+          $('#latText').textContent = state.gps.lat;
+          $('#lngText').textContent = state.gps.lng;
+          setButtonLoading(btn, false);
+          toast('GPS байршил авлаа.', 'success');
+        },
+        error => {
+          setButtonLoading(btn, false);
+          toast(`GPS авах боломжгүй: ${error.message}`, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+
+    async function openCamera() {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia unavailable');
+        state.cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        $('#cameraVideo').srcObject = state.cameraStream;
+        $('#cameraModal').classList.remove('hidden');
+      } catch (error) {
+        $('#fallbackCameraInput').click();
+      }
+    }
+
+    function closeCamera() {
+      $('#cameraModal').classList.add('hidden');
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(track => track.stop());
+        state.cameraStream = null;
+      }
+      $('#cameraVideo').srcObject = null;
+    }
+
+    function capturePhoto() {
+      const video = $('#cameraVideo');
+      if (!video.videoWidth) return toast('Камер бэлэн болоогүй байна.', 'error');
+      const canvas = $('#cameraCanvas');
+      const scale = Math.min(1, 1280 / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      state.photoData = canvas.toDataURL('image/jpeg', .75);
+      showPhotoPreview();
+      closeCamera();
+    }
+
+    function handleFallbackPhoto(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => compressImage(String(e.target.result));
+      reader.readAsDataURL(file);
+    }
+
+    function compressImage(dataUrl) {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, 1280 / image.width);
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        state.photoData = canvas.toDataURL('image/jpeg', .75);
+        showPhotoPreview();
+      };
+      image.src = dataUrl;
+    }
+
+    function showPhotoPreview() {
+      $('#photoPreview').src = state.photoData;
+      $('#photoPreviewBox').classList.remove('hidden');
+    }
+
+    function clearPhoto() {
+      state.photoData = '';
+      $('#photoPreview').removeAttribute('src');
+      $('#photoPreviewBox').classList.add('hidden');
+      $('#fallbackCameraInput').value = '';
+    }
+
+    async function handleVisit(event) {
+      event.preventDefault();
+      const btn = $('#visitBtn');
+      setButtonLoading(btn, true, 'Хадгалж байна...');
+      try {
+        if (!navigator.onLine) throw new Error('Зурагтай түгээлтийн бүртгэлийг илгээхэд интернет шаардлагатай.');
+        const payload = {
+          action: 'addVisit',
+          customer: $('#visitCustomer').value.trim(),
+          latitude: state.gps.lat,
+          longitude: state.gps.lng,
+          photoData: state.photoData,
+          notes: $('#visitNotes').value.trim()
+        };
+        if (!payload.customer) throw new Error('Харилцагчийн нэр оруулна уу.');
+        const data = await postAction(payload);
+        if (!data.success) throw new Error(data.message || 'Айлчлал хадгалж чадсангүй.');
+        $('#visitForm').reset();
+        state.gps = { lat: null, lng: null };
+        $('#latText').textContent = '—';
+        $('#lngText').textContent = '—';
+        clearPhoto();
+        state.loaded.distribution = false;
+        loadModule('distribution');
+        toast('Түгээлтийн айлчлал хадгалагдлаа.', 'success');
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function renderVisits() {
+      const visits = state.visits.slice(0, isPremium() ? 30 : 10);
+      $('#visitList').innerHTML = visits.length ? visits.map(v => `
+        <div class="list-item">
+          <div class="list-main"><strong>${escapeHtml(v.customer || '')}</strong><small>${escapeHtml(v.rep || '')} · ${escapeHtml(formatDate(v.date))}</small></div>
+          ${v.latitude && v.longitude ? `<a class="btn btn-secondary" style="min-height:40px;padding:7px 10px;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(v.latitude)},${encodeURIComponent(v.longitude)}">Газрын зураг</a>` : '<span class="badge flat">GPSгүй</span>'}
+        </div>`).join('') : emptyHtml(state.loaded.distribution ? 'Айлчлалын бүртгэл алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+
+      const points = visits.filter(v => Number(v.latitude) && Number(v.longitude));
+      const map = $('#routeMap');
+      map.innerHTML = points.length ? points.slice(0, 12).map((v, index) => {
+        const left = 8 + ((index * 31) % 82);
+        const top = 12 + ((index * 47) % 70);
+        return `<div class="route-pin" style="left:${left}%;top:${top}%" title="${escapeHtml(v.customer)}"><span>${index + 1}</span></div>`;
+      }).join('') : '<div class="empty" style="margin:16px">GPS цэг бүртгэгдээгүй байна.</div>';
+
+      const route = points.slice().reverse().map(v => `${v.latitude},${v.longitude}`);
+      const origin = route.shift();
+      const destination = route.pop() || origin;
+      const waypoints = route.slice(0, 8).join('|');
+      $('#openRouteLink').href = origin ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ''}` : '#';
+      $('#openRouteLink').classList.toggle('hidden', !origin);
+    }
+
+    function renderDashboard() {
+      const dash = state.dashboard || { currentTotal: 0, previousTotal: 0, currentCount: 0, creditTotal: 0, byProduct: [], byRep: [], creditByCustomer: [] };
+      $('#dashTotalSales').textContent = money(dash.currentTotal);
+      $('#dashSaleCount').textContent = formatNumber(dash.currentCount || 0);
+      $('#dashCreditTotal').textContent = money(dash.creditTotal);
+      const mom = numberValue(dash.momPercent);
+      const badge = $('#dashMoMBadge');
+      badge.textContent = `${mom > 0 ? '+' : ''}${mom.toFixed(1)}%`;
+      badge.className = `badge ${mom > 0 ? 'up' : mom < 0 ? 'down' : 'flat'}`;
+      renderBars($('#productBars'), dash.byProduct || [], 'name', 'total');
+      renderBars($('#repBars'), dash.byRep || [], 'name', 'total');
+      renderAmountList($('#salesByProductList'), dash.byProduct || [], 'Барааны борлуулалт алга.');
+      renderAmountList($('#creditList'), dash.creditByCustomer || [], 'Зээлийн үлдэгдэл алга.');
+    }
+
+    function renderBars(container, rows, labelKey, valueKey) {
+      if (!rows.length) { container.innerHTML = emptyHtml('Харуулах мэдээлэл алга.'); return; }
+      const max = Math.max(...rows.map(x => numberValue(x[valueKey])), 1);
+      container.innerHTML = rows.slice(0, 8).map(row => `
+        <div class="bar-row">
+          <div class="bar-label"><span>${escapeHtml(row[labelKey] || '')}</span><strong>${money(row[valueKey])}</strong></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, numberValue(row[valueKey]) / max * 100)}%"></div></div>
+        </div>`).join('');
+    }
+
+    function renderAmountList(container, rows, emptyText) {
+      container.innerHTML = rows.length ? rows.slice(0, 10).map(row => `
+        <div class="list-item"><div class="list-main"><strong>${escapeHtml(row.name || '')}</strong><small>${row.quantity ? `Тоо: ${formatNumber(row.quantity)}` : ''}</small></div><div class="amount">${money(row.total)}</div></div>
+      `).join('') : emptyHtml(emptyText);
+    }
+
+    function applyTierUi() {
+      const premium = isPremium();
+      $('#saleLocationField').classList.toggle('hidden', !premium);
+      $('#transferOption').classList.toggle('hidden', !premium);
+      if (!premium && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
+      updateInventoryFields();
+      $('#dashboardPremiumWrap').classList.toggle('locked', !premium);
+      $('#dashboardLock').classList.toggle('hidden', premium);
+      $('#routeCard').classList.toggle('hidden', !premium);
+    }
+
+    function renderSettings() {
+      const status = state.session.companyStatus;
+      const banner = $('#subscriptionBanner');
+      banner.classList.toggle('inactive', status === 'Inactive');
+      if (status === 'Active') {
+        $('#subscriptionTitle').textContent = 'Premium эрх идэвхтэй';
+        $('#subscriptionText').textContent = state.session.expiresAt ? `Эрх дуусах огноо: ${formatDate(state.session.expiresAt)}` : 'Олон салбар, олон агуулах, маршрут, хяналтын самбар нээлттэй.';
+      } else if (status === 'Inactive') {
+        $('#subscriptionTitle').textContent = 'Эрх идэвхгүй';
+        $('#subscriptionText').textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
+      } else {
+        $('#subscriptionTitle').textContent = 'Free эрх';
+        $('#subscriptionText').textContent = 'Нэг үндсэн байршил, үндсэн агуулах, 5 хүртэл борлуулагч. Хяналтын самбар болон олон байршлын функц түгжээтэй.';
+      }
+      const user = state.session.user;
+      $('#profileInfo').innerHTML = [
+        ['Нэр', user.fullName || ''],
+        ['Username', user.username || ''],
+        ['Роль', user.role === 'manager' ? 'Менежер' : 'Борлуулагч'],
+        ['Компани', user.company || ''],
+        ['Sync хүлээж буй', String(pendingQueueCount())]
+      ].map(([label, value]) => `<div class="list-item"><div class="list-main"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div></div>`).join('');
+      renderUserTable();
+    }
+
+    function renderUserTable() {
+      const wrap = $('#userTableWrap');
+      if (!isManager()) { wrap.innerHTML = ''; return; }
+      if (!state.loaded.settings) { wrap.innerHTML = emptyHtml('Тохиргооны хэсгийг нээхэд хэрэглэгчид ачаална.'); return; }
+      if (!state.users.length) { wrap.innerHTML = emptyHtml('Хэрэглэгчийн мэдээлэл алга.'); return; }
+      wrap.innerHTML = `<table><thead><tr><th>Нэр</th><th>Username</th><th>Роль</th><th>Үйлдэл</th></tr></thead><tbody>${state.users.map(user => `
+        <tr>
+          <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${user.role === 'manager' ? 'Менежер' : 'Борлуулагч'}</td>
+          <td><button class="btn btn-secondary" style="min-height:40px;padding:7px 10px" type="button" onclick='editUser(${JSON.stringify(user).replace(/'/g, "&#39;")})'>Засах</button>
+          ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Устгах</button>` : ''}</td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+
+    window.editUser = function(user) {
+      $('#userFullName').value = user.fullName || '';
+      $('#userUsername').value = user.username || '';
+      $('#userUsername').dataset.original = user.username || '';
+      $('#userPassword').value = '';
+      $('#userRole').value = user.role || 'rep';
+      $('#userFullName').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    async function handleSaveUser(event) {
+      event.preventDefault();
+      const btn = $('#saveUserBtn');
+      setButtonLoading(btn, true, 'Хадгалж байна...');
+      try {
+        if (!navigator.onLine) throw new Error('Хэрэглэгч удирдахад интернет шаардлагатай.');
+        const payload = {
+          action: 'saveUser',
+          originalUsername: $('#userUsername').dataset.original || '',
+          username: $('#userUsername').value.trim(),
+          password: $('#userPassword').value,
+          fullName: $('#userFullName').value.trim(),
+          role: $('#userRole').value
+        };
+        const data = await postAction(payload);
+        if (!data.success) throw new Error(data.message || 'Хэрэглэгч хадгалж чадсангүй.');
+        $('#userForm').reset();
+        delete $('#userUsername').dataset.original;
+        state.loaded.settings = false;
+        await loadModule('settings');
+        toast('Хэрэглэгч хадгалагдлаа.', 'success');
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    window.deleteUser = async function(username) {
+      if (!confirm(`${username} хэрэглэгчийг устгах уу?`)) return;
+      try {
+        if (!navigator.onLine) throw new Error('Хэрэглэгч устгахад интернет шаардлагатай.');
+        const data = await postAction({ action: 'deleteUser', username });
+        if (!data.success) throw new Error(data.message || 'Устгаж чадсангүй.');
+        state.loaded.settings = false;
+        await loadModule('settings');
+        toast('Хэрэглэгч устгагдлаа.', 'success');
+      } catch (error) {
+        toast(error.message, 'error');
+      }
+    };
+
+    function enqueueAction(action, payload) {
+      const item = {
+        id: createClientId(),
+        action,
+        company: state.session?.company?.name || state.session?.user?.company || '',
+        createdAt: new Date().toISOString(),
+        payload: { ...payload }
+      };
+      item.payload.clientId = item.id;
+      const queue = getQueue();
+      queue.push(item);
+      saveQueue(queue);
+      updateConnectivityUi();
+      return item;
+    }
+
+    async function syncOfflineQueue(targetId = '') {
+      if (state.syncing || !navigator.onLine || !state.session?.token) {
+        if (state.syncing && navigator.onLine) setTimeout(() => syncOfflineQueue(), 300);
+        return { status: 'queued' };
+      }
+      state.syncing = true;
+      let targetResult = { status: targetId ? 'queued' : 'done' };
+      try {
+        const currentCompany = state.session?.company?.name || state.session?.user?.company || '';
+        const items = getQueue().filter(item => sameCompany(item.company, currentCompany));
+        for (const item of items) {
+          if (targetId && item.id !== targetId) continue;
+          try {
+            const data = await postAction(item.payload);
+            if (!data.success) {
+              removeQueueItem(item.id);
+              if (item.id === targetId) targetResult = { status: 'rejected', message: data.message || 'Сервер хүсэлтийг хүлээж авсангүй.' };
+              else toast(`${item.action === 'addSale' ? 'Борлуулалт' : 'Агуулахын хөдөлгөөн'} буцаагдлаа: ${data.message || ''}`, 'error');
+              continue;
+            }
+            commitQueueItem(item, data);
+            removeQueueItem(item.id);
+            if (item.id === targetId) targetResult = { status: 'synced', data };
+          } catch (error) {
+            updateConnectivityUi();
+            if (String(error.message).toLowerCase().includes('session')) toast('Session хугацаа дууссан. Офлайн мэдээлэл устахгүй; дахин нэвтэрсний дараа sync хийнэ.', 'error');
+            if (item.id === targetId) targetResult = { status: 'queued', message: error.message };
+            break;
+          }
+        }
+      } finally {
+        state.syncing = false;
+        rebuildOptimisticState();
+        renderAll();
+        saveCache();
+        updateConnectivityUi();
+      }
+      return targetResult;
+    }
+
+    function commitQueueItem(item, data) {
+      const p = item.payload;
+      if (item.action === 'addSale') {
+        const product = state.serverProducts.find(x => x.name === p.product);
+        if (product) product.stock = Number.isFinite(Number(data.remainingStock)) ? Number(data.remainingStock) : numberValue(product.stock) - numberValue(p.quantity);
+        if (!state.serverTransactions.some(tx => tx.clientId === item.id)) {
+          state.serverTransactions.unshift({
+            date: data.date || item.createdAt,
+            rep: state.session?.user?.fullName || state.session?.user?.username || '',
+            product: p.product,
+            quantity: p.quantity,
+            unitPrice: p.unitPrice,
+            total: numberValue(p.quantity) * numberValue(p.unitPrice),
+            customer: p.customer,
+            paymentType: p.paymentType,
+            location: p.location,
+            clientId: item.id
+          });
+        }
+      }
+      if (item.action === 'addInventoryMove') {
+        const product = state.serverProducts.find(x => x.name === p.product);
+        if (product && Number.isFinite(Number(data.stock))) product.stock = Number(data.stock);
+        if (!state.serverInventoryMoves.some(move => move.clientId === item.id)) {
+          state.serverInventoryMoves.unshift({
+            date: data.date || item.createdAt,
+            product: p.product,
+            moveType: p.moveType,
+            quantity: p.quantity,
+            reason: p.reason,
+            warehouse: p.warehouse,
+            fromWarehouse: p.fromWarehouse,
+            toWarehouse: p.toWarehouse,
+            clientId: item.id
+          });
+        }
+      }
+    }
+
+    function getQueue() {
+      try {
+        const data = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+        return Array.isArray(data) ? data : [];
+      } catch (error) { return []; }
+    }
+    function saveQueue(queue) { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue)); }
+    function removeQueueItem(id) { saveQueue(getQueue().filter(item => item.id !== id)); }
+    function pendingQueueCount() {
+      const company = state.session?.company?.name || state.session?.user?.company || '';
+      return getQueue().filter(item => sameCompany(item.company, company)).length;
+    }
+    function createClientId() {
+      return `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+    function sameCompany(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
+
+    function handleOnline() {
+      updateConnectivityUi();
+      toast('Интернет холболт сэргэж, хадгалсан мэдээллийг sync хийж байна.', 'success');
+      syncOfflineQueue();
+    }
+
+    function updateConnectivityUi() {
+      const offline = !navigator.onLine;
+      document.body.classList.toggle('is-offline', offline);
+      const pending = pendingQueueCount();
+      const banner = $('#offlineBanner');
+      banner.classList.toggle('hidden', !offline);
+      banner.textContent = `Сүлжээгүй горим${pending ? ` · ${pending} бүртгэл sync хүлээж байна` : ''} · холболт сэргэхэд автоматаар илгээгдэнэ.`;
+    }
+
+    async function postAction(payload, includeSession = true) {
+      ensureUrl();
+      const body = { ...payload };
+      if (includeSession) body.token = state.session?.token || '';
+      const response = await fetch(APP_SCRIPT_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(body)
+      });
+      return parseResponse(response);
+    }
+
+    async function parseResponse(response) {
+      const text = await response.text();
+      try { return JSON.parse(text); }
+      catch (error) { throw new Error(`Серверийн хариу JSON биш байна. Deploy тохиргоо болон URL-ээ шалгана уу. (${text.slice(0, 90)})`); }
+    }
+
+    function saveCache() {
+      if (!state.session) return;
+      const payload = {
+        user: state.session.user,
+        company: state.session.company,
+        companyStatus: state.session.companyStatus,
+        expiresAt: state.session.expiresAt,
+        products: state.serverProducts,
+        customers: state.customers,
+        warehouses: state.warehouses,
+        locations: state.locations,
+        recentTransactions: state.serverTransactions,
+        inventoryMoves: state.serverInventoryMoves,
+        visits: state.visits,
+        users: state.users,
+        dashboard: state.dashboard,
+        historyCursor: state.historyCursor,
+        hasMoreTransactions: state.hasMoreTransactions,
+        loaded: state.loaded
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    }
+
+    function readCache() {
+      try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
+      catch (error) { return null; }
+    }
+
+    function setButtonLoading(button, loading, text = '') {
+      if (loading) {
+        if (!button.dataset.oldText) button.dataset.oldText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner"></span><span>${escapeHtml(text)}</span>`;
+      } else {
+        button.disabled = false;
+        button.innerHTML = button.dataset.oldText || button.innerHTML;
+        delete button.dataset.oldText;
+      }
+    }
+
+    function showLoading(text) {
+      $('#loadingText').textContent = text || 'Уншиж байна...';
+      $('#loadingScreen').classList.remove('hidden');
+    }
+    function hideLoading() { $('#loadingScreen').classList.add('hidden'); }
+
+    function toast(message, type = '') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.textContent = message;
+      $('#toastStack').appendChild(el);
+      setTimeout(() => el.remove(), 3600);
+    }
+
+    function emptyHtml(text) { return `<div class="empty">${escapeHtml(text)}</div>`; }
+    function numberValue(value) { const n = Number(value); return Number.isFinite(n) ? n : 0; }
+    function formatNumber(value) { return new Intl.NumberFormat('mn-MN', { maximumFractionDigits: 2 }).format(numberValue(value)); }
+    function money(value) { return `${new Intl.NumberFormat('mn-MN', { maximumFractionDigits: 0 }).format(numberValue(value))}₮`; }
+    function formatDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat('mn-MN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date);
+    }
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])); }
+    function escapeJs(value) { return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' '); }
+  </script>
+
+  <!--
+  ============================================================================
+  GOOGLE APPS SCRIPT CODE.GS — TWO-TIER MULTI-TENANT ARCHITECTURE
+
+  MASTER REGISTRY spreadsheet (this Apps Script must be bound to it):
+    Компани: Компани нэр | Spreadsheet ID | Төлөв | Идэвхжүүлсэн огноо |
+             Хугацаа(сар) | Утас | Имэйл
+    Хэрэглэгч: Username | Password | Бүтэн нэр | Роль (manager/rep) | Компани нэр
+
+  Every registered company receives a separate private spreadsheet owned by
+  the Apps Script execution account. Business owners use custom credentials,
+  not Google accounts. If an owner asks to view/export their spreadsheet,
+  DataLinx must manually share that specific spreadsheet with their email.
+  This is intentionally a MANUAL ADMIN STEP; the code does not auto-share files.
+
+  Deploy: Deploy > New deployment > Web app
+  Execute as: Me
+  Who has access: Anyone
+  ============================================================================
+
+  START APPS SCRIPT
+
+const MASTER_SHEETS = {
+  COMPANIES: 'Компани',
+  USERS: 'Хэрэглэгч'
+};
+
+const COMPANY_SHEETS = {
+  PRODUCTS: 'Бараа',
+  SALES: 'Гүйлгээ',
+  INVENTORY_MOVES: 'Агуулахын хөдөлгөөн',
+  NORMS: 'Норм',
+  VISITS: 'Түгээлт',
+  WAREHOUSES: 'Агуулах',
+  WAREHOUSE_STOCK: 'Агуулахын үлдэгдэл',
+  LOCATIONS: 'Байршил',
+  CUSTOMERS: 'Харилцагч'
+};
+
+const FREE_REP_LIMIT = 5;
+const LOGIN_ATTEMPT_LIMIT = 10;
+const LOGIN_WINDOW_SECONDS = 60;
+const SESSION_SECONDS = 21600;
+const INITIAL_HISTORY_DAYS = 60;
+const INITIAL_HISTORY_LIMIT = 100;
+const UPGRADE_URL = 'https://www.facebook.com/DataLinxMN';
+
+function doGet(e) {
+  try {
+    ensureMasterSheets_();
+    const action = clean_(e && e.parameter && e.parameter.action);
+    if (action === 'login') return json_(handleLogin_(e.parameter || {}));
+    if (action === 'bootstrap') {
+      const auth = requireSession_(clean_(e.parameter.token));
+      return json_(buildInitialPayload_(auth));
+    }
+    if (action === 'module') {
+      const auth = requireSession_(clean_(e.parameter.token));
+      return json_(loadModule_(auth, clean_(e.parameter.module)));
+    }
+    if (action === 'history') {
+      const auth = requireSession_(clean_(e.parameter.token));
+      return json_(loadOlderHistory_(auth, e.parameter || {}));
+    }
+    return json_({ success: false, message: 'Тодорхойгүй GET action.' });
+  } catch (error) {
+    return json_({ success: false, message: error.message || String(error) });
+  }
+}
+
+function doPost(e) {
+  try {
+    ensureMasterSheets_();
+    const payload = parseBody_(e);
+    const action = clean_(payload.action);
+    if (action === 'registerCompany') return json_(handleRegisterCompany_(payload));
+
+    const auth = requireSession_(clean_(payload.token));
+    if (action === 'addSale') return json_(handleAddSale_(auth, payload));
+    if (action === 'addInventoryMove') return json_(handleAddInventoryMove_(auth, payload));
+    if (action === 'addVisit') return json_(handleAddVisit_(auth, payload));
+    if (action === 'saveUser') return json_(handleSaveUser_(auth, payload));
+    if (action === 'deleteUser') return json_(handleDeleteUser_(auth, payload));
+    return json_({ success: false, message: 'Тодорхойгүй POST action.' });
+  } catch (error) {
+    return json_({ success: false, message: error.message || String(error) });
+  }
+}
+
+function handleLogin_(params) {
+  const username = clean_(params.username);
+  const password = String(params.password || '');
+  if (!username || !password) throw new Error('Username болон нууц үг шаардлагатай.');
+
+  const cache = CacheService.getScriptCache();
+  const rateKey = 'login:' + username.toLowerCase();
+  const failed = Number(cache.get(rateKey) || 0);
+  if (failed >= LOGIN_ATTEMPT_LIMIT) {
+    throw new Error('Нэг минутанд 10-аас олон буруу оролдлого хийсэн тул түр хаагдлаа. 1 минутын дараа дахин оролдоно уу.');
+  }
+
+  const master = masterSs_();
+  const users = values_(master.getSheetByName(MASTER_SHEETS.USERS));
+  const userRow = findRowByValue_(users, 0, username);
+  if (!userRow || !passwordMatches_(password, userRow.values[1])) {
+    cache.put(rateKey, String(failed + 1), LOGIN_WINDOW_SECONDS);
+    throw new Error('Username эсвэл нууц үг буруу байна.');
+  }
+
+  cache.remove(rateKey);
+  const companyName = clean_(userRow.values[4]);
+  const company = getCompany_(companyName);
+  if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
+  if (!company.spreadsheetId) throw new Error('Компанийн Spreadsheet ID бүртгэгдээгүй байна.');
+  if (company.status === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. ' + UPGRADE_URL);
+
+  const companySs = openCompanySs_(company);
+  ensureCompanySheets_(companySs);
+
+  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+  const auth = {
+    username: clean_(userRow.values[0]),
+    fullName: clean_(userRow.values[2]),
+    role: normalizeRole_(userRow.values[3]),
+    company: companyName,
+    issuedAt: new Date().toISOString()
+  };
+  cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
+
+  const result = buildInitialPayload_(auth);
+  result.token = token;
+  return result;
+}
+
+function buildInitialPayload_(auth) {
+  const company = requireActiveCompany_(auth.company);
+  const companySs = openCompanySs_(company);
+  ensureCompanySheets_(companySs);
+  const recent = getRecentTransactions_(companySs, INITIAL_HISTORY_DAYS, INITIAL_HISTORY_LIMIT);
+  return {
+    success: true,
+    user: { username: auth.username, fullName: auth.fullName, role: auth.role, company: auth.company },
+    company: { name: company.name, phone: company.phone, email: company.email },
+    companyStatus: company.status,
+    expiresAt: company.expiresAt ? company.expiresAt.toISOString() : '',
+    products: getProducts_(companySs),
+    customers: getCustomers_(companySs),
+    warehouses: getWarehouses_(companySs),
+    locations: getLocations_(companySs),
+    recentTransactions: recent.items,
+    historyCursor: recent.historyCursor,
+    hasMoreTransactions: recent.hasMore
+  };
+}
+
+function loadModule_(auth, moduleName) {
+  const company = requireActiveCompany_(auth.company);
+  const companySs = openCompanySs_(company);
+  ensureCompanySheets_(companySs);
+  if (moduleName === 'inventory') {
+    return { success: true, inventoryMoves: getRecentInventoryMoves_(companySs, 100) };
+  }
+  if (moduleName === 'distribution') {
+    return { success: true, visits: getVisits_(companySs, auth, company.status, 50) };
+  }
+  if (moduleName === 'dashboard') {
+    return { success: true, dashboard: company.status === 'Active' ? buildDashboard_(companySs) : lockedDashboard_() };
+  }
+  if (moduleName === 'settings') {
+    return { success: true, users: auth.role === 'manager' ? getUsers_(auth.company) : [] };
+  }
+  throw new Error('Тодорхойгүй module.');
+}
+
+function loadOlderHistory_(auth, params) {
+  const company = requireActiveCompany_(auth.company);
+  const companySs = openCompanySs_(company);
+  const sheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
+  const lastRow = sheet.getLastRow();
+  const requestedBefore = Math.floor(Number(params.beforeRow || lastRow + 1));
+  const beforeRow = Math.min(Math.max(requestedBefore, 2), lastRow + 1);
+  const limit = Math.min(Math.max(Math.floor(Number(params.limit || 100)), 1), 250);
+  const startRow = Math.max(2, beforeRow - limit);
+  const count = Math.max(0, beforeRow - startRow);
+  const items = count ? sheet.getRange(startRow, 1, count, 10).getValues().map(function(row, index) {
+    return mapSaleRow_(row, startRow + index);
+  }).reverse() : [];
+  return {
+    success: true,
+    transactions: items,
+    historyCursor: startRow,
+    hasMoreTransactions: startRow > 2
+  };
+}
+
+function handleRegisterCompany_(p) {
+  const companyName = clean_(p.companyName);
+  const phone = clean_(p.phone);
+  const email = clean_(p.email);
+  const managerName = clean_(p.managerName);
+  const username = clean_(p.username);
+  const password = String(p.password || '');
+  if (!companyName || !phone || !managerName || !username || !password) throw new Error('Компанийн нэр, утас, менежерийн нэр, username, нууц үг шаардлагатай.');
+  if (password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
+  validateUsername_(username);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const master = masterSs_();
+    const companySheet = master.getSheetByName(MASTER_SHEETS.COMPANIES);
+    const userSheet = master.getSheetByName(MASTER_SHEETS.USERS);
+    if (findRowByValue_(values_(companySheet), 0, companyName)) throw new Error('Ийм нэртэй компани бүртгэлтэй байна.');
+    if (findRowByValue_(values_(userSheet), 0, username)) throw new Error('Энэ username ашиглагдаж байна.');
+
+    const newSs = SpreadsheetApp.create(companyName + ' - DataLinx');
+    setupNewCompanySpreadsheet_(newSs);
+    const newSheetId = newSs.getId();
+
+    // Ownership note: newSs is owned by the Apps Script execution account.
+    // Sharing with a business owner's Google email is a manual DataLinx admin step.
+    companySheet.appendRow([companyName, newSheetId, 'Active', new Date(), 0, phone, email]);
+    userSheet.appendRow([username, sha256_(password), managerName, 'manager', companyName]);
+    return { success: true, message: 'Free эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleAddSale_(auth, p) {
+  const company = requireActiveCompany_(auth.company);
+  const companySs = openCompanySs_(company);
+  const productName = clean_(p.product);
+  const quantity = positiveNumber_(p.quantity, 'Тоо ширхэг');
+  const unitPrice = nonNegativeNumber_(p.unitPrice, 'Нэгж үнэ');
+  const customer = clean_(p.customer);
+  const paymentType = clean_(p.paymentType) === 'Зээл' ? 'Зээл' : 'Бэлэн';
+  const clientId = clean_(p.clientId);
+  const location = company.status === 'Active' ? (clean_(p.location) || firstLocation_(companySs)) : firstLocation_(companySs);
+  const warehouse = company.status === 'Active' ? (clean_(p.warehouse) || firstWarehouse_(companySs)) : firstWarehouse_(companySs);
+  if (!productName || !customer) throw new Error('Бараа болон харилцагч шаардлагатай.');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
+    const productRows = values_(productSheet);
+    const product = findProductRow_(productRows, productName);
+    if (!product) throw new Error('Бараа олдсонгүй.');
+
+    const salesSheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
+    const existing = clientId ? findClientId_(salesSheet, 10, clientId) : null;
+    if (existing) {
+      return { success: true, duplicate: true, date: iso_(existing.values[0]), total: Number(existing.values[5] || 0), remainingStock: Number(product.values[2] || 0) };
+    }
+
+    const stock = Number(product.values[2] || 0);
+    if (stock < quantity) throw new Error('Агуулахын үлдэгдэл хүрэлцэхгүй байна. Одоогийн үлдэгдэл: ' + stock);
+    adjustWarehouseStock_(companySs, warehouse, productName, -quantity, true, stock);
+    productSheet.getRange(product.rowNumber, 3).setValue(stock - quantity);
+
+    const date = new Date();
+    const total = quantity * unitPrice;
+    salesSheet.appendRow([date, auth.fullName || auth.username, productName, quantity, unitPrice, total, customer, paymentType, location, clientId]);
+    upsertCustomer_(companySs, customer);
+    return { success: true, date: date.toISOString(), total: total, remainingStock: stock - quantity };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleAddInventoryMove_(auth, p) {
+  if (auth.role !== 'manager') throw new Error('Агуулахын хөдөлгөөн хийх эрх зөвхөн менежерт байна.');
+  const company = requireActiveCompany_(auth.company);
+  const companySs = openCompanySs_(company);
+  const productName = clean_(p.product);
+  const moveType = clean_(p.moveType).toLowerCase();
+  const quantity = positiveNumber_(p.quantity, 'Тоо хэмжээ');
+  const reason = clean_(p.reason);
+  const clientId = clean_(p.clientId);
+  if (!productName) throw new Error('Бараа сонгоно уу.');
+  if (['орлого', 'зарлага', 'шилжүүлэг'].indexOf(moveType) === -1) throw new Error('Хөдөлгөөний төрөл буруу байна.');
+  if (moveType === 'шилжүүлэг' && company.status !== 'Active') throw new Error('Агуулах хооронд шилжүүлэг нь Premium функц. ' + UPGRADE_URL);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const moveSheet = companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES);
+    const existing = clientId ? findClientId_(moveSheet, 9, clientId) : null;
+    const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
+    const product = findProductRow_(values_(productSheet), productName);
+    if (!product) throw new Error('Бараа олдсонгүй.');
+    if (existing) return { success: true, duplicate: true, date: iso_(existing.values[0]), stock: Number(product.values[2] || 0) };
+
+    const current = Number(product.values[2] || 0);
+    let newTotal = current;
+    let fromWarehouse = '';
+    let toWarehouse = '';
+    let warehouse = company.status === 'Active' ? (clean_(p.warehouse) || firstWarehouse_(companySs)) : firstWarehouse_(companySs);
+
+    if (moveType === 'орлого') {
+      newTotal = current + quantity;
+      adjustWarehouseStock_(companySs, warehouse, productName, quantity, false, current);
+    } else if (moveType === 'зарлага') {
+      if (current < quantity) throw new Error('Нийт үлдэгдэл хүрэлцэхгүй байна.');
+      newTotal = current - quantity;
+      adjustWarehouseStock_(companySs, warehouse, productName, -quantity, true, current);
+    } else {
+      fromWarehouse = clean_(p.fromWarehouse);
+      toWarehouse = clean_(p.toWarehouse);
+      if (!fromWarehouse || !toWarehouse || fromWarehouse === toWarehouse) throw new Error('Хоёр өөр агуулах сонгоно уу.');
+      adjustWarehouseStock_(companySs, fromWarehouse, productName, -quantity, true, current);
+      adjustWarehouseStock_(companySs, toWarehouse, productName, quantity, false, 0);
+    }
+
+    if (moveType !== 'шилжүүлэг') productSheet.getRange(product.rowNumber, 3).setValue(newTotal);
+    const date = new Date();
+    moveSheet.appendRow([date, productName, moveType, quantity, reason, warehouse, fromWarehouse, toWarehouse, clientId]);
+    return { success: true, date: date.toISOString(), stock: newTotal };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleAddVisit_(auth, p) {
+  const company = requireActiveCompany_(auth.company);
+  const companySs = openCompanySs_(company);
+  const customer = clean_(p.customer);
+  if (!customer) throw new Error('Харилцагчийн нэр шаардлагатай.');
+  const latitude = clean_(p.latitude);
+  const longitude = clean_(p.longitude);
+  const notes = clean_(p.notes);
+  const photoUrl = p.photoData ? savePhoto_(auth.company, auth.username, String(p.photoData)) : '';
+  companySs.getSheetByName(COMPANY_SHEETS.VISITS).appendRow([new Date(), auth.fullName || auth.username, customer, latitude, longitude, photoUrl, notes]);
+  upsertCustomer_(companySs, customer);
+  return { success: true, photoUrl: photoUrl };
+}
+
+function handleSaveUser_(auth, p) {
+  if (auth.role !== 'manager') throw new Error('Хэрэглэгч удирдах эрх зөвхөн менежерт байна.');
+  const originalUsername = clean_(p.originalUsername);
+  const username = clean_(p.username);
+  const fullName = clean_(p.fullName);
+  const role = normalizeRole_(p.role);
+  const password = String(p.password || '');
+  if (!username || !fullName) throw new Error('Нэр болон username шаардлагатай.');
+  validateUsername_(username);
+  if (password && password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const userSheet = masterSs_().getSheetByName(MASTER_SHEETS.USERS);
+    const rows = values_(userSheet);
+    const existingTarget = findRowByValue_(rows, 0, username);
+    const editing = originalUsername ? findRowByValue_(rows, 0, originalUsername) : existingTarget;
+    if (existingTarget && (!editing || existingTarget.rowNumber !== editing.rowNumber)) throw new Error('Энэ username ашиглагдаж байна.');
+
+    const company = getCompany_(auth.company);
+    if (role === 'rep' && company.status !== 'Active') {
+      const reps = rows.filter(function(row, index) {
+        if (index === 0) return false;
+        const same = clean_(row[4]).toLowerCase() === auth.company.toLowerCase();
+        const isRep = normalizeRole_(row[3]) === 'rep';
+        const editedRow = editing && index + 1 === editing.rowNumber;
+        return same && isRep && !editedRow;
+      }).length;
+      if (reps >= FREE_REP_LIMIT) throw new Error('Free эрхээр 5 хүртэл борлуулагч бүртгэнэ. Premium эрх авах: ' + UPGRADE_URL);
+    }
+
+    if (editing) {
+      userSheet.getRange(editing.rowNumber, 1, 1, 5).setValues([[
+        username,
+        password ? sha256_(password) : String(editing.values[1] || ''),
+        fullName,
+        role,
+        auth.company
+      ]]);
+    } else {
+      if (!password) throw new Error('Шинэ хэрэглэгчид нууц үг шаардлагатай.');
+      userSheet.appendRow([username, sha256_(password), fullName, role, auth.company]);
+    }
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleDeleteUser_(auth, p) {
+  if (auth.role !== 'manager') throw new Error('Хэрэглэгч устгах эрх зөвхөн менежерт байна.');
+  const username = clean_(p.username);
+  if (!username) throw new Error('Username шаардлагатай.');
+  if (username.toLowerCase() === auth.username.toLowerCase()) throw new Error('Өөрийн хэрэглэгчийг устгах боломжгүй.');
+  const userSheet = masterSs_().getSheetByName(MASTER_SHEETS.USERS);
+  const match = findRowByValue_(values_(userSheet), 0, username);
+  if (!match || clean_(match.values[4]).toLowerCase() !== auth.company.toLowerCase()) throw new Error('Хэрэглэгч олдсонгүй.');
+  userSheet.deleteRow(match.rowNumber);
+  return { success: true };
+}
+
+function getCompany_(companyName) {
+  const match = findRowByValue_(values_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES)), 0, companyName);
+  if (!match) return null;
+  const row = match.values;
+  const explicitStatus = clean_(row[2]).toLowerCase();
+  const activated = asDate_(row[3]);
+  const months = Number(row[4] || 0);
+  let status = 'Free';
+  let expiresAt = null;
+  if (explicitStatus === 'inactive' || explicitStatus === 'идэвхгүй') {
+    status = 'Inactive';
+  } else if (activated && months > 0) {
+    expiresAt = addMonths_(activated, months);
+    status = new Date().getTime() <= expiresAt.getTime() ? 'Active' : 'Free';
+  } else {
+    status = 'Free';
+  }
+  return {
+    name: clean_(row[0]),
+    spreadsheetId: clean_(row[1]),
+    status: status,
+    activatedAt: activated,
+    months: months,
+    expiresAt: expiresAt,
+    phone: clean_(row[5]),
+    email: clean_(row[6])
+  };
+}
+
+function requireActiveCompany_(companyName) {
+  const company = getCompany_(companyName);
+  if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
+  if (!company.spreadsheetId) throw new Error('Компанийн Spreadsheet ID бүртгэгдээгүй байна.');
+  if (company.status === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. ' + UPGRADE_URL);
+  return company;
+}
+
+function openCompanySs_(company) {
+  try { return SpreadsheetApp.openById(company.spreadsheetId); }
+  catch (error) { throw new Error('Компанийн spreadsheet нээж чадсангүй. Spreadsheet ID болон Apps Script эзэмшигчийн эрхийг шалгана уу.'); }
+}
+
+function getProducts_(companySs) {
+  const rows = values_(companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS));
+  const norms = {};
+  values_(companySs.getSheetByName(COMPANY_SHEETS.NORMS)).slice(1).forEach(function(row) {
+    if (clean_(row[0])) norms[clean_(row[0]).toLowerCase()] = Number(row[1] || 0);
+  });
+  return rows.slice(1).filter(function(row) { return clean_(row[0]); }).map(function(row) {
+    const name = clean_(row[0]);
+    return {
+      name: name,
+      price: Number(row[1] || 0),
+      stock: Number(row[2] || 0),
+      threshold: Number(row[3] || norms[name.toLowerCase()] || 0)
+    };
+  });
+}
+
+function getRecentTransactions_(companySs, days, maxItems) {
+  const sheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { items: [], historyCursor: '', hasMore: false };
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const chunkSize = 250;
+  const items = [];
+  let cursor = lastRow + 1;
+  let stoppedByDate = false;
+
+  while (cursor > 2 && items.length < maxItems && !stoppedByDate) {
+    const start = Math.max(2, cursor - chunkSize);
+    const count = cursor - start;
+    const rows = sheet.getRange(start, 1, count, 10).getValues();
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const rowNumber = start + i;
+      const date = asDate_(rows[i][0]);
+      if (date && date >= cutoff && items.length < maxItems) items.push(mapSaleRow_(rows[i], rowNumber));
+      else if (date && date < cutoff) { stoppedByDate = true; cursor = rowNumber + 1; break; }
+    }
+    if (!stoppedByDate) cursor = start;
+  }
+
+  const oldestRow = items.length ? Math.min.apply(null, items.map(function(item) { return item.rowNumber; })) : lastRow + 1;
+  return { items: items, historyCursor: oldestRow, hasMore: oldestRow > 2 };
+}
+
+function getRecentInventoryMoves_(companySs, limit) {
+  const sheet = companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const count = Math.min(limit, lastRow - 1);
+  const start = lastRow - count + 1;
+  return sheet.getRange(start, 1, count, 9).getValues().map(function(row, index) {
+    return {
+      rowNumber: start + index,
+      date: iso_(row[0]), product: clean_(row[1]), moveType: clean_(row[2]), quantity: Number(row[3] || 0),
+      reason: clean_(row[4]), warehouse: clean_(row[5]), fromWarehouse: clean_(row[6]), toWarehouse: clean_(row[7]), clientId: clean_(row[8])
+    };
+  }).reverse();
+}
+
+function mapSaleRow_(row, rowNumber) {
+  return {
+    rowNumber: rowNumber,
+    date: iso_(row[0]), rep: clean_(row[1]), product: clean_(row[2]), quantity: Number(row[3] || 0),
+    unitPrice: Number(row[4] || 0), total: Number(row[5] || 0), customer: clean_(row[6]),
+    paymentType: clean_(row[7]), location: clean_(row[8]), clientId: clean_(row[9])
+  };
+}
+
+function getVisits_(companySs, auth, companyStatus, limit) {
+  const rows = values_(companySs.getSheetByName(COMPANY_SHEETS.VISITS));
+  return rows.slice(1).filter(function(row) {
+    if (companyStatus === 'Active') return true;
+    return clean_(row[1]).toLowerCase() === clean_(auth.fullName || auth.username).toLowerCase();
+  }).slice(-limit).reverse().map(function(row) {
+    return { date: iso_(row[0]), rep: clean_(row[1]), customer: clean_(row[2]), latitude: Number(row[3]) || '', longitude: Number(row[4]) || '', photoUrl: clean_(row[5]), notes: clean_(row[6]) };
+  });
+}
+
+function getUsers_(companyName) {
+  return values_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)).slice(1).filter(function(row) {
+    return clean_(row[4]).toLowerCase() === companyName.toLowerCase();
+  }).map(function(row) { return { username: clean_(row[0]), fullName: clean_(row[2]), role: normalizeRole_(row[3]) }; });
+}
+
+function getCustomers_(companySs) {
+  const found = {};
+  values_(companySs.getSheetByName(COMPANY_SHEETS.CUSTOMERS)).slice(1).forEach(function(row) {
+    if (clean_(row[0])) found[clean_(row[0])] = true;
+  });
+  const sales = companySs.getSheetByName(COMPANY_SHEETS.SALES);
+  const lastRow = sales.getLastRow();
+  if (lastRow >= 2) {
+    const count = Math.min(500, lastRow - 1);
+    sales.getRange(lastRow - count + 1, 7, count, 1).getValues().forEach(function(row) {
+      if (clean_(row[0])) found[clean_(row[0])] = true;
+    });
+  }
+  return Object.keys(found).sort();
+}
+
+function getWarehouses_(companySs) {
+  const list = values_(companySs.getSheetByName(COMPANY_SHEETS.WAREHOUSES)).slice(1).filter(function(row) { return clean_(row[0]); }).map(function(row) { return { name: clean_(row[0]) }; });
+  return list.length ? list : [{ name: 'Үндсэн агуулах' }];
+}
+
+function getLocations_(companySs) {
+  const list = values_(companySs.getSheetByName(COMPANY_SHEETS.LOCATIONS)).slice(1).filter(function(row) { return clean_(row[0]); }).map(function(row) { return { name: clean_(row[0]) }; });
+  return list.length ? list : [{ name: 'Үндсэн байршил' }];
+}
+
+function buildDashboard_(companySs) {
+  const rows = values_(companySs.getSheetByName(COMPANY_SHEETS.SALES)).slice(1);
+  const now = new Date();
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  let currentTotal = 0;
+  let previousTotal = 0;
+  let currentCount = 0;
+  let creditTotal = 0;
+  const byProduct = {};
+  const byRep = {};
+  const creditByCustomer = {};
+
+  rows.forEach(function(row) {
+    const date = asDate_(row[0]);
+    if (!date) return;
+    const total = Number(row[5] || 0);
+    if (date >= currentStart && date < nextStart) {
+      currentTotal += total;
+      currentCount += 1;
+      addMetric_(byProduct, clean_(row[2]) || 'Тодорхойгүй', total, Number(row[3] || 0));
+      addMetric_(byRep, clean_(row[1]) || 'Тодорхойгүй', total, Number(row[3] || 0));
+    }
+    if (date >= previousStart && date < currentStart) previousTotal += total;
+    if (clean_(row[7]) === 'Зээл') {
+      creditTotal += total;
+      addMetric_(creditByCustomer, clean_(row[6]) || 'Тодорхойгүй', total, 0);
+    }
+  });
+
+  return {
+    currentTotal: currentTotal,
+    previousTotal: previousTotal,
+    currentCount: currentCount,
+    creditTotal: creditTotal,
+    momPercent: previousTotal === 0 ? (currentTotal > 0 ? 100 : 0) : ((currentTotal - previousTotal) / previousTotal) * 100,
+    byProduct: metricArray_(byProduct),
+    byRep: metricArray_(byRep),
+    creditByCustomer: metricArray_(creditByCustomer)
+  };
+}
+
+function lockedDashboard_() {
+  return { currentTotal: 0, previousTotal: 0, currentCount: 0, creditTotal: 0, momPercent: 0, byProduct: [], byRep: [], creditByCustomer: [] };
+}
+
+function addMetric_(object, key, total, quantity) {
+  if (!object[key]) object[key] = { name: key, total: 0, quantity: 0 };
+  object[key].total += total;
+  object[key].quantity += quantity;
+}
+function metricArray_(object) { return Object.keys(object).map(function(key) { return object[key]; }).sort(function(a, b) { return b.total - a.total; }); }
+
+function adjustWarehouseStock_(companySs, warehouse, product, delta, enforceNonNegative, fallbackCurrent) {
+  const sheet = companySs.getSheetByName(COMPANY_SHEETS.WAREHOUSE_STOCK);
+  const rows = values_(sheet);
+  let rowNumber = 0;
+  let hasAnyProductStock = false;
+  let current = Number(fallbackCurrent || 0);
+  for (let i = 1; i < rows.length; i += 1) {
+    const sameProduct = clean_(rows[i][1]).toLowerCase() === product.toLowerCase();
+    if (sameProduct) hasAnyProductStock = true;
+    if (sameProduct && clean_(rows[i][0]).toLowerCase() === warehouse.toLowerCase()) {
+      rowNumber = i + 1;
+      current = Number(rows[i][2] || 0);
+      break;
+    }
+  }
+  if (!rowNumber && hasAnyProductStock) current = 0;
+  if (enforceNonNegative && current + delta < 0) throw new Error(warehouse + ' агуулахын үлдэгдэл хүрэлцэхгүй байна.');
+  if (rowNumber) sheet.getRange(rowNumber, 3).setValue(current + delta);
+  else sheet.appendRow([warehouse, product, current + delta]);
+}
+
+function savePhoto_(company, username, dataUrl) {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) throw new Error('Зургийн формат буруу байна.');
+  const bytes = Utilities.base64Decode(match[2]);
+  const extension = match[1].indexOf('png') > -1 ? 'png' : 'jpg';
+  const folder = getOrCreatePhotoFolder_(company);
+  const filename = username + '_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss') + '.' + extension;
+  return folder.createFile(Utilities.newBlob(bytes, match[1], filename)).getUrl();
+}
+
+function getOrCreatePhotoFolder_(company) {
+  const rootName = 'DataLinx_Distribution_Photos';
+  const roots = DriveApp.getFoldersByName(rootName);
+  const root = roots.hasNext() ? roots.next() : DriveApp.createFolder(rootName);
+  const children = root.getFoldersByName(company);
+  return children.hasNext() ? children.next() : root.createFolder(company);
+}
+
+function upsertCustomer_(companySs, customer) {
+  const sheet = companySs.getSheetByName(COMPANY_SHEETS.CUSTOMERS);
+  const exists = values_(sheet).slice(1).some(function(row) { return clean_(row[0]).toLowerCase() === customer.toLowerCase(); });
+  if (!exists) sheet.appendRow([customer]);
+}
+
+function firstWarehouse_(companySs) { return getWarehouses_(companySs)[0].name; }
+function firstLocation_(companySs) { return getLocations_(companySs)[0].name; }
+
+function findClientId_(sheet, columnNumber, clientId) {
+  const lastRow = sheet.getLastRow();
+  if (!clientId || lastRow < 2) return null;
+  const found = sheet.getRange(2, columnNumber, lastRow - 1, 1)
+    .createTextFinder(clientId)
+    .matchEntireCell(true)
+    .findNext();
+  if (!found) return null;
+  const rowNumber = found.getRow();
+  return { rowNumber: rowNumber, values: sheet.getRange(rowNumber, 1, 1, columnNumber).getValues()[0] };
+}
+
+function setupNewCompanySpreadsheet_(ss) {
+  const first = ss.getSheets()[0];
+  first.setName(COMPANY_SHEETS.PRODUCTS);
+  ensureCompanySheets_(ss);
+  ss.getSheetByName(COMPANY_SHEETS.WAREHOUSES).appendRow(['Үндсэн агуулах']);
+  ss.getSheetByName(COMPANY_SHEETS.LOCATIONS).appendRow(['Үндсэн байршил']);
+}
+
+function ensureMasterSheets_() {
+  const ss = masterSs_();
+  ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл']);
+  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep)','Компани нэр']);
+}
+
+function ensureCompanySheets_(ss) {
+  ensureSheet_(ss, COMPANY_SHEETS.PRODUCTS, ['Барааны нэр','Нэгж үнэ','Одоогийн үлдэгдэл','Бага үлдэгдлийн хязгаар']);
+  ensureSheet_(ss, COMPANY_SHEETS.SALES, ['Огноо','Рэп нэр','Бараа','Тоо','Үнэ','Нийт дүн','Харилцагч','Төлбөрийн төрөл','Байршил','Client ID']);
+  ensureSheet_(ss, COMPANY_SHEETS.INVENTORY_MOVES, ['Огноо','Бараа','Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)','Тоо','Шалтгаан','Агуулах','Гарах агуулах','Хүлээн авах агуулах','Client ID']);
+  ensureSheet_(ss, COMPANY_SHEETS.NORMS, ['Бараа','Бага үлдэгдлийн хязгаар']);
+  ensureSheet_(ss, COMPANY_SHEETS.VISITS, ['Огноо','Рэп нэр','Харилцагч','Өргөрөг','Уртраг','Зургийн холбоос','Тэмдэглэл']);
+  ensureSheet_(ss, COMPANY_SHEETS.WAREHOUSES, ['Агуулахын нэр']);
+  ensureSheet_(ss, COMPANY_SHEETS.WAREHOUSE_STOCK, ['Агуулах','Бараа','Үлдэгдэл']);
+  ensureSheet_(ss, COMPANY_SHEETS.LOCATIONS, ['Байршлын нэр']);
+  ensureSheet_(ss, COMPANY_SHEETS.CUSTOMERS, ['Харилцагчийн нэр']);
+}
+
+function masterSs_() { return SpreadsheetApp.getActiveSpreadsheet(); }
+
+function ensureSheet_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) sheet = ss.insertSheet(name);
+  if (sheet.getMaxColumns() < headers.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  else {
+    const current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    let changed = false;
+    headers.forEach(function(header, index) { if (!clean_(current[index])) { current[index] = header; changed = true; } });
+    if (changed) sheet.getRange(1, 1, 1, headers.length).setValues([current]);
+  }
+  sheet.setFrozenRows(1);
+  return sheet;
+}
+
+function requireSession_(token) {
+  if (!token) throw new Error('Session token байхгүй байна. Дахин нэвтэрнэ үү.');
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get('session:' + token);
+  if (!raw) throw new Error('Session хугацаа дууссан. Дахин нэвтэрнэ үү.');
+  cache.put('session:' + token, raw, SESSION_SECONDS);
+  return JSON.parse(raw);
+}
+
+function passwordMatches_(input, stored) { return String(stored || '') === sha256_(input) || String(stored || '') === String(input || ''); }
+function sha256_(text) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8).map(function(byte) {
+    const normalized = byte < 0 ? byte + 256 : byte;
+    return ('0' + normalized.toString(16)).slice(-2);
+  }).join('');
+}
+
+function validateUsername_(username) {
+  if (username.length < 3 || username.length > 40) throw new Error('Username 3-40 тэмдэгт байна.');
+  if (/[\s"'<>]/.test(username)) throw new Error('Username-д зай, хашилт, < > тэмдэг ашиглахгүй.');
+}
+function normalizeRole_(value) { return clean_(value).toLowerCase() === 'manager' ? 'manager' : 'rep'; }
+function parseBody_(e) {
+  if (!e || !e.postData || !e.postData.contents) throw new Error('POST body хоосон байна.');
+  try { return JSON.parse(e.postData.contents); }
+  catch (error) { throw new Error('POST body JSON форматгүй байна.'); }
+}
+function json_(data) { return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
+function values_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  return lastRow && lastColumn ? sheet.getRange(1, 1, lastRow, lastColumn).getValues() : [];
+}
+function findRowByValue_(rows, columnIndex, value) {
+  const target = clean_(value).toLowerCase();
+  for (let i = 1; i < rows.length; i += 1) if (clean_(rows[i][columnIndex]).toLowerCase() === target) return { rowNumber: i + 1, values: rows[i] };
+  return null;
+}
+function findProductRow_(rows, product) {
+  for (let i = 1; i < rows.length; i += 1) if (clean_(rows[i][0]).toLowerCase() === product.toLowerCase()) return { rowNumber: i + 1, values: rows[i] };
+  return null;
+}
+function clean_(value) { return String(value === null || value === undefined ? '' : value).trim(); }
+function positiveNumber_(value, name) { const n = Number(value); if (!isFinite(n) || n <= 0) throw new Error(name + ' 0-ээс их байна.'); return n; }
+function nonNegativeNumber_(value, name) { const n = Number(value); if (!isFinite(n) || n < 0) throw new Error(name + ' 0 буюу түүнээс их байна.'); return n; }
+function asDate_(value) { const d = value instanceof Date ? value : new Date(value); return isNaN(d.getTime()) ? null : d; }
+function iso_(value) { const d = asDate_(value); return d ? d.toISOString() : clean_(value); }
+function addMonths_(date, months) { const d = new Date(date.getTime()); d.setMonth(d.getMonth() + Number(months)); return d; }
+
+  END APPS SCRIPT
+  -->
+</body>
+</html>
