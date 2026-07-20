@@ -676,6 +676,192 @@
       .grid-main { grid-template-columns: minmax(0, 1.55fr) minmax(300px, .8fr); }
       .card { padding: 18px; }
     }
+
+
+    /* Sales detail and printable document workflow */
+    .clickable-sale {
+      width: 100%;
+      border: 1px solid var(--line);
+      text-align: left;
+      color: inherit;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+    .clickable-sale:active { transform: scale(.995); }
+    .clickable-sale:hover { border-color: #9DB89F; background: #FBFDFB; }
+    .sale-detail-card { width: min(100%, 760px); padding: 0; overflow: hidden; }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 15px 16px; border-bottom: 1px solid var(--line); background: #fff;
+      position: sticky; top: 0; z-index: 3;
+    }
+    .modal-head h3 { margin: 0; }
+    .modal-body { padding: 16px; }
+    .modal-close {
+      width: 44px; height: 44px; border: 0; border-radius: 12px;
+      background: #EEF2EE; color: var(--text); font-size: 22px; font-weight: 800;
+    }
+    .sale-detail-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .detail-item { padding: 11px; border: 1px solid var(--line); border-radius: 12px; background: #FAFBFA; }
+    .detail-item small { display: block; color: var(--muted); margin-bottom: 4px; }
+    .detail-item strong { overflow-wrap: anywhere; }
+    .document-actions {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px;
+      margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
+    }
+    .print-dropdown { position: relative; }
+    .print-dropdown-menu {
+      position: absolute; z-index: 12; right: 0; top: calc(100% + 7px); width: min(290px, 86vw);
+      padding: 7px; border: 1px solid var(--line); border-radius: 13px; background: #fff;
+      box-shadow: var(--shadow);
+    }
+    .print-dropdown-menu button {
+      width: 100%; min-height: 44px; padding: 9px 10px; border: 0; border-radius: 9px;
+      background: transparent; text-align: left; font-weight: 750; color: var(--text);
+    }
+    .print-dropdown-menu button:hover { background: var(--green-soft); color: var(--green); }
+    .preview-modal { padding: 8px; background: rgba(0,0,0,.82); }
+    .preview-card {
+      width: min(100%, 1120px); height: min(96vh, 980px); max-height: 96vh;
+      display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 16px;
+    }
+    .preview-toolbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 12px; border-bottom: 1px solid var(--line); background: #fff; flex: 0 0 auto;
+    }
+    .preview-toolbar-title { min-width: 0; }
+    .preview-toolbar-title strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .preview-toolbar-title small { color: var(--muted); }
+    .preview-toolbar-actions { display: flex; gap: 8px; }
+    .preview-scroll { flex: 1 1 auto; overflow: auto; padding: 18px; background: #DDE2DD; }
+    .preview-paper {
+      width: 210mm; min-height: 297mm; margin: 0 auto; padding: 10mm;
+      background: #fff; color: #000; box-shadow: 0 6px 24px rgba(0,0,0,.2);
+      font-family: Arial, "Segoe UI", Tahoma, sans-serif; font-size: 10px; line-height: 1.3;
+    }
+    .document-result-card { width: min(100%, 520px); }
+    .document-result-icon { width: 56px; height: 56px; margin: 2px auto 12px; display: grid; place-items: center; border-radius: 50%; background: var(--green-soft); color: var(--green); font-size: 27px; font-weight: 900; }
+    .document-result-text { text-align: center; color: var(--muted); }
+    .document-result-actions { display: grid; gap: 9px; margin-top: 16px; }
+    .sale-success-doc-btn { margin-top: 12px; }
+    #printDocument { display: none; }
+
+    /* Printable A4 document styles are duplicated in PrintStyles.html for server PDF output. */
+    .preview-paper .print-document { position: relative; min-height: 277mm; color: #000; }
+    .preview-paper .print-page { page-break-after: always; break-after: page; padding-bottom: 2mm; margin-bottom: 10mm; border-bottom: 1px dashed #aaa; }
+    .preview-paper .print-page:last-child { page-break-after: auto; break-after: auto; margin-bottom: 0; border-bottom: 0; }
+    .preview-paper .continuation-label { font-size: 9px; font-weight: 700; text-align: right; margin: 0 0 2mm; }
+    .preview-paper .document-body { min-height: 225mm; display: flex; flex-direction: column; }
+    .preview-paper .document-header { display: grid; grid-template-columns: 1.1fr 1.25fr .85fr; gap: 6mm; align-items: start; padding-bottom: 3mm; margin-bottom: 3mm; border-bottom: 1px solid #111; }
+    .preview-paper .company-block { display: flex; gap: 3mm; min-width: 0; }
+    .preview-paper .document-logo { width: 18mm; height: 18mm; object-fit: contain; }
+    .preview-paper .company-name { display: block; font-size: 12px; text-transform: uppercase; margin-bottom: 1mm; }
+    .preview-paper .company-line { font-size: 9px; margin: .4mm 0; overflow-wrap: anywhere; }
+    .preview-paper .document-title-block { text-align: center; align-self: center; }
+    .preview-paper .document-title-block h1 { margin: 0; font-size: 15px; line-height: 1.2; font-weight: 800; }
+    .preview-paper .document-number { margin-top: 2mm; font-size: 13px; font-weight: 800; }
+    .preview-paper .print-meta { font-size: 9px; text-align: right; }
+    .preview-paper .print-meta > div { margin-bottom: 1mm; }
+    .preview-paper .document-watermark { position: absolute; z-index: 0; top: 42%; left: 8%; right: 8%; transform: rotate(-28deg); text-align: center; font-size: 56px; font-weight: 900; letter-spacing: 8px; color: rgba(0,0,0,.08); pointer-events: none; }
+    .preview-paper .info-grid { display: grid; gap: 3mm; margin-bottom: 3mm; }
+    .preview-paper .info-grid.two-column { grid-template-columns: 1fr 1fr; }
+    .preview-paper .info-box { border: 1px solid #111; break-inside: avoid; }
+    .preview-paper .info-box h2, .preview-paper .labeled-lines h2 { margin: 0; padding: 1.4mm 2mm; border-bottom: 1px solid #111; font-size: 10px; text-align: center; font-weight: 800; }
+    .preview-paper .info-row { display: grid; grid-template-columns: 43% 57%; border-bottom: 1px dotted #777; padding: 1mm 2mm; min-height: 5mm; }
+    .preview-paper .info-row:last-child { border-bottom: 0; }
+    .preview-paper .info-row span { color: #444; }
+    .preview-paper .info-row strong { font-weight: 600; overflow-wrap: anywhere; }
+    .preview-paper .compact-sections { border: 1px solid #111; margin-bottom: 3mm; }
+    .preview-paper .labeled-lines { padding-bottom: 1mm; border-bottom: 1px solid #111; }
+    .preview-paper .labeled-lines:last-child { border-bottom: 0; }
+    .preview-paper .labeled-lines > div { display: inline-block; width: 49%; padding: 1mm 2mm; vertical-align: top; }
+    .preview-paper .document-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 3mm; }
+    .preview-paper .document-table th, .preview-paper .document-table td { border: .6px solid #111; padding: 1.3mm 1mm; vertical-align: middle; }
+    .preview-paper .document-table th { font-size: 9px; text-align: center; }
+    .preview-paper .document-table td { font-size: 9.5px; }
+    .preview-paper .center { text-align: center; }
+    .preview-paper .number, .preview-paper .money { text-align: right; white-space: nowrap; }
+    .preview-paper .strong { font-weight: 800; }
+    .preview-paper .invoice-footer-grid { display: grid; grid-template-columns: 1fr 72mm; gap: 4mm; align-items: start; }
+    .preview-paper .amount-words { border: 1px solid #111; padding: 2mm; min-height: 16mm; }
+    .preview-paper .amount-words.compact { margin: 0 0 3mm; min-height: auto; }
+    .preview-paper .totals-box { border: 1px solid #111; }
+    .preview-paper .totals-row { display: flex; justify-content: space-between; gap: 5mm; padding: 1.2mm 2mm; border-bottom: 1px solid #111; }
+    .preview-paper .totals-row:last-child { border-bottom: 0; }
+    .preview-paper .totals-row.grand { font-size: 11px; font-weight: 800; }
+    .preview-paper .grand-total-line { display: flex; justify-content: flex-end; gap: 12mm; border: 1px solid #111; border-top: 0; margin-top: -3mm; margin-bottom: 3mm; padding: 1.5mm 2mm; font-size: 11px; }
+    .preview-paper .note-lines { margin: 2mm 0 4mm; }
+    .preview-paper .note-lines div { height: 7mm; border-bottom: 1px solid #111; }
+    .preview-paper .signature-section { margin-top: auto; padding-top: 8mm; }
+    .preview-paper .signature-line { display: grid; grid-template-columns: 46mm 1fr 32mm; align-items: end; gap: 2mm; margin-bottom: 6mm; }
+    .preview-paper .signature-rule { border-bottom: 1px solid #111; height: 5mm; }
+    .preview-paper .signature-line em { font-style: normal; text-align: center; }
+    .preview-paper .simple-signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin-top: auto; padding-top: 12mm; }
+    .preview-paper .simple-signatures div { text-align: center; }
+    .preview-paper .simple-signatures b { display: block; margin-bottom: 8mm; }
+    .preview-paper .simple-signatures span { display: block; border-bottom: 1px solid #000; margin-bottom: 2mm; }
+    .preview-paper .simple-signatures em { font-style: normal; }
+    .preview-paper .proof-section { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin: 3mm 0; }
+    .preview-paper .proof-section figure { margin: 0; border: 1px solid #111; padding: 2mm; }
+    .preview-paper .proof-section img { width: 100%; max-height: 55mm; object-fit: contain; display: block; }
+
+    @media (max-width: 720px) {
+      .sale-detail-grid { grid-template-columns: 1fr; }
+      .document-actions { grid-template-columns: 1fr; position: sticky; bottom: 0; padding: 10px 0 0; background: #fff; }
+      .preview-toolbar { align-items: flex-start; }
+      .preview-toolbar-actions { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+      .preview-toolbar { flex-direction: column; }
+      .preview-scroll { padding: 8px; }
+      .preview-paper { width: 210mm; transform-origin: top left; }
+    }
+
+    @page { size: A4 portrait; margin: 10mm; }
+    @media print {
+      body * { visibility: hidden !important; }
+      #printDocument, #printDocument * { visibility: visible !important; }
+      #printDocument { display: block !important; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-family: Arial, "Segoe UI", Tahoma, sans-serif; font-size: 10px; line-height: 1.3; }
+      #printDocument .print-document { position: relative; min-height: 277mm; }
+      #printDocument .print-page { page-break-after: always; break-after: page; }
+      #printDocument .print-page:last-child { page-break-after: auto; break-after: auto; }
+      #printDocument .continuation-label { font-size: 9px; font-weight: 700; text-align: right; margin: 0 0 2mm; }
+      #printDocument .document-body { min-height: 225mm; display: flex; flex-direction: column; }
+      #printDocument .document-header { display: grid; grid-template-columns: 1.1fr 1.25fr .85fr; gap: 6mm; align-items: start; padding-bottom: 3mm; margin-bottom: 3mm; border-bottom: 1px solid #111; }
+      #printDocument .company-block { display: flex; gap: 3mm; }
+      #printDocument .document-logo { width: 18mm; height: 18mm; object-fit: contain; }
+      #printDocument .company-name { display: block; font-size: 12px; text-transform: uppercase; }
+      #printDocument .company-line, #printDocument .print-meta { font-size: 9px; }
+      #printDocument .document-title-block { text-align: center; align-self: center; }
+      #printDocument .document-title-block h1 { margin: 0; font-size: 15px; }
+      #printDocument .document-number { margin-top: 2mm; font-size: 13px; font-weight: 800; }
+      #printDocument .print-meta { text-align: right; }
+      #printDocument .document-watermark { position: absolute; top: 42%; left: 8%; right: 8%; transform: rotate(-28deg); text-align: center; font-size: 56px; font-weight: 900; letter-spacing: 8px; color: rgba(0,0,0,.08); }
+      #printDocument .info-grid { display: grid; gap: 3mm; margin-bottom: 3mm; }
+      #printDocument .info-grid.two-column { grid-template-columns: 1fr 1fr; }
+      #printDocument .info-box, #printDocument .compact-sections { border: 1px solid #111; }
+      #printDocument .info-box h2, #printDocument .labeled-lines h2 { margin: 0; padding: 1.4mm 2mm; border-bottom: 1px solid #111; font-size: 10px; text-align: center; }
+      #printDocument .info-row { display: grid; grid-template-columns: 43% 57%; border-bottom: 1px dotted #777; padding: 1mm 2mm; }
+      #printDocument .labeled-lines { border-bottom: 1px solid #111; }
+      #printDocument .labeled-lines > div { display: inline-block; width: 49%; padding: 1mm 2mm; }
+      #printDocument table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 3mm; }
+      #printDocument thead { display: table-header-group; }
+      #printDocument tr { page-break-inside: avoid; break-inside: avoid; }
+      #printDocument th, #printDocument td { border: .6px solid #111; padding: 1.3mm 1mm; }
+      #printDocument th { font-size: 9px; text-align: center; }
+      #printDocument td { font-size: 9.5px; }
+      #printDocument .center { text-align: center; }
+      #printDocument .number, #printDocument .money { text-align: right; white-space: nowrap; }
+      #printDocument .invoice-footer-grid { display: grid; grid-template-columns: 1fr 72mm; gap: 4mm; }
+      #printDocument .amount-words, #printDocument .totals-box { border: 1px solid #111; padding: 2mm; }
+      #printDocument .totals-box { padding: 0; }
+      #printDocument .totals-row { display: flex; justify-content: space-between; padding: 1.2mm 2mm; border-bottom: 1px solid #111; }
+      #printDocument .signature-section { margin-top: auto; padding-top: 8mm; }
+      #printDocument .signature-line { display: grid; grid-template-columns: 46mm 1fr 32mm; gap: 2mm; margin-bottom: 6mm; }
+      #printDocument .signature-rule { border-bottom: 1px solid #111; }
+      #printDocument .simple-signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin-top: auto; padding-top: 12mm; }
+      #printDocument .proof-section { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+      #printDocument .proof-section img { width: 100%; max-height: 55mm; object-fit: contain; }
+      .no-print { display: none !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -898,11 +1084,53 @@
           </div>
           <div class="grid grid-main">
             <form id="visitForm" class="card form-grid">
-              <h3>Шинэ айлчлал</h3>
+              <h3>Шинэ түгээлт / айлчлал</h3>
+              <div class="field">
+                <label for="visitSaleId">Холбогдох борлуулалт</label>
+                <input id="visitSaleId" list="visitSaleList" placeholder="Sale ID сонгох" autocomplete="off">
+                <datalist id="visitSaleList"></datalist>
+                <small class="field-help">Түгээлтийн баримт үүсгэх бол борлуулалт заавал сонгоно.</small>
+              </div>
               <div class="field">
                 <label for="visitCustomer">Харилцагч</label>
                 <input id="visitCustomer" list="visitCustomerList" placeholder="Харилцагч сонгох эсвэл бичих" required>
                 <datalist id="visitCustomerList"></datalist>
+              </div>
+              <div class="form-grid two">
+                <div class="field"><label for="visitCustomerPhone">Утас</label><input id="visitCustomerPhone" type="tel" inputmode="tel" placeholder="99112233"></div>
+                <div class="field"><label for="visitContactPerson">Холбоо барих хүн</label><input id="visitContactPerson" placeholder="Нэр"></div>
+              </div>
+              <div class="field"><label for="visitCustomerAddress">Хүргэлтийн хаяг</label><textarea id="visitCustomerAddress" placeholder="Дүүрэг, хороо, байр, тоот"></textarea></div>
+              <div class="form-grid two">
+                <div class="field"><label for="visitDriver">Жолооч</label><input id="visitDriver" list="visitDriverList" placeholder="Жолоочийн нэр" required><datalist id="visitDriverList"></datalist></div>
+                <div class="field"><label for="visitVehicle">Тээврийн хэрэгсэл</label><input id="visitVehicle" placeholder="УБА 1234"></div>
+              </div>
+              <div class="form-grid two">
+                <div class="field"><label for="visitRoute">Маршрут</label><input id="visitRoute" placeholder="Маршрут 1"></div>
+                <div class="field"><label for="visitWarehouse">Агуулах</label><select id="visitWarehouse"></select></div>
+              </div>
+              <div class="form-grid two">
+                <div class="field"><label for="visitPlannedDate">Төлөвлөсөн хүргэлт</label><input id="visitPlannedDate" type="datetime-local"></div>
+                <div class="field"><label for="visitDeliveredAt">Бодит хүргэсэн огноо, цаг</label><input id="visitDeliveredAt" type="datetime-local"></div>
+              </div>
+              <div class="field">
+                <label for="visitStatus">Төлөв</label>
+                <select id="visitStatus">
+                  <option value="Үүссэн">Үүссэн</option>
+                  <option value="Түгээлтэд гарсан">Түгээлтэд гарсан</option>
+                  <option value="Хүргэгдсэн">Хүргэгдсэн</option>
+                  <option value="Хэсэгчлэн хүргэсэн">Хэсэгчлэн хүргэсэн</option>
+                  <option value="Буцаалттай хүргэгдсэн">Буцаалттай хүргэгдсэн</option>
+                  <option value="Хүргэлт амжилтгүй">Хүргэлт амжилтгүй</option>
+                </select>
+              </div>
+              <div class="form-grid two">
+                <div class="field"><label for="visitCollectedPayment">Хураасан төлбөр</label><input id="visitCollectedPayment" type="number" inputmode="decimal" min="0" step="1" value="0"></div>
+                <div class="field"><label for="visitPaymentMethod">Төлбөрийн арга</label><select id="visitPaymentMethod"><option value="">Сонгох</option><option value="Бэлэн">Бэлэн</option><option value="Данс">Данс</option><option value="Карт">Карт</option><option value="QPay">QPay</option></select></div>
+              </div>
+              <div class="form-grid two">
+                <div class="field"><label for="visitRemainingReceivable">Үлдэх авлага</label><input id="visitRemainingReceivable" type="number" inputmode="decimal" min="0" step="1" value="0"></div>
+                <div class="field"><label for="visitReceivedBy">Хүлээн авсан хүн</label><input id="visitReceivedBy" placeholder="Нэр"></div>
               </div>
               <div class="form-grid two">
                 <div class="field">
@@ -923,11 +1151,13 @@
                 <button id="removePhotoBtn" class="btn btn-danger" type="button">Зураг арилгах</button>
               </div>
               <input id="fallbackCameraInput" class="hidden" type="file" accept="image/*" capture="environment">
+              <div class="field"><label for="visitFailureReason">Амжилтгүй болсон шалтгаан</label><input id="visitFailureReason" placeholder="Зөвхөн шаардлагатай үед"></div>
+              <div class="field"><label for="visitReturnedProducts">Буцаасан барааны тэмдэглэл</label><textarea id="visitReturnedProducts" placeholder="Бараа, тоо хэмжээ"></textarea></div>
               <div class="field">
                 <label for="visitNotes">Тэмдэглэл</label>
                 <textarea id="visitNotes" placeholder="Хүргэлт, захиалга, уулзалтын үр дүн..."></textarea>
               </div>
-              <button id="visitBtn" class="btn btn-primary btn-block" type="submit">Айлчлал хадгалах</button>
+              <button id="visitBtn" class="btn btn-primary btn-block" type="submit">Түгээлт хадгалах</button>
             </form>
 
             <div class="grid">
@@ -1019,7 +1249,14 @@
                 </div>
                 <div class="field">
                   <label for="userRole">Роль</label>
-                  <select id="userRole"><option value="rep">Борлуулагч</option><option value="manager">Менежер</option></select>
+                  <select id="userRole">
+                    <option value="rep">Борлуулагч</option>
+                    <option value="manager">Менежер</option>
+                    <option value="admin">Компанийн админ</option>
+                    <option value="warehouse">Агуулахын ажилтан</option>
+                    <option value="driver">Жолооч</option>
+                    <option value="accountant">Нягтлан бодогч</option>
+                  </select>
                 </div>
                 <button id="saveUserBtn" class="btn btn-primary btn-block" type="submit">Хэрэглэгч хадгалах</button>
                 <small style="color:var(--muted)">Free эрхийн серверийн хязгаар: нэг компанид 5 хүртэл борлуулагч.</small>
@@ -1082,6 +1319,63 @@
     </div>
   </div>
 
+
+
+  <div id="saleDetailModal" class="modal hidden no-print" role="dialog" aria-modal="true" aria-labelledby="saleDetailTitle">
+    <section class="modal-card sale-detail-card">
+      <header class="modal-head">
+        <div><h3 id="saleDetailTitle">Борлуулалтын дэлгэрэнгүй</h3><small id="saleDetailSubtitle" style="color:var(--muted)"></small></div>
+        <button id="closeSaleDetailBtn" class="modal-close" type="button" aria-label="Хаах">×</button>
+      </header>
+      <div class="modal-body">
+        <div id="saleDetailBody" class="sale-detail-grid"></div>
+        <div class="document-actions">
+          <button id="previewInvoiceBtn" class="btn btn-secondary" type="button">Урьдчилан харах</button>
+          <button id="downloadInvoiceBtn" class="btn btn-secondary" type="button">PDF татах</button>
+          <button id="documentHistoryBtn" class="btn btn-secondary manager-only" type="button">Баримтын түүх</button>
+          <div class="print-dropdown">
+            <button id="printMenuBtn" class="btn btn-primary btn-block" type="button" aria-expanded="false">Хэвлэх ▾</button>
+            <div id="printMenu" class="print-dropdown-menu hidden">
+              <button type="button" data-document-type="INVOICE">Борлуулалтын баримт</button>
+              <button type="button" data-document-type="STOCK_OUT">Агуулахын зарлагын баримт</button>
+              <button type="button" data-document-type="DISTRIBUTION">Түгээлтийн баримт</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="printPreviewModal" class="modal preview-modal hidden no-print" role="dialog" aria-modal="true" aria-labelledby="printPreviewTitle">
+    <section class="modal-card preview-card">
+      <header class="preview-toolbar">
+        <div class="preview-toolbar-title">
+          <strong id="printPreviewTitle">Баримт урьдчилан харах</strong>
+          <small id="printPreviewNumber"></small>
+        </div>
+        <div class="preview-toolbar-actions">
+          <button id="closePrintPreviewBtn" class="btn btn-neutral" type="button">Хаах</button>
+          <button id="generatePdfBtn" class="btn btn-secondary" type="button">PDF үүсгэх</button>
+          <button id="printPreviewBtn" class="btn btn-primary" type="button">Хэвлэх</button>
+        </div>
+      </header>
+      <div class="preview-scroll">
+        <div id="printPreviewContent" class="preview-paper"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="documentResultModal" class="modal hidden no-print" role="dialog" aria-modal="true" aria-labelledby="documentResultTitle">
+    <section class="modal-card document-result-card">
+      <div class="document-result-icon">✓</div>
+      <h3 id="documentResultTitle" style="text-align:center;margin:0 0 8px">PDF амжилттай үүслээ.</h3>
+      <div id="documentResultText" class="document-result-text"></div>
+      <div id="documentResultActions" class="document-result-actions"></div>
+    </section>
+  </div>
+
+  <div id="printDocument" aria-hidden="true"></div>
+
   <div id="loadingScreen" class="loading-screen hidden">
     <div class="loading-card"><span class="spinner"></span><span id="loadingText">Уншиж байна...</span></div>
   </div>
@@ -1090,7 +1384,6 @@
   <script>
     'use strict';
 
-    // Apps Script Web App-аа deploy хийсний дараа /exec URL-ээ энд тавина.
     const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiIgDu0EgSPJZSs1pmZvkhykJyDDXdPm8QZRURLaPdw0FhpS0QA14LowqoKPNQY4DN/exec';
     const FACEBOOK_URL = 'https://www.facebook.com/DataLinxMN';
     const OFFLINE_QUEUE_KEY = 'datalinxOfflineQueueV3';
@@ -1119,6 +1412,9 @@
       photoData: '',
       cameraStream: null,
       syncing: false,
+      selectedSale: null,
+      selectedDistribution: null,
+      print: { type: '', referenceId: '', html: '', documentNumber: '', existingPdf: null, generatedDocument: null },
       walkthrough: { active: false, index: 0, steps: [], target: null, scheduled: false }
     };
 
@@ -1134,12 +1430,16 @@
       bindSmartSelects();
       bindForms();
       bindCamera();
+      bindDocumentUi();
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', updateConnectivityUi);
       window.addEventListener('resize', scheduleWalkthroughPosition, { passive: true });
+      window.addEventListener('resize', fitPreviewPaper, { passive: true });
       window.addEventListener('scroll', scheduleWalkthroughPosition, { passive: true });
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && state.walkthrough.active) finishWalkthrough(false);
+        else if (event.key === 'Escape' && !$('#printPreviewModal').classList.contains('hidden')) closePrintPreview();
+        else if (event.key === 'Escape' && !$('#saleDetailModal').classList.contains('hidden')) closeSaleDetail();
       });
       updateConnectivityUi();
       restoreSession();
@@ -1311,6 +1611,9 @@
       $('#gpsBtn').addEventListener('click', captureGps);
       $('#removePhotoBtn').addEventListener('click', clearPhoto);
       $('#regPhone').addEventListener('input', event => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 8); });
+      $('#visitSaleId').addEventListener('change', applyVisitSaleSelection);
+      $('#visitSaleId').addEventListener('input', applyVisitSaleSelection);
+      $('#visitStatus').addEventListener('change', updateVisitStatusFields);
     }
 
     function bindCamera() {
@@ -1792,6 +2095,9 @@
               paymentType: p.paymentType,
               location: p.location,
               clientId: item.id,
+              saleId: '',
+              status: 'Pending',
+              warehouse: p.warehouse || '',
               syncStatus: 'pending'
             });
           }
@@ -1904,14 +2210,14 @@
     }
 
     function isPremium() { return state.session?.companyStatus === 'Active'; }
-    function isManager() { return state.session?.user?.role === 'manager'; }
+    function isManager() { return ['manager','admin'].includes(state.session?.user?.role); }
 
     function renderAll() {
       if (!state.session) return;
       const company = state.session.company || {};
       const user = state.session.user || {};
       $('#companyTitle').textContent = company.name || user.company || 'Компани';
-      $('#userTitle').textContent = `${user.fullName || user.username || ''} · ${user.role === 'manager' ? 'Менежер' : 'Борлуулагч'}`;
+      $('#userTitle').textContent = `${user.fullName || user.username || ''} · ${roleLabel(user.role)}`;
       const status = state.session.companyStatus;
       const topStatus = $('#topStatus');
       topStatus.textContent = status === 'Active' ? 'PREMIUM' : status === 'Inactive' ? 'ИДЭВХГҮЙ' : 'FREE';
@@ -1936,8 +2242,14 @@
       fillSelect($('#toWarehouse'), state.warehouses, item => item.name, item => item.name, 'Хүлээн авах агуулах');
       fillSelect($('#saleLocation'), state.locations, item => item.name, item => item.name, 'Үндсэн байршил');
       $('#visitCustomerList').innerHTML = state.customers.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+      const visitSales = state.serverTransactions.filter(tx => transactionId(tx) && tx.syncStatus !== 'pending');
+      $('#visitSaleList').innerHTML = visitSales.slice(0, 300).map(tx => `<option value="${escapeHtml(transactionId(tx))}">${escapeHtml(tx.customer || '')} · ${escapeHtml(formatDate(tx.date))} · ${escapeHtml(money(tx.total))}</option>`).join('');
+      const drivers = state.users.filter(user => ['driver','manager','admin'].includes(user.role));
+      $('#visitDriverList').innerHTML = drivers.map(user => `<option value="${escapeHtml(user.fullName || user.username)}"></option>`).join('');
+      fillSelect($('#visitWarehouse'), state.warehouses, item => item.name, item => item.name, 'Үндсэн агуулах');
       updateSaleProduct();
       updateInventoryFields();
+      updateVisitStatusFields();
     }
 
     function fillSelect(select, items, labelFn, valueFn, placeholder) {
@@ -2009,7 +2321,7 @@
         const result = await syncOfflineQueue(item.id);
         if (result.status === 'rejected') throw new Error(result.message || 'Борлуулалтыг сервер хүлээж авсангүй.');
         if (result.status === 'synced') {
-          showSaleSuccess(payload, false);
+          showSaleSuccess(payload, false, result.data?.saleId || result.data?.transaction?.saleId || "");
           toast('Борлуулалт амжилттай хадгалагдлаа.', 'success');
         } else {
           toast('Сервертэй холбогдсонгүй. Борлуулалт sync хүлээж байна.', 'error');
@@ -2022,29 +2334,299 @@
       }
     }
 
-    function showSaleSuccess(payload, pending) {
+    function showSaleSuccess(payload, pending, saleId = '') {
+      const effectiveId = saleId || payload.saleId || '';
       $('#saleSuccessBody').innerHTML = [
         ['Төлөв', pending ? 'Sync хүлээж байна' : 'Серверт хадгалагдсан'],
+        ['Sale ID', effectiveId || 'Sync хийсний дараа үүснэ'],
         ['Бараа', payload.product],
         ['Тоо', formatNumber(payload.quantity)],
         ['Нийт дүн', money(payload.quantity * payload.unitPrice)],
         ['Харилцагч', payload.customer],
         ['Төлбөр', payload.paymentType]
       ].map(([a,b]) => `<div class="summary-row"><span>${escapeHtml(a)}</span><strong>${escapeHtml(String(b))}</strong></div>`).join('');
+      const oldButton = $('#saleSuccess').querySelector('.sale-success-doc-btn');
+      if (oldButton) oldButton.remove();
+      if (!pending && effectiveId) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-secondary btn-block sale-success-doc-btn';
+        button.textContent = 'Баримт харах / хэвлэх';
+        button.addEventListener('click', () => openSaleDetail(effectiveId));
+        $('#saleSuccess').appendChild(button);
+      }
       $('#saleSuccess').classList.remove('hidden');
     }
 
     function renderSales() {
       const rows = state.recentTransactions.slice(0, 100);
-      $('#recentSalesList').innerHTML = rows.length ? rows.map(tx => `
-        <div class="list-item">
+      $('#recentSalesList').innerHTML = rows.length ? rows.map(tx => {
+        const saleId = transactionId(tx);
+        return `<button class="list-item clickable-sale" type="button" data-sale-id="${escapeHtml(saleId)}" ${tx.syncStatus === 'pending' ? 'disabled title="Sync хийсний дараа баримт үүсгэнэ"' : ''}>
           <div class="list-main">
             <strong>${tx.syncStatus === 'pending' ? '<span class="pending-dot"></span>' : ''}${escapeHtml(tx.product || '')}</strong>
-            <small>${escapeHtml(tx.customer || '')} · ${escapeHtml(formatDate(tx.date))}${tx.syncStatus === 'pending' ? ' · <span class="sync-pending">Sync хүлээж байна</span>' : ''}</small>
+            <small>${escapeHtml(tx.customer || '')} · ${escapeHtml(formatDate(tx.date))}${tx.syncStatus === 'pending' ? ' · <span class="sync-pending">Sync хүлээж байна</span>' : ` · ${escapeHtml(saleId)}`}</small>
           </div>
           <div class="amount">${money(tx.total)}</div>
-        </div>`).join('') : emptyHtml('Одоогоор борлуулалтын гүйлгээ алга.');
+        </button>`;
+      }).join('') : emptyHtml('Одоогоор борлуулалтын гүйлгээ алга.');
       $('#loadOlderWrap').classList.toggle('hidden', !state.hasMoreTransactions);
+    }
+
+    function transactionId(tx) {
+      return tx.saleId || tx.clientId || (tx.rowNumber ? `LEGACY-SALE-${tx.rowNumber}` : '');
+    }
+
+    function roleLabel(role) {
+      return ({ manager: 'Менежер', admin: 'Компанийн админ', rep: 'Борлуулагч', sales: 'Борлуулагч', warehouse: 'Агуулахын ажилтан', driver: 'Жолооч', accountant: 'Нягтлан бодогч' })[role] || 'Хэрэглэгч';
+    }
+
+    function bindDocumentUi() {
+      $('#recentSalesList').addEventListener('click', event => {
+        const button = event.target.closest('[data-sale-id]');
+        if (button && !button.disabled) openSaleDetail(button.dataset.saleId);
+      });
+      $('#visitList').addEventListener('click', event => {
+        const button = event.target.closest('[data-distribution-print]');
+        if (!button || button.disabled) return;
+        openDistributionDetail(button.dataset.distributionPrint, button.dataset.saleId || '');
+      });
+      $('#closeSaleDetailBtn').addEventListener('click', closeSaleDetail);
+      $('#saleDetailModal').addEventListener('click', event => { if (event.target === $('#saleDetailModal')) closeSaleDetail(); });
+      $('#previewInvoiceBtn').addEventListener('click', () => openDocumentPreview('INVOICE'));
+      $('#downloadInvoiceBtn').addEventListener('click', () => generateDocumentPdf('INVOICE', false, true));
+      $('#documentHistoryBtn').addEventListener('click', showDocumentHistory);
+      $('#printMenuBtn').addEventListener('click', () => {
+        const menu = $('#printMenu');
+        menu.classList.toggle('hidden');
+        $('#printMenuBtn').setAttribute('aria-expanded', String(!menu.classList.contains('hidden')));
+      });
+      $('#printMenu').addEventListener('click', event => {
+        const button = event.target.closest('[data-document-type]');
+        if (!button) return;
+        $('#printMenu').classList.add('hidden');
+        $('#printMenuBtn').setAttribute('aria-expanded', 'false');
+        openDocumentPreview(button.dataset.documentType);
+      });
+      document.addEventListener('click', event => {
+        if (!event.target.closest('.print-dropdown')) {
+          $('#printMenu')?.classList.add('hidden');
+          $('#printMenuBtn')?.setAttribute('aria-expanded', 'false');
+        }
+      });
+      $('#closePrintPreviewBtn').addEventListener('click', closePrintPreview);
+      $('#printPreviewModal').addEventListener('click', event => { if (event.target === $('#printPreviewModal')) closePrintPreview(); });
+      $('#generatePdfBtn').addEventListener('click', () => generateDocumentPdf(state.print.type, false, false));
+      $('#printPreviewBtn').addEventListener('click', printCurrentPreview);
+      $('#documentResultModal').addEventListener('click', event => { if (event.target === $('#documentResultModal')) closeDocumentResult(); });
+    }
+
+    function openSaleDetail(saleId) {
+      const tx = state.recentTransactions.find(item => transactionId(item) === saleId) || state.serverTransactions.find(item => transactionId(item) === saleId);
+      if (!tx) return toast('Борлуулалтын мэдээлэл олдсонгүй.', 'error');
+      if (tx.syncStatus === 'pending') return toast('Офлайн бүртгэл sync хийсний дараа баримт үүсгэнэ.', 'error');
+      state.selectedSale = tx;
+      $('#saleDetailSubtitle').textContent = transactionId(tx);
+      const fields = [
+        ['Sale ID', transactionId(tx)],
+        ['Огноо', formatDate(tx.date)],
+        ['Харилцагч', tx.customer],
+        ['Бараа', tx.product],
+        ['Тоо хэмжээ', formatNumber(tx.quantity)],
+        ['Нэгж үнэ', money(tx.unitPrice)],
+        ['Нийт дүн', money(tx.total)],
+        ['Төлбөрийн төрөл', tx.paymentType],
+        ['Агуулах', tx.warehouse || 'Үндсэн агуулах'],
+        ['Борлуулагч', tx.rep],
+        ['Төлөв', tx.status || 'Approved'],
+        ['Тэмдэглэл', tx.notes || '']
+      ];
+      $('#saleDetailBody').innerHTML = fields.filter(([, value]) => value !== '').map(([label, value]) => `<div class="detail-item"><small>${escapeHtml(label)}</small><strong>${escapeHtml(String(value))}</strong></div>`).join('');
+      $('#saleDetailModal').classList.remove('hidden');
+    }
+
+    function closeSaleDetail() {
+      $('#saleDetailModal').classList.add('hidden');
+      $('#printMenu').classList.add('hidden');
+    }
+
+    async function openDocumentPreview(type) {
+      if (!navigator.onLine) return toast('Баримт урьдчилан харахад интернет шаардлагатай.', 'error');
+      const isDistribution = type === 'DISTRIBUTION';
+      if (!isDistribution && !state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
+      const saleId = state.selectedSale ? transactionId(state.selectedSale) : (state.selectedDistribution?.saleId || '');
+      const distributionId = isDistribution
+        ? (state.selectedDistribution?.distributionId || state.selectedSale?.distributionId || '')
+        : (state.selectedSale?.distributionId || '');
+      if (isDistribution && !distributionId) return toast('Түгээлтийн бүртгэл сонгоно уу.', 'error');
+      showLoading('Баримтын мэдээлэл бэлтгэж байна...');
+      try {
+        const data = await postAction({
+          action: 'getPrintPreview',
+          documentType: type,
+          saleId,
+          distributionId,
+          referenceId: type === 'DISTRIBUTION' ? distributionId : saleId
+        });
+        if (!data.success) throw new Error(data.message || 'Баримт бэлтгэж чадсангүй.');
+        state.print = {
+          type,
+          referenceId: data.referenceId,
+          html: data.html,
+          documentNumber: data.documentNumber,
+          existingPdf: data.existingPdf || null,
+          generatedDocument: null
+        };
+        $('#printPreviewTitle').textContent = data.documentTitle || documentTypeLabel(type);
+        $('#printPreviewNumber').textContent = data.documentNumber || '';
+        $('#printPreviewContent').innerHTML = data.html;
+        $('#printPreviewModal').classList.remove('hidden');
+        fitPreviewPaper();
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function closePrintPreview() {
+      $('#printPreviewModal').classList.add('hidden');
+    }
+
+    function fitPreviewPaper() {
+      const scroll = $('.preview-scroll');
+      const paper = $('#printPreviewContent');
+      if (!scroll || !paper || window.innerWidth > 760) {
+        if (paper) paper.style.transform = '';
+        return;
+      }
+      requestAnimationFrame(() => {
+        const available = Math.max(280, scroll.clientWidth - 16);
+        const natural = paper.scrollWidth || 794;
+        const scale = Math.min(1, available / natural);
+        paper.style.transform = `scale(${scale})`;
+        paper.style.marginBottom = `${-(paper.offsetHeight * (1 - scale))}px`;
+      });
+    }
+
+    async function generateDocumentPdf(type = 'INVOICE', forceNewVersion = false, openAfter = false) {
+      if (!navigator.onLine) return toast('PDF үүсгэхэд интернет шаардлагатай.', 'error');
+      const isDistribution = type === 'DISTRIBUTION';
+      if (!isDistribution && !state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
+      const button = type === state.print.type && !$('#printPreviewModal').classList.contains('hidden') ? $('#generatePdfBtn') : $('#downloadInvoiceBtn');
+      setButtonLoading(button, true, 'PDF үүсгэж байна...');
+      try {
+        const saleId = state.selectedSale ? transactionId(state.selectedSale) : (state.selectedDistribution?.saleId || '');
+        const distributionId = isDistribution
+          ? (state.selectedDistribution?.distributionId || state.selectedSale?.distributionId || state.print.referenceId || '')
+          : (state.selectedSale?.distributionId || '');
+        if (isDistribution && !distributionId) throw new Error('Түгээлтийн бүртгэл сонгоно уу.');
+        const data = await postAction({
+          action: 'generatePdf',
+          documentType: type,
+          saleId,
+          distributionId,
+          referenceId: type === 'DISTRIBUTION' ? distributionId : saleId,
+          forceNewVersion
+        });
+        if (!data.success) throw new Error(data.message || 'PDF үүсгэж чадсангүй.');
+        if (data.exists && !forceNewVersion) {
+          showExistingPdfDialog(data.document, type, openAfter);
+          return;
+        }
+        state.print.generatedDocument = data.document;
+        showPdfSuccess(data.document, type, openAfter);
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    async function showDocumentHistory() {
+      if (!state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
+      if (!navigator.onLine) return toast('Баримтын түүх харахад интернет шаардлагатай.', 'error');
+      showLoading('Баримтын түүх ачаалж байна...');
+      try {
+        const saleId = transactionId(state.selectedSale);
+        const requests = ['INVOICE','STOCK_OUT'].map(type => postAction({
+          action: 'getDocumentHistory', documentType: type, saleId, referenceId: saleId
+        }).then(data => ({ type, data })).catch(error => ({ type, error })));
+        const distributionId = state.selectedSale.distributionId || '';
+        if (distributionId) requests.push(postAction({
+          action: 'getDocumentHistory', documentType: 'DISTRIBUTION', distributionId, referenceId: distributionId
+        }).then(data => ({ type: 'DISTRIBUTION', data })).catch(error => ({ type: 'DISTRIBUTION', error })));
+        const results = await Promise.all(requests);
+        const documents = [];
+        results.forEach(result => {
+          if (result.data?.success) (result.data.documents || []).forEach(doc => documents.push({ ...doc, type: result.type }));
+        });
+        documents.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        $('#documentResultTitle').textContent = 'Баримтын хувилбарын түүх';
+        $('#documentResultText').innerHTML = documents.length ? documents.map(doc => `
+          <div class="detail-item" style="text-align:left;margin-top:8px">
+            <strong>${escapeHtml(documentTypeLabel(doc.type))} № ${escapeHtml(doc.documentNumber || '')}</strong>
+            <small>Хувилбар ${escapeHtml(String(doc.version || 1))} · ${escapeHtml(doc.status || '')} · ${escapeHtml(formatDate(doc.createdAt))}</small>
+            ${doc.pdfUrl ? `<a class="btn btn-secondary btn-block" style="margin-top:8px;text-decoration:none" href="${escapeHtml(doc.pdfUrl)}" target="_blank" rel="noopener">PDF нээх</a>` : ''}
+          </div>`).join('') : 'Энэ борлуулалтад үүсгэсэн PDF баримт алга.';
+        $('#documentResultActions').innerHTML = '';
+        addResultAction('Хаах', 'btn btn-neutral', closeDocumentResult);
+        $('#documentResultModal').classList.remove('hidden');
+      } catch (error) {
+        toast(error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function showExistingPdfDialog(documentInfo, type, openAfter) {
+      $('#documentResultTitle').textContent = 'Энэ баримтын PDF өмнө нь үүссэн байна.';
+      $('#documentResultText').innerHTML = `<strong>${escapeHtml(documentInfo.documentNumber || '')}</strong><br>Хувилбар: ${escapeHtml(String(documentInfo.version || 1))}`;
+      $('#documentResultActions').innerHTML = '';
+      addResultAction('Өмнөх PDF нээх', 'btn btn-primary', () => openPdfDocument(documentInfo, openAfter));
+      addResultAction('Шинэ хувилбар үүсгэх', 'btn btn-secondary', () => { closeDocumentResult(); generateDocumentPdf(type, true, openAfter); });
+      addResultAction('Цуцлах', 'btn btn-neutral', closeDocumentResult);
+      $('#documentResultModal').classList.remove('hidden');
+    }
+
+    function showPdfSuccess(documentInfo, type, openAfter) {
+      $('#documentResultTitle').textContent = 'PDF амжилттай үүслээ.';
+      $('#documentResultText').innerHTML = `Баримт:<br><strong>${escapeHtml(documentTypeLabel(type))} № ${escapeHtml(documentInfo.documentNumber || '')}</strong><br>Хувилбар: ${escapeHtml(String(documentInfo.version || 1))}`;
+      $('#documentResultActions').innerHTML = '';
+      addResultAction('PDF нээх', 'btn btn-primary', () => openPdfDocument(documentInfo, openAfter));
+      addResultAction('Хэвлэх', 'btn btn-secondary', () => { closeDocumentResult(); if (state.print.html) printCurrentPreview(); else openDocumentPreview(type); });
+      addResultAction('Хаах', 'btn btn-neutral', closeDocumentResult);
+      $('#documentResultModal').classList.remove('hidden');
+      if (openAfter) openPdfDocument(documentInfo, true);
+    }
+
+    function addResultAction(label, className, handler) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = className;
+      button.textContent = label;
+      button.addEventListener('click', handler);
+      $('#documentResultActions').appendChild(button);
+    }
+
+    function closeDocumentResult() {
+      $('#documentResultModal').classList.add('hidden');
+    }
+
+    function openPdfDocument(documentInfo, preferDownload = false) {
+      const url = preferDownload ? (documentInfo.downloadUrl || documentInfo.pdfUrl) : (documentInfo.pdfUrl || documentInfo.downloadUrl);
+      if (!url) return toast('PDF холбоос олдсонгүй.', 'error');
+      window.open(url, '_blank', 'noopener');
+    }
+
+    function printCurrentPreview() {
+      if (!state.print.html) return toast('Хэвлэх баримтын урьдчилсан харагдац алга.', 'error');
+      $('#printDocument').innerHTML = state.print.html;
+      requestAnimationFrame(() => window.print());
+    }
+
+    function documentTypeLabel(type) {
+      return ({ INVOICE: 'Борлуулалтын баримт', STOCK_OUT: 'Агуулахын зарлагын баримт', DISTRIBUTION: 'Түгээлтийн баримт' })[type] || 'Баримт';
     }
 
     function renderInventory() {
@@ -2210,31 +2792,79 @@
       $('#fallbackCameraInput').value = '';
     }
 
+    function applyVisitSaleSelection() {
+      const saleId = $('#visitSaleId').value.trim();
+      const tx = state.serverTransactions.find(item => transactionId(item) === saleId) || state.recentTransactions.find(item => transactionId(item) === saleId);
+      if (!tx) return;
+      $('#visitCustomer').value = tx.customer || '';
+      $('#visitWarehouse').value = tx.warehouse || $('#visitWarehouse').value;
+      $('#visitRemainingReceivable').value = Math.max(0, numberValue(tx.total));
+    }
+
+    function updateVisitStatusFields() {
+      const finalStatuses = ['Хүргэгдсэн','Хэсэгчлэн хүргэсэн','Буцаалттай хүргэгдсэн'];
+      if (finalStatuses.includes($('#visitStatus').value) && !$('#visitDeliveredAt').value) {
+        const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+        $('#visitDeliveredAt').value = now.toISOString().slice(0, 16);
+      }
+    }
+
     async function handleVisit(event) {
       event.preventDefault();
       const btn = $('#visitBtn');
       setButtonLoading(btn, true, 'Хадгалж байна...');
       try {
         if (!navigator.onLine) throw new Error('Зурагтай түгээлтийн бүртгэлийг илгээхэд интернет шаардлагатай.');
+        const saleId = $('#visitSaleId').value.trim();
+        const linkedSale = state.serverTransactions.find(item => transactionId(item) === saleId) || state.recentTransactions.find(item => transactionId(item) === saleId);
         const payload = {
           action: 'addVisit',
+          saleId,
+          invoiceNumber: linkedSale?.invoiceNumber || '',
           customer: $('#visitCustomer').value.trim(),
+          customerPhone: $('#visitCustomerPhone').value.trim(),
+          customerAddress: $('#visitCustomerAddress').value.trim(),
+          contactPerson: $('#visitContactPerson').value.trim(),
           latitude: state.gps.lat,
           longitude: state.gps.lng,
+          locationText: state.gps.lat && state.gps.lng ? `${state.gps.lat}, ${state.gps.lng}` : '',
           photoData: state.photoData,
-          notes: $('#visitNotes').value.trim()
+          proofImageUrl: '',
+          notes: $('#visitNotes').value.trim(),
+          plannedDeliveryDate: $('#visitPlannedDate').value,
+          deliveredAt: $('#visitDeliveredAt').value,
+          route: $('#visitRoute').value.trim(),
+          vehicle: $('#visitVehicle').value.trim(),
+          driver: $('#visitDriver').value.trim(),
+          salesEmployee: linkedSale?.rep || state.session?.user?.fullName || state.session?.user?.username || '',
+          warehouse: $('#visitWarehouse').value,
+          status: $('#visitStatus').value,
+          failureReason: $('#visitFailureReason').value.trim(),
+          returnedProducts: $('#visitReturnedProducts').value.trim(),
+          collectedPayment: numberValue($('#visitCollectedPayment').value),
+          paymentMethod: $('#visitPaymentMethod').value,
+          remainingReceivable: numberValue($('#visitRemainingReceivable').value),
+          receivedBy: $('#visitReceivedBy').value.trim(),
+          customerData: {
+            phone: $('#visitCustomerPhone').value.trim(),
+            address: $('#visitCustomerAddress').value.trim(),
+            contactPerson: $('#visitContactPerson').value.trim()
+          }
         };
         if (!payload.customer) throw new Error('Харилцагчийн нэр оруулна уу.');
+        if (!payload.driver) throw new Error('Түгээлтийн жолоочийг оруулна уу.');
+        if (saleId && !linkedSale) throw new Error('Сонгосон Sale ID олдсонгүй.');
         const data = await postAction(payload);
-        if (!data.success) throw new Error(data.message || 'Айлчлал хадгалж чадсангүй.');
+        if (!data.success) throw new Error(data.message || 'Түгээлт хадгалж чадсангүй.');
         $('#visitForm').reset();
         state.gps = { lat: null, lng: null };
         $('#latText').textContent = '—';
         $('#lngText').textContent = '—';
         clearPhoto();
+        state.selectedDistribution = null;
         state.loaded.distribution = false;
-        loadModule('distribution');
-        toast('Түгээлтийн айлчлал хадгалагдлаа.', 'success');
+        await loadModule('distribution');
+        toast(`Түгээлт хадгалагдлаа. ${data.distributionId || ''}`, 'success');
       } catch (error) {
         toast(error.message, 'error');
       } finally {
@@ -2242,13 +2872,24 @@
       }
     }
 
+    function openDistributionDetail(distributionId, saleId) {
+      const visit = state.visits.find(item => item.distributionId === distributionId);
+      if (!visit) return toast('Түгээлтийн мэдээлэл олдсонгүй.', 'error');
+      state.selectedDistribution = visit;
+      state.selectedSale = state.serverTransactions.find(item => transactionId(item) === (saleId || visit.saleId)) || null;
+      openDocumentPreview('DISTRIBUTION');
+    }
+
     function renderVisits() {
       const visits = state.visits.slice(0, isPremium() ? 30 : 10);
       $('#visitList').innerHTML = visits.length ? visits.map(v => `
         <div class="list-item">
-          <div class="list-main"><strong>${escapeHtml(v.customer || '')}</strong><small>${escapeHtml(v.rep || '')} · ${escapeHtml(formatDate(v.date))}</small></div>
-          ${v.latitude && v.longitude ? `<a class="btn btn-secondary" style="min-height:40px;padding:7px 10px;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(v.latitude)},${encodeURIComponent(v.longitude)}">Газрын зураг</a>` : '<span class="badge flat">GPSгүй</span>'}
-        </div>`).join('') : emptyHtml(state.loaded.distribution ? 'Айлчлалын бүртгэл алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+          <div class="list-main"><strong>${escapeHtml(v.customer || '')}</strong><small>${escapeHtml(v.distributionId || '')} · ${escapeHtml(v.status || 'Үүссэн')} · ${escapeHtml(v.driver || v.rep || '')} · ${escapeHtml(formatDate(v.date))}</small></div>
+          <div class="row-actions">
+            ${v.distributionId && v.saleId ? `<button class="btn btn-secondary" type="button" data-distribution-print="${escapeHtml(v.distributionId)}" data-sale-id="${escapeHtml(v.saleId)}" style="min-height:40px;padding:7px 10px">Баримт</button>` : '<span class="badge flat">Sale IDгүй</span>'}
+            ${v.latitude && v.longitude ? `<a class="btn btn-secondary" style="min-height:40px;padding:7px 10px;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(v.latitude)},${encodeURIComponent(v.longitude)}">Газрын зураг</a>` : '<span class="badge flat">GPSгүй</span>'}
+          </div>
+        </div>`).join('') : emptyHtml(state.loaded.distribution ? 'Түгээлтийн бүртгэл алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
 
       const points = visits.filter(v => Number(v.latitude) && Number(v.longitude));
       const map = $('#routeMap');
@@ -2326,7 +2967,7 @@
       $('#profileInfo').innerHTML = [
         ['Нэр', user.fullName || ''],
         ['Username', user.username || ''],
-        ['Роль', user.role === 'manager' ? 'Менежер' : 'Борлуулагч'],
+        ['Роль', roleLabel(user.role)],
         ['Компани', user.company || ''],
         ['Sync хүлээж буй', String(pendingQueueCount())]
       ].map(([label, value]) => `<div class="list-item"><div class="list-main"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div></div>`).join('');
@@ -2340,7 +2981,7 @@
       if (!state.users.length) { wrap.innerHTML = emptyHtml('Хэрэглэгчийн мэдээлэл алга.'); return; }
       wrap.innerHTML = `<table><thead><tr><th>Нэр</th><th>Username</th><th>Роль</th><th>Үйлдэл</th></tr></thead><tbody>${state.users.map(user => `
         <tr>
-          <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${user.role === 'manager' ? 'Менежер' : 'Борлуулагч'}</td>
+          <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(roleLabel(user.role))}</td>
           <td><button class="btn btn-secondary" style="min-height:40px;padding:7px 10px" type="button" onclick='editUser(${JSON.stringify(user).replace(/'/g, "&#39;")})'>Засах</button>
           ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Устгах</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>`;
@@ -2459,17 +3100,22 @@
         const product = state.serverProducts.find(x => x.name === p.product);
         if (product) product.stock = Number.isFinite(Number(data.remainingStock)) ? Number(data.remainingStock) : numberValue(product.stock) - numberValue(p.quantity);
         if (!state.serverTransactions.some(tx => tx.clientId === item.id)) {
+          const transaction = data.transaction || {};
           state.serverTransactions.unshift({
-            date: data.date || item.createdAt,
-            rep: state.session?.user?.fullName || state.session?.user?.username || '',
-            product: p.product,
-            quantity: p.quantity,
-            unitPrice: p.unitPrice,
-            total: numberValue(p.quantity) * numberValue(p.unitPrice),
-            customer: p.customer,
-            paymentType: p.paymentType,
-            location: p.location,
-            clientId: item.id
+            date: transaction.date || data.date || item.createdAt,
+            rep: transaction.rep || state.session?.user?.fullName || state.session?.user?.username || '',
+            product: transaction.product || p.product,
+            quantity: transaction.quantity ?? p.quantity,
+            unitPrice: transaction.unitPrice ?? p.unitPrice,
+            total: transaction.total ?? numberValue(p.quantity) * numberValue(p.unitPrice),
+            customer: transaction.customer || p.customer,
+            paymentType: transaction.paymentType || p.paymentType,
+            location: transaction.location || p.location,
+            clientId: item.id,
+            saleId: transaction.saleId || data.saleId || '',
+            status: transaction.status || 'Approved',
+            warehouse: transaction.warehouse || p.warehouse || '',
+            dueDate: transaction.dueDate || ''
           });
         }
       }
@@ -2610,767 +3256,6 @@
     function escapeJs(value) { return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' '); }
   </script>
 
-  <!--
-  ============================================================================
-  GOOGLE APPS SCRIPT CODE.GS — TWO-TIER MULTI-TENANT ARCHITECTURE
 
-  MASTER REGISTRY spreadsheet (this Apps Script must be bound to it):
-    Компани: Компани нэр | Spreadsheet ID | Төлөв | Идэвхжүүлсэн огноо |
-             Хугацаа(сар) | Утас | Имэйл
-    Хэрэглэгч: Username | Password | Бүтэн нэр | Роль (manager/rep) | Компани нэр
-
-  Every registered company receives a separate private spreadsheet owned by
-  the Apps Script execution account. Business owners use custom credentials,
-  not Google accounts. If an owner asks to view/export their spreadsheet,
-  DataLinx must manually share that specific spreadsheet with their email.
-  This is intentionally a MANUAL ADMIN STEP; the code does not auto-share files.
-
-  Deploy: Deploy > New deployment > Web app
-  Execute as: Me
-  Who has access: Anyone
-  ============================================================================
-
-  START APPS SCRIPT
-
-const MASTER_SHEETS = {
-  COMPANIES: 'Компани',
-  USERS: 'Хэрэглэгч'
-};
-
-const COMPANY_SHEETS = {
-  PRODUCTS: 'Бараа',
-  SALES: 'Гүйлгээ',
-  INVENTORY_MOVES: 'Агуулахын хөдөлгөөн',
-  NORMS: 'Норм',
-  VISITS: 'Түгээлт',
-  WAREHOUSES: 'Агуулах',
-  WAREHOUSE_STOCK: 'Агуулахын үлдэгдэл',
-  LOCATIONS: 'Байршил',
-  CUSTOMERS: 'Харилцагч'
-};
-
-const FREE_REP_LIMIT = 5;
-const LOGIN_ATTEMPT_LIMIT = 10;
-const LOGIN_WINDOW_SECONDS = 60;
-const SESSION_SECONDS = 21600;
-const INITIAL_HISTORY_DAYS = 60;
-const INITIAL_HISTORY_LIMIT = 100;
-const UPGRADE_URL = 'https://www.facebook.com/DataLinxMN';
-
-function doGet(e) {
-  try {
-    ensureMasterSheets_();
-    const action = clean_(e && e.parameter && e.parameter.action);
-    if (action === 'login') return json_(handleLogin_(e.parameter || {}));
-    if (action === 'bootstrap') {
-      const auth = requireSession_(clean_(e.parameter.token));
-      return json_(buildInitialPayload_(auth));
-    }
-    if (action === 'module') {
-      const auth = requireSession_(clean_(e.parameter.token));
-      return json_(loadModule_(auth, clean_(e.parameter.module)));
-    }
-    if (action === 'history') {
-      const auth = requireSession_(clean_(e.parameter.token));
-      return json_(loadOlderHistory_(auth, e.parameter || {}));
-    }
-    return json_({ success: false, message: 'Тодорхойгүй GET action.' });
-  } catch (error) {
-    return json_({ success: false, message: error.message || String(error) });
-  }
-}
-
-function doPost(e) {
-  try {
-    ensureMasterSheets_();
-    const payload = parseBody_(e);
-    const action = clean_(payload.action);
-    if (action === 'registerCompany') return json_(handleRegisterCompany_(payload));
-
-    const auth = requireSession_(clean_(payload.token));
-    if (action === 'addSale') return json_(handleAddSale_(auth, payload));
-    if (action === 'addInventoryMove') return json_(handleAddInventoryMove_(auth, payload));
-    if (action === 'addVisit') return json_(handleAddVisit_(auth, payload));
-    if (action === 'saveUser') return json_(handleSaveUser_(auth, payload));
-    if (action === 'deleteUser') return json_(handleDeleteUser_(auth, payload));
-    return json_({ success: false, message: 'Тодорхойгүй POST action.' });
-  } catch (error) {
-    return json_({ success: false, message: error.message || String(error) });
-  }
-}
-
-function handleLogin_(params) {
-  const username = clean_(params.username);
-  const password = String(params.password || '');
-  if (!username || !password) throw new Error('Username болон нууц үг шаардлагатай.');
-
-  const cache = CacheService.getScriptCache();
-  const rateKey = 'login:' + username.toLowerCase();
-  const failed = Number(cache.get(rateKey) || 0);
-  if (failed >= LOGIN_ATTEMPT_LIMIT) {
-    throw new Error('Нэг минутанд 10-аас олон буруу оролдлого хийсэн тул түр хаагдлаа. 1 минутын дараа дахин оролдоно уу.');
-  }
-
-  const master = masterSs_();
-  const users = values_(master.getSheetByName(MASTER_SHEETS.USERS));
-  const userRow = findRowByValue_(users, 0, username);
-  if (!userRow || !passwordMatches_(password, userRow.values[1])) {
-    cache.put(rateKey, String(failed + 1), LOGIN_WINDOW_SECONDS);
-    throw new Error('Username эсвэл нууц үг буруу байна.');
-  }
-
-  cache.remove(rateKey);
-  const companyName = clean_(userRow.values[4]);
-  const company = getCompany_(companyName);
-  if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
-  if (!company.spreadsheetId) throw new Error('Компанийн Spreadsheet ID бүртгэгдээгүй байна.');
-  if (company.status === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. ' + UPGRADE_URL);
-
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-
-  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
-  const auth = {
-    username: clean_(userRow.values[0]),
-    fullName: clean_(userRow.values[2]),
-    role: normalizeRole_(userRow.values[3]),
-    company: companyName,
-    issuedAt: new Date().toISOString()
-  };
-  cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
-
-  const result = buildInitialPayload_(auth);
-  result.token = token;
-  return result;
-}
-
-function buildInitialPayload_(auth) {
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-  const recent = getRecentTransactions_(companySs, INITIAL_HISTORY_DAYS, INITIAL_HISTORY_LIMIT);
-  return {
-    success: true,
-    user: { username: auth.username, fullName: auth.fullName, role: auth.role, company: auth.company },
-    company: { name: company.name, phone: company.phone, email: company.email },
-    companyStatus: company.status,
-    expiresAt: company.expiresAt ? company.expiresAt.toISOString() : '',
-    products: getProducts_(companySs),
-    customers: getCustomers_(companySs),
-    warehouses: getWarehouses_(companySs),
-    locations: getLocations_(companySs),
-    recentTransactions: recent.items,
-    historyCursor: recent.historyCursor,
-    hasMoreTransactions: recent.hasMore
-  };
-}
-
-function loadModule_(auth, moduleName) {
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-  if (moduleName === 'inventory') {
-    return { success: true, inventoryMoves: getRecentInventoryMoves_(companySs, 100) };
-  }
-  if (moduleName === 'distribution') {
-    return { success: true, visits: getVisits_(companySs, auth, company.status, 50) };
-  }
-  if (moduleName === 'dashboard') {
-    return { success: true, dashboard: company.status === 'Active' ? buildDashboard_(companySs) : lockedDashboard_() };
-  }
-  if (moduleName === 'settings') {
-    return { success: true, users: auth.role === 'manager' ? getUsers_(auth.company) : [] };
-  }
-  throw new Error('Тодорхойгүй module.');
-}
-
-function loadOlderHistory_(auth, params) {
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  const sheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
-  const lastRow = sheet.getLastRow();
-  const requestedBefore = Math.floor(Number(params.beforeRow || lastRow + 1));
-  const beforeRow = Math.min(Math.max(requestedBefore, 2), lastRow + 1);
-  const limit = Math.min(Math.max(Math.floor(Number(params.limit || 100)), 1), 250);
-  const startRow = Math.max(2, beforeRow - limit);
-  const count = Math.max(0, beforeRow - startRow);
-  const items = count ? sheet.getRange(startRow, 1, count, 10).getValues().map(function(row, index) {
-    return mapSaleRow_(row, startRow + index);
-  }).reverse() : [];
-  return {
-    success: true,
-    transactions: items,
-    historyCursor: startRow,
-    hasMoreTransactions: startRow > 2
-  };
-}
-
-function handleRegisterCompany_(p) {
-  const companyName = clean_(p.companyName);
-  const phone = clean_(p.phone);
-  const email = clean_(p.email);
-  const managerName = clean_(p.managerName);
-  const username = clean_(p.username);
-  const password = String(p.password || '');
-  if (!companyName || !phone || !managerName || !username || !password) throw new Error('Компанийн нэр, утас, менежерийн нэр, хэрэглэгчийн нэр, нууц үг шаардлагатай.');
-  if (!/^\d{8}$/.test(phone)) throw new Error('Утасны дугаар яг 8 оронтой тоо байна.');
-  if (password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
-  validateUsername_(username);
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    const master = masterSs_();
-    const companySheet = master.getSheetByName(MASTER_SHEETS.COMPANIES);
-    const userSheet = master.getSheetByName(MASTER_SHEETS.USERS);
-    if (findRowByValue_(values_(companySheet), 0, companyName)) throw new Error('Ийм нэртэй компани бүртгэлтэй байна.');
-    if (findRowByValue_(values_(userSheet), 0, username)) throw new Error('Энэ username ашиглагдаж байна.');
-
-    const newSs = SpreadsheetApp.create(companyName + ' - DataLinx');
-    setupNewCompanySpreadsheet_(newSs);
-    const newSheetId = newSs.getId();
-
-    // Ownership note: newSs is owned by the Apps Script execution account.
-    // Sharing with a business owner's Google email is a manual DataLinx admin step.
-    companySheet.appendRow([companyName, newSheetId, 'Active', new Date(), 0, phone, email]);
-    userSheet.appendRow([username, sha256_(password), managerName, 'manager', companyName]);
-    return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleAddSale_(auth, p) {
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  const productName = clean_(p.product);
-  const quantity = positiveNumber_(p.quantity, 'Тоо ширхэг');
-  const unitPrice = nonNegativeNumber_(p.unitPrice, 'Нэгж үнэ');
-  const customer = clean_(p.customer);
-  const paymentType = clean_(p.paymentType) === 'Зээл' ? 'Зээл' : 'Бэлэн';
-  const clientId = clean_(p.clientId);
-  const location = company.status === 'Active' ? (clean_(p.location) || firstLocation_(companySs)) : firstLocation_(companySs);
-  const warehouse = company.status === 'Active' ? (clean_(p.warehouse) || firstWarehouse_(companySs)) : firstWarehouse_(companySs);
-  if (!productName || !customer) throw new Error('Бараа болон харилцагч шаардлагатай.');
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
-    const productRows = values_(productSheet);
-    const product = findProductRow_(productRows, productName);
-    if (!product) throw new Error('Бараа олдсонгүй.');
-
-    const salesSheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
-    const existing = clientId ? findClientId_(salesSheet, 10, clientId) : null;
-    if (existing) {
-      return { success: true, duplicate: true, date: iso_(existing.values[0]), total: Number(existing.values[5] || 0), remainingStock: Number(product.values[2] || 0) };
-    }
-
-    const stock = Number(product.values[2] || 0);
-    if (stock < quantity) throw new Error('Агуулахын үлдэгдэл хүрэлцэхгүй байна. Одоогийн үлдэгдэл: ' + stock);
-    adjustWarehouseStock_(companySs, warehouse, productName, -quantity, true, stock);
-    productSheet.getRange(product.rowNumber, 3).setValue(stock - quantity);
-
-    const date = new Date();
-    const total = quantity * unitPrice;
-    salesSheet.appendRow([date, auth.fullName || auth.username, productName, quantity, unitPrice, total, customer, paymentType, location, clientId]);
-    upsertCustomer_(companySs, customer);
-    return { success: true, date: date.toISOString(), total: total, remainingStock: stock - quantity };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleAddInventoryMove_(auth, p) {
-  if (auth.role !== 'manager') throw new Error('Агуулахын хөдөлгөөн хийх эрх зөвхөн менежерт байна.');
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  const productName = clean_(p.product);
-  const moveType = clean_(p.moveType).toLowerCase();
-  const quantity = positiveNumber_(p.quantity, 'Тоо хэмжээ');
-  const reason = clean_(p.reason);
-  const clientId = clean_(p.clientId);
-  if (!productName) throw new Error('Бараа сонгоно уу.');
-  if (['орлого', 'зарлага', 'шилжүүлэг'].indexOf(moveType) === -1) throw new Error('Хөдөлгөөний төрөл буруу байна.');
-  if (moveType === 'шилжүүлэг' && company.status !== 'Active') throw new Error('Агуулах хооронд шилжүүлэг нь Premium функц. ' + UPGRADE_URL);
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const moveSheet = companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES);
-    const existing = clientId ? findClientId_(moveSheet, 9, clientId) : null;
-    const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
-    const product = findProductRow_(values_(productSheet), productName);
-    if (!product) throw new Error('Бараа олдсонгүй.');
-    if (existing) return { success: true, duplicate: true, date: iso_(existing.values[0]), stock: Number(product.values[2] || 0) };
-
-    const current = Number(product.values[2] || 0);
-    let newTotal = current;
-    let fromWarehouse = '';
-    let toWarehouse = '';
-    let warehouse = company.status === 'Active' ? (clean_(p.warehouse) || firstWarehouse_(companySs)) : firstWarehouse_(companySs);
-
-    if (moveType === 'орлого') {
-      newTotal = current + quantity;
-      adjustWarehouseStock_(companySs, warehouse, productName, quantity, false, current);
-    } else if (moveType === 'зарлага') {
-      if (current < quantity) throw new Error('Нийт үлдэгдэл хүрэлцэхгүй байна.');
-      newTotal = current - quantity;
-      adjustWarehouseStock_(companySs, warehouse, productName, -quantity, true, current);
-    } else {
-      fromWarehouse = clean_(p.fromWarehouse);
-      toWarehouse = clean_(p.toWarehouse);
-      if (!fromWarehouse || !toWarehouse || fromWarehouse === toWarehouse) throw new Error('Хоёр өөр агуулах сонгоно уу.');
-      adjustWarehouseStock_(companySs, fromWarehouse, productName, -quantity, true, current);
-      adjustWarehouseStock_(companySs, toWarehouse, productName, quantity, false, 0);
-    }
-
-    if (moveType !== 'шилжүүлэг') productSheet.getRange(product.rowNumber, 3).setValue(newTotal);
-    const date = new Date();
-    moveSheet.appendRow([date, productName, moveType, quantity, reason, warehouse, fromWarehouse, toWarehouse, clientId]);
-    return { success: true, date: date.toISOString(), stock: newTotal };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleAddVisit_(auth, p) {
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  const customer = clean_(p.customer);
-  if (!customer) throw new Error('Харилцагчийн нэр шаардлагатай.');
-  const latitude = clean_(p.latitude);
-  const longitude = clean_(p.longitude);
-  const notes = clean_(p.notes);
-  const photoUrl = p.photoData ? savePhoto_(auth.company, auth.username, String(p.photoData)) : '';
-  companySs.getSheetByName(COMPANY_SHEETS.VISITS).appendRow([new Date(), auth.fullName || auth.username, customer, latitude, longitude, photoUrl, notes]);
-  upsertCustomer_(companySs, customer);
-  return { success: true, photoUrl: photoUrl };
-}
-
-function handleSaveUser_(auth, p) {
-  if (auth.role !== 'manager') throw new Error('Хэрэглэгч удирдах эрх зөвхөн менежерт байна.');
-  const originalUsername = clean_(p.originalUsername);
-  const username = clean_(p.username);
-  const fullName = clean_(p.fullName);
-  const role = normalizeRole_(p.role);
-  const password = String(p.password || '');
-  if (!username || !fullName) throw new Error('Нэр болон username шаардлагатай.');
-  validateUsername_(username);
-  if (password && password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const userSheet = masterSs_().getSheetByName(MASTER_SHEETS.USERS);
-    const rows = values_(userSheet);
-    const existingTarget = findRowByValue_(rows, 0, username);
-    const editing = originalUsername ? findRowByValue_(rows, 0, originalUsername) : existingTarget;
-    if (existingTarget && (!editing || existingTarget.rowNumber !== editing.rowNumber)) throw new Error('Энэ username ашиглагдаж байна.');
-
-    const company = getCompany_(auth.company);
-    if (role === 'rep' && company.status !== 'Active') {
-      const reps = rows.filter(function(row, index) {
-        if (index === 0) return false;
-        const same = clean_(row[4]).toLowerCase() === auth.company.toLowerCase();
-        const isRep = normalizeRole_(row[3]) === 'rep';
-        const editedRow = editing && index + 1 === editing.rowNumber;
-        return same && isRep && !editedRow;
-      }).length;
-      if (reps >= FREE_REP_LIMIT) throw new Error('Free эрхээр 5 хүртэл борлуулагч бүртгэнэ. Premium эрх авах: ' + UPGRADE_URL);
-    }
-
-    if (editing) {
-      userSheet.getRange(editing.rowNumber, 1, 1, 5).setValues([[
-        username,
-        password ? sha256_(password) : String(editing.values[1] || ''),
-        fullName,
-        role,
-        auth.company
-      ]]);
-    } else {
-      if (!password) throw new Error('Шинэ хэрэглэгчид нууц үг шаардлагатай.');
-      userSheet.appendRow([username, sha256_(password), fullName, role, auth.company]);
-    }
-    return { success: true };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleDeleteUser_(auth, p) {
-  if (auth.role !== 'manager') throw new Error('Хэрэглэгч устгах эрх зөвхөн менежерт байна.');
-  const username = clean_(p.username);
-  if (!username) throw new Error('Username шаардлагатай.');
-  if (username.toLowerCase() === auth.username.toLowerCase()) throw new Error('Өөрийн хэрэглэгчийг устгах боломжгүй.');
-  const userSheet = masterSs_().getSheetByName(MASTER_SHEETS.USERS);
-  const match = findRowByValue_(values_(userSheet), 0, username);
-  if (!match || clean_(match.values[4]).toLowerCase() !== auth.company.toLowerCase()) throw new Error('Хэрэглэгч олдсонгүй.');
-  userSheet.deleteRow(match.rowNumber);
-  return { success: true };
-}
-
-function getCompany_(companyName) {
-  const match = findRowByValue_(values_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES)), 0, companyName);
-  if (!match) return null;
-  const row = match.values;
-  const explicitStatus = clean_(row[2]).toLowerCase();
-  const activated = asDate_(row[3]);
-  const months = Number(row[4] || 0);
-  let status = 'Free';
-  let expiresAt = null;
-  if (explicitStatus === 'inactive' || explicitStatus === 'идэвхгүй') {
-    status = 'Inactive';
-  } else if (activated && months > 0) {
-    expiresAt = addMonths_(activated, months);
-    status = new Date().getTime() <= expiresAt.getTime() ? 'Active' : 'Free';
-  } else {
-    status = 'Free';
-  }
-  return {
-    name: clean_(row[0]),
-    spreadsheetId: clean_(row[1]),
-    status: status,
-    activatedAt: activated,
-    months: months,
-    expiresAt: expiresAt,
-    phone: clean_(row[5]),
-    email: clean_(row[6])
-  };
-}
-
-function requireActiveCompany_(companyName) {
-  const company = getCompany_(companyName);
-  if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
-  if (!company.spreadsheetId) throw new Error('Компанийн Spreadsheet ID бүртгэгдээгүй байна.');
-  if (company.status === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. ' + UPGRADE_URL);
-  return company;
-}
-
-function openCompanySs_(company) {
-  try { return SpreadsheetApp.openById(company.spreadsheetId); }
-  catch (error) { throw new Error('Компанийн spreadsheet нээж чадсангүй. Spreadsheet ID болон Apps Script эзэмшигчийн эрхийг шалгана уу.'); }
-}
-
-function getProducts_(companySs) {
-  const rows = values_(companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS));
-  const norms = {};
-  values_(companySs.getSheetByName(COMPANY_SHEETS.NORMS)).slice(1).forEach(function(row) {
-    if (clean_(row[0])) norms[clean_(row[0]).toLowerCase()] = Number(row[1] || 0);
-  });
-  return rows.slice(1).filter(function(row) { return clean_(row[0]); }).map(function(row) {
-    const name = clean_(row[0]);
-    return {
-      name: name,
-      price: Number(row[1] || 0),
-      stock: Number(row[2] || 0),
-      threshold: Number(row[3] || norms[name.toLowerCase()] || 0)
-    };
-  });
-}
-
-function getRecentTransactions_(companySs, days, maxItems) {
-  const sheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { items: [], historyCursor: '', hasMore: false };
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const chunkSize = 250;
-  const items = [];
-  let cursor = lastRow + 1;
-  let stoppedByDate = false;
-
-  while (cursor > 2 && items.length < maxItems && !stoppedByDate) {
-    const start = Math.max(2, cursor - chunkSize);
-    const count = cursor - start;
-    const rows = sheet.getRange(start, 1, count, 10).getValues();
-    for (let i = rows.length - 1; i >= 0; i -= 1) {
-      const rowNumber = start + i;
-      const date = asDate_(rows[i][0]);
-      if (date && date >= cutoff && items.length < maxItems) items.push(mapSaleRow_(rows[i], rowNumber));
-      else if (date && date < cutoff) { stoppedByDate = true; cursor = rowNumber + 1; break; }
-    }
-    if (!stoppedByDate) cursor = start;
-  }
-
-  const oldestRow = items.length ? Math.min.apply(null, items.map(function(item) { return item.rowNumber; })) : lastRow + 1;
-  return { items: items, historyCursor: oldestRow, hasMore: oldestRow > 2 };
-}
-
-function getRecentInventoryMoves_(companySs, limit) {
-  const sheet = companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES);
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-  const count = Math.min(limit, lastRow - 1);
-  const start = lastRow - count + 1;
-  return sheet.getRange(start, 1, count, 9).getValues().map(function(row, index) {
-    return {
-      rowNumber: start + index,
-      date: iso_(row[0]), product: clean_(row[1]), moveType: clean_(row[2]), quantity: Number(row[3] || 0),
-      reason: clean_(row[4]), warehouse: clean_(row[5]), fromWarehouse: clean_(row[6]), toWarehouse: clean_(row[7]), clientId: clean_(row[8])
-    };
-  }).reverse();
-}
-
-function mapSaleRow_(row, rowNumber) {
-  return {
-    rowNumber: rowNumber,
-    date: iso_(row[0]), rep: clean_(row[1]), product: clean_(row[2]), quantity: Number(row[3] || 0),
-    unitPrice: Number(row[4] || 0), total: Number(row[5] || 0), customer: clean_(row[6]),
-    paymentType: clean_(row[7]), location: clean_(row[8]), clientId: clean_(row[9])
-  };
-}
-
-function getVisits_(companySs, auth, companyStatus, limit) {
-  const rows = values_(companySs.getSheetByName(COMPANY_SHEETS.VISITS));
-  return rows.slice(1).filter(function(row) {
-    if (companyStatus === 'Active') return true;
-    return clean_(row[1]).toLowerCase() === clean_(auth.fullName || auth.username).toLowerCase();
-  }).slice(-limit).reverse().map(function(row) {
-    return { date: iso_(row[0]), rep: clean_(row[1]), customer: clean_(row[2]), latitude: Number(row[3]) || '', longitude: Number(row[4]) || '', photoUrl: clean_(row[5]), notes: clean_(row[6]) };
-  });
-}
-
-function getUsers_(companyName) {
-  return values_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)).slice(1).filter(function(row) {
-    return clean_(row[4]).toLowerCase() === companyName.toLowerCase();
-  }).map(function(row) { return { username: clean_(row[0]), fullName: clean_(row[2]), role: normalizeRole_(row[3]) }; });
-}
-
-function getCustomers_(companySs) {
-  const found = {};
-  values_(companySs.getSheetByName(COMPANY_SHEETS.CUSTOMERS)).slice(1).forEach(function(row) {
-    if (clean_(row[0])) found[clean_(row[0])] = true;
-  });
-  const sales = companySs.getSheetByName(COMPANY_SHEETS.SALES);
-  const lastRow = sales.getLastRow();
-  if (lastRow >= 2) {
-    const count = Math.min(500, lastRow - 1);
-    sales.getRange(lastRow - count + 1, 7, count, 1).getValues().forEach(function(row) {
-      if (clean_(row[0])) found[clean_(row[0])] = true;
-    });
-  }
-  return Object.keys(found).sort();
-}
-
-function getWarehouses_(companySs) {
-  const list = values_(companySs.getSheetByName(COMPANY_SHEETS.WAREHOUSES)).slice(1).filter(function(row) { return clean_(row[0]); }).map(function(row) { return { name: clean_(row[0]) }; });
-  return list.length ? list : [{ name: 'Үндсэн агуулах' }];
-}
-
-function getLocations_(companySs) {
-  const list = values_(companySs.getSheetByName(COMPANY_SHEETS.LOCATIONS)).slice(1).filter(function(row) { return clean_(row[0]); }).map(function(row) { return { name: clean_(row[0]) }; });
-  return list.length ? list : [{ name: 'Үндсэн байршил' }];
-}
-
-function buildDashboard_(companySs) {
-  const rows = values_(companySs.getSheetByName(COMPANY_SHEETS.SALES)).slice(1);
-  const now = new Date();
-  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  let currentTotal = 0;
-  let previousTotal = 0;
-  let currentCount = 0;
-  let creditTotal = 0;
-  const byProduct = {};
-  const byRep = {};
-  const creditByCustomer = {};
-
-  rows.forEach(function(row) {
-    const date = asDate_(row[0]);
-    if (!date) return;
-    const total = Number(row[5] || 0);
-    if (date >= currentStart && date < nextStart) {
-      currentTotal += total;
-      currentCount += 1;
-      addMetric_(byProduct, clean_(row[2]) || 'Тодорхойгүй', total, Number(row[3] || 0));
-      addMetric_(byRep, clean_(row[1]) || 'Тодорхойгүй', total, Number(row[3] || 0));
-    }
-    if (date >= previousStart && date < currentStart) previousTotal += total;
-    if (clean_(row[7]) === 'Зээл') {
-      creditTotal += total;
-      addMetric_(creditByCustomer, clean_(row[6]) || 'Тодорхойгүй', total, 0);
-    }
-  });
-
-  return {
-    currentTotal: currentTotal,
-    previousTotal: previousTotal,
-    currentCount: currentCount,
-    creditTotal: creditTotal,
-    momPercent: previousTotal === 0 ? (currentTotal > 0 ? 100 : 0) : ((currentTotal - previousTotal) / previousTotal) * 100,
-    byProduct: metricArray_(byProduct),
-    byRep: metricArray_(byRep),
-    creditByCustomer: metricArray_(creditByCustomer)
-  };
-}
-
-function lockedDashboard_() {
-  return { currentTotal: 0, previousTotal: 0, currentCount: 0, creditTotal: 0, momPercent: 0, byProduct: [], byRep: [], creditByCustomer: [] };
-}
-
-function addMetric_(object, key, total, quantity) {
-  if (!object[key]) object[key] = { name: key, total: 0, quantity: 0 };
-  object[key].total += total;
-  object[key].quantity += quantity;
-}
-function metricArray_(object) { return Object.keys(object).map(function(key) { return object[key]; }).sort(function(a, b) { return b.total - a.total; }); }
-
-function adjustWarehouseStock_(companySs, warehouse, product, delta, enforceNonNegative, fallbackCurrent) {
-  const sheet = companySs.getSheetByName(COMPANY_SHEETS.WAREHOUSE_STOCK);
-  const rows = values_(sheet);
-  let rowNumber = 0;
-  let hasAnyProductStock = false;
-  let current = Number(fallbackCurrent || 0);
-  for (let i = 1; i < rows.length; i += 1) {
-    const sameProduct = clean_(rows[i][1]).toLowerCase() === product.toLowerCase();
-    if (sameProduct) hasAnyProductStock = true;
-    if (sameProduct && clean_(rows[i][0]).toLowerCase() === warehouse.toLowerCase()) {
-      rowNumber = i + 1;
-      current = Number(rows[i][2] || 0);
-      break;
-    }
-  }
-  if (!rowNumber && hasAnyProductStock) current = 0;
-  if (enforceNonNegative && current + delta < 0) throw new Error(warehouse + ' агуулахын үлдэгдэл хүрэлцэхгүй байна.');
-  if (rowNumber) sheet.getRange(rowNumber, 3).setValue(current + delta);
-  else sheet.appendRow([warehouse, product, current + delta]);
-}
-
-function savePhoto_(company, username, dataUrl) {
-  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!match) throw new Error('Зургийн формат буруу байна.');
-  const bytes = Utilities.base64Decode(match[2]);
-  const extension = match[1].indexOf('png') > -1 ? 'png' : 'jpg';
-  const folder = getOrCreatePhotoFolder_(company);
-  const filename = username + '_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss') + '.' + extension;
-  return folder.createFile(Utilities.newBlob(bytes, match[1], filename)).getUrl();
-}
-
-function getOrCreatePhotoFolder_(company) {
-  const rootName = 'DataLinx_Distribution_Photos';
-  const roots = DriveApp.getFoldersByName(rootName);
-  const root = roots.hasNext() ? roots.next() : DriveApp.createFolder(rootName);
-  const children = root.getFoldersByName(company);
-  return children.hasNext() ? children.next() : root.createFolder(company);
-}
-
-function upsertCustomer_(companySs, customer) {
-  const sheet = companySs.getSheetByName(COMPANY_SHEETS.CUSTOMERS);
-  const exists = values_(sheet).slice(1).some(function(row) { return clean_(row[0]).toLowerCase() === customer.toLowerCase(); });
-  if (!exists) sheet.appendRow([customer]);
-}
-
-function firstWarehouse_(companySs) { return getWarehouses_(companySs)[0].name; }
-function firstLocation_(companySs) { return getLocations_(companySs)[0].name; }
-
-function findClientId_(sheet, columnNumber, clientId) {
-  const lastRow = sheet.getLastRow();
-  if (!clientId || lastRow < 2) return null;
-  const found = sheet.getRange(2, columnNumber, lastRow - 1, 1)
-    .createTextFinder(clientId)
-    .matchEntireCell(true)
-    .findNext();
-  if (!found) return null;
-  const rowNumber = found.getRow();
-  return { rowNumber: rowNumber, values: sheet.getRange(rowNumber, 1, 1, columnNumber).getValues()[0] };
-}
-
-function setupNewCompanySpreadsheet_(ss) {
-  const first = ss.getSheets()[0];
-  first.setName(COMPANY_SHEETS.PRODUCTS);
-  ensureCompanySheets_(ss);
-  ss.getSheetByName(COMPANY_SHEETS.WAREHOUSES).appendRow(['Үндсэн агуулах']);
-  ss.getSheetByName(COMPANY_SHEETS.LOCATIONS).appendRow(['Үндсэн байршил']);
-}
-
-function ensureMasterSheets_() {
-  const ss = masterSs_();
-  ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл']);
-  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep)','Компани нэр']);
-}
-
-function ensureCompanySheets_(ss) {
-  ensureSheet_(ss, COMPANY_SHEETS.PRODUCTS, ['Барааны нэр','Нэгж үнэ','Одоогийн үлдэгдэл','Бага үлдэгдлийн хязгаар']);
-  ensureSheet_(ss, COMPANY_SHEETS.SALES, ['Огноо','Рэп нэр','Бараа','Тоо','Үнэ','Нийт дүн','Харилцагч','Төлбөрийн төрөл','Байршил','Client ID']);
-  ensureSheet_(ss, COMPANY_SHEETS.INVENTORY_MOVES, ['Огноо','Бараа','Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)','Тоо','Шалтгаан','Агуулах','Гарах агуулах','Хүлээн авах агуулах','Client ID']);
-  ensureSheet_(ss, COMPANY_SHEETS.NORMS, ['Бараа','Бага үлдэгдлийн хязгаар']);
-  ensureSheet_(ss, COMPANY_SHEETS.VISITS, ['Огноо','Рэп нэр','Харилцагч','Өргөрөг','Уртраг','Зургийн холбоос','Тэмдэглэл']);
-  ensureSheet_(ss, COMPANY_SHEETS.WAREHOUSES, ['Агуулахын нэр']);
-  ensureSheet_(ss, COMPANY_SHEETS.WAREHOUSE_STOCK, ['Агуулах','Бараа','Үлдэгдэл']);
-  ensureSheet_(ss, COMPANY_SHEETS.LOCATIONS, ['Байршлын нэр']);
-  ensureSheet_(ss, COMPANY_SHEETS.CUSTOMERS, ['Харилцагчийн нэр']);
-}
-
-function masterSs_() { return SpreadsheetApp.getActiveSpreadsheet(); }
-
-function ensureSheet_(ss, name, headers) {
-  let sheet = ss.getSheetByName(name);
-  if (!sheet) sheet = ss.insertSheet(name);
-  if (sheet.getMaxColumns() < headers.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
-  if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  else {
-    const current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
-    let changed = false;
-    headers.forEach(function(header, index) { if (!clean_(current[index])) { current[index] = header; changed = true; } });
-    if (changed) sheet.getRange(1, 1, 1, headers.length).setValues([current]);
-  }
-  sheet.setFrozenRows(1);
-  return sheet;
-}
-
-function requireSession_(token) {
-  if (!token) throw new Error('Session token байхгүй байна. Дахин нэвтэрнэ үү.');
-  const cache = CacheService.getScriptCache();
-  const raw = cache.get('session:' + token);
-  if (!raw) throw new Error('Session хугацаа дууссан. Дахин нэвтэрнэ үү.');
-  cache.put('session:' + token, raw, SESSION_SECONDS);
-  return JSON.parse(raw);
-}
-
-function passwordMatches_(input, stored) { return String(stored || '') === sha256_(input) || String(stored || '') === String(input || ''); }
-function sha256_(text) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8).map(function(byte) {
-    const normalized = byte < 0 ? byte + 256 : byte;
-    return ('0' + normalized.toString(16)).slice(-2);
-  }).join('');
-}
-
-function validateUsername_(username) {
-  if (username.length < 3 || username.length > 40) throw new Error('Username 3-40 тэмдэгт байна.');
-  if (/[\s"'<>]/.test(username)) throw new Error('Username-д зай, хашилт, < > тэмдэг ашиглахгүй.');
-}
-function normalizeRole_(value) { return clean_(value).toLowerCase() === 'manager' ? 'manager' : 'rep'; }
-function parseBody_(e) {
-  if (!e || !e.postData || !e.postData.contents) throw new Error('POST body хоосон байна.');
-  try { return JSON.parse(e.postData.contents); }
-  catch (error) { throw new Error('POST body JSON форматгүй байна.'); }
-}
-function json_(data) { return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
-function values_(sheet) {
-  const lastRow = sheet.getLastRow();
-  const lastColumn = sheet.getLastColumn();
-  return lastRow && lastColumn ? sheet.getRange(1, 1, lastRow, lastColumn).getValues() : [];
-}
-function findRowByValue_(rows, columnIndex, value) {
-  const target = clean_(value).toLowerCase();
-  for (let i = 1; i < rows.length; i += 1) if (clean_(rows[i][columnIndex]).toLowerCase() === target) return { rowNumber: i + 1, values: rows[i] };
-  return null;
-}
-function findProductRow_(rows, product) {
-  for (let i = 1; i < rows.length; i += 1) if (clean_(rows[i][0]).toLowerCase() === product.toLowerCase()) return { rowNumber: i + 1, values: rows[i] };
-  return null;
-}
-function clean_(value) { return String(value === null || value === undefined ? '' : value).trim(); }
-function positiveNumber_(value, name) { const n = Number(value); if (!isFinite(n) || n <= 0) throw new Error(name + ' 0-ээс их байна.'); return n; }
-function nonNegativeNumber_(value, name) { const n = Number(value); if (!isFinite(n) || n < 0) throw new Error(name + ' 0 буюу түүнээс их байна.'); return n; }
-function asDate_(value) { const d = value instanceof Date ? value : new Date(value); return isNaN(d.getTime()) ? null : d; }
-function iso_(value) { const d = asDate_(value); return d ? d.toISOString() : clean_(value); }
-function addMonths_(date, months) { const d = new Date(date.getTime()); d.setMonth(d.getMonth() + Number(months)); return d; }
-
-  END APPS SCRIPT
-  -->
 </body>
 </html>
