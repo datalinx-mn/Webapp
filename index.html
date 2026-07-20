@@ -219,6 +219,74 @@
     }
     input[readonly] { background: #F2F4F2; color: #59625B; }
 
+
+    .smart-select { position: relative; }
+    .smart-select > input { padding-right: 48px; }
+    .smart-select-toggle {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 0 11px 11px 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 18px;
+      font-weight: 900;
+    }
+    .smart-select.open > input {
+      border-color: var(--green-2);
+      box-shadow: 0 0 0 3px rgba(46,125,50,.13);
+    }
+    .smart-select-menu {
+      position: absolute;
+      z-index: 75;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      max-height: 250px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 6px;
+      border: 1px solid #C9D3CA;
+      border-radius: 13px;
+      background: var(--card);
+      box-shadow: 0 14px 34px rgba(15, 35, 18, .18);
+    }
+    .smart-select-option {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 11px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      font-weight: 700;
+    }
+    .smart-select-option:hover,
+    .smart-select-option.active { background: var(--green-soft); color: var(--green); }
+    .smart-select-option small { color: var(--muted); font-weight: 600; }
+    .smart-select-option.create { color: var(--green); }
+    .smart-select-empty { padding: 12px; color: var(--muted); font-size: 13px; }
+    .field-hint { color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .form-error {
+      padding: 11px 12px;
+      border: 1px solid #F1B9B4;
+      border-radius: 11px;
+      background: #FFF0EE;
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+    [aria-invalid="true"] { border-color: var(--danger) !important; }
+
     .btn {
       min-height: 48px;
       border: 0;
@@ -623,7 +691,7 @@
         <button class="auth-tab" type="button" data-auth-tab="register">Шинээр бүртгүүлэх</button>
       </div>
       <div class="auth-body">
-        <form id="loginForm" class="form-grid" autocomplete="on">
+        <form id="loginForm" class="form-grid" autocomplete="on" novalidate>
           <div class="field">
             <label for="loginUsername">Хэрэглэгчийн нэр</label>
             <input id="loginUsername" name="username" autocomplete="username" required>
@@ -633,10 +701,9 @@
             <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
           </div>
           <button id="loginBtn" class="btn btn-primary btn-block" type="submit">Нэвтрэх</button>
-          <small style="color:var(--muted);line-height:1.5">Apps Script Web App URL-ээ JavaScript хэсгийн <b>APP_SCRIPT_URL</b> хувьсагчид оруулна.</small>
         </form>
 
-        <form id="registerForm" class="form-grid hidden" autocomplete="off">
+        <form id="registerForm" class="form-grid hidden" autocomplete="off" novalidate>
           <div class="field">
             <label for="regCompany">Компанийн нэр</label>
             <input id="regCompany" required>
@@ -644,7 +711,8 @@
           <div class="form-grid two">
             <div class="field">
               <label for="regPhone">Утас</label>
-              <input id="regPhone" inputmode="tel" required>
+              <input id="regPhone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="99112233" aria-describedby="regPhoneHint" required>
+              <small id="regPhoneHint" class="field-hint">Монголын 8 оронтой утасны дугаар</small>
             </div>
             <div class="field">
               <label for="regEmail">Имэйл</label>
@@ -657,15 +725,17 @@
           </div>
           <div class="form-grid two">
             <div class="field">
-              <label for="regUsername">Менежерийн username</label>
+              <label for="regUsername">Менежерийн хэрэглэгчийн нэр</label>
               <input id="regUsername" autocomplete="username" required>
             </div>
             <div class="field">
               <label for="regPassword">Нууц үг</label>
-              <input id="regPassword" type="password" minlength="6" autocomplete="new-password" required>
+              <input id="regPassword" type="password" autocomplete="new-password" aria-describedby="regPasswordHint" required>
+              <small id="regPasswordHint" class="field-hint">Хамгийн багадаа 6 тэмдэгт</small>
             </div>
           </div>
-          <button id="registerBtn" class="btn btn-primary btn-block" type="submit">Free эрхээр шууд нээх</button>
+          <div id="registerError" class="form-error hidden" role="alert"></div>
+          <button id="registerBtn" class="btn btn-primary btn-block" type="submit">Үнэгүй эрхээр бүртгүүлэх</button>
         </form>
       </div>
     </div>
@@ -702,8 +772,22 @@
             <form id="saleForm" class="card form-grid">
               <h3>Шинэ борлуулалт</h3>
               <div class="field">
+                <label for="saleCustomer">Харилцагч</label>
+                <div id="saleCustomerControl" class="smart-select">
+                  <input id="saleCustomer" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="saleCustomerMenu" placeholder="Харилцагч хайх эсвэл шинээр нэмэх" required>
+                  <button class="smart-select-toggle" type="button" aria-label="Харилцагчийн жагсаалт нээх" data-smart-toggle="saleCustomer">⌄</button>
+                  <div id="saleCustomerMenu" class="smart-select-menu hidden" role="listbox"></div>
+                </div>
+                <small class="field-hint">Бүртгэлтэй харилцагчаа сонгоно. Байхгүй бол нэрийг бичээд “шинээр нэмэх”-ийг сонгоно.</small>
+              </div>
+              <div class="field">
                 <label for="saleProduct">Бараа</label>
-                <select id="saleProduct" required><option value="">Бараа сонгох</option></select>
+                <div id="saleProductControl" class="smart-select">
+                  <input id="saleProduct" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="saleProductMenu" placeholder="Бараа хайж сонгох" required>
+                  <button class="smart-select-toggle" type="button" aria-label="Барааны жагсаалт нээх" data-smart-toggle="saleProduct">⌄</button>
+                  <div id="saleProductMenu" class="smart-select-menu hidden" role="listbox"></div>
+                </div>
+                <small id="saleProductHint" class="field-hint">Барааны бүртгэлээс сонгоход үнэ автоматаар санал болгоно.</small>
               </div>
               <div class="form-grid two">
                 <div class="field">
@@ -712,13 +796,8 @@
                 </div>
                 <div class="field">
                   <label for="salePrice">Нэгж үнэ</label>
-                  <input id="salePrice" type="number" inputmode="numeric" min="0" step="1" required>
+                  <input id="salePrice" type="number" inputmode="numeric" min="0" step="1" placeholder="Бүртгэлтэй үнээс санал болгоно" required>
                 </div>
-              </div>
-              <div class="field">
-                <label for="saleCustomer">Харилцагч</label>
-                <input id="saleCustomer" list="customerList" placeholder="Сонгох эсвэл шинээр бичих" required>
-                <datalist id="customerList"></datalist>
               </div>
               <div class="form-grid two">
                 <div class="field">
@@ -822,7 +901,8 @@
               <h3>Шинэ айлчлал</h3>
               <div class="field">
                 <label for="visitCustomer">Харилцагч</label>
-                <input id="visitCustomer" list="customerList" required>
+                <input id="visitCustomer" list="visitCustomerList" placeholder="Харилцагч сонгох эсвэл бичих" required>
+                <datalist id="visitCustomerList"></datalist>
               </div>
               <div class="form-grid two">
                 <div class="field">
@@ -1044,12 +1124,14 @@
 
     const $ = (selector, root = document) => root.querySelector(selector);
     const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+    const smartSelects = new Map();
 
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
       bindAuthTabs();
       bindNavigation();
+      bindSmartSelects();
       bindForms();
       bindCamera();
       window.addEventListener('online', handleOnline);
@@ -1070,6 +1152,135 @@
         $('#loginForm').classList.toggle('hidden', !login);
         $('#registerForm').classList.toggle('hidden', login);
       }));
+    }
+
+    function bindSmartSelects() {
+      registerSmartSelect({
+        inputId: 'saleCustomer',
+        menuId: 'saleCustomerMenu',
+        controlId: 'saleCustomerControl',
+        allowCreate: true,
+        items: () => state.customers.map(name => ({ value: name, label: name })),
+        emptyText: 'Бүртгэлтэй харилцагч олдсонгүй.',
+        createText: value => `“${value}” нэрээр шинэ харилцагч нэмэх`
+      });
+      registerSmartSelect({
+        inputId: 'saleProduct',
+        menuId: 'saleProductMenu',
+        controlId: 'saleProductControl',
+        allowCreate: false,
+        items: () => state.products.map(product => ({
+          value: product.name,
+          label: product.name,
+          meta: `${money(product.price)} · үлдэгдэл ${formatNumber(product.stock)}`
+        })),
+        emptyText: 'Бүртгэлтэй бараа олдсонгүй.',
+        onSelect: updateSaleProduct
+      });
+      document.addEventListener('pointerdown', event => {
+        smartSelects.forEach(config => {
+          if (!config.control.contains(event.target)) closeSmartSelect(config);
+        });
+      });
+    }
+
+    function registerSmartSelect(options) {
+      const input = document.getElementById(options.inputId);
+      const menu = document.getElementById(options.menuId);
+      const control = document.getElementById(options.controlId);
+      if (!input || !menu || !control) return;
+      const config = { ...options, input, menu, control, activeIndex: -1 };
+      smartSelects.set(options.inputId, config);
+
+      input.addEventListener('focus', () => openSmartSelect(config));
+      input.addEventListener('input', () => {
+        input.dataset.selectedValue = '';
+        if (options.inputId === 'saleProduct') updateSaleProduct();
+        openSmartSelect(config);
+      });
+      input.addEventListener('keydown', event => handleSmartSelectKeydown(event, config));
+      input.addEventListener('blur', () => window.setTimeout(() => closeSmartSelect(config), 140));
+
+      const toggle = control.querySelector(`[data-smart-toggle="${options.inputId}"]`);
+      if (toggle) toggle.addEventListener('click', () => {
+        if (control.classList.contains('open')) closeSmartSelect(config);
+        else {
+          input.focus();
+          openSmartSelect(config);
+        }
+      });
+
+      menu.addEventListener('pointerdown', event => {
+        const option = event.target.closest('[data-smart-value]');
+        if (!option) return;
+        event.preventDefault();
+        selectSmartValue(config, option.dataset.smartValue);
+      });
+    }
+
+    function openSmartSelect(config) {
+      renderSmartSelectMenu(config);
+      config.control.classList.add('open');
+      config.menu.classList.remove('hidden');
+      config.input.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeSmartSelect(config) {
+      config.control.classList.remove('open');
+      config.menu.classList.add('hidden');
+      config.input.setAttribute('aria-expanded', 'false');
+      config.activeIndex = -1;
+    }
+
+    function renderSmartSelectMenu(config) {
+      const query = config.input.value.trim().toLocaleLowerCase('mn-MN');
+      const allItems = config.items();
+      const filtered = allItems.filter(item => !query || item.label.toLocaleLowerCase('mn-MN').includes(query)).slice(0, 60);
+      const exact = allItems.some(item => item.label.toLocaleLowerCase('mn-MN') === query);
+      const rows = filtered.map((item, index) => `
+        <button type="button" class="smart-select-option${index === config.activeIndex ? ' active' : ''}" role="option" data-smart-value="${escapeHtml(item.value)}">
+          <span>${escapeHtml(item.label)}</span>${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ''}
+        </button>`);
+      if (config.allowCreate && query && !exact) {
+        rows.unshift(`<button type="button" class="smart-select-option create" role="option" data-smart-value="${escapeHtml(config.input.value.trim())}"><span>＋ ${escapeHtml(config.createText(config.input.value.trim()))}</span></button>`);
+      }
+      config.menu.innerHTML = rows.length ? rows.join('') : `<div class="smart-select-empty">${escapeHtml(config.emptyText)}</div>`;
+    }
+
+    function selectSmartValue(config, value) {
+      config.input.value = value;
+      config.input.dataset.selectedValue = value;
+      config.input.setAttribute('aria-invalid', 'false');
+      closeSmartSelect(config);
+      if (typeof config.onSelect === 'function') config.onSelect(value);
+    }
+
+    function handleSmartSelectKeydown(event, config) {
+      if (event.key === 'Escape') {
+        closeSmartSelect(config);
+        return;
+      }
+      if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+      const options = Array.from(config.menu.querySelectorAll('[data-smart-value]'));
+      if (event.key === 'Enter') {
+        if (!config.control.classList.contains('open')) return;
+        event.preventDefault();
+        const selected = options[config.activeIndex] || options[0];
+        if (selected) selectSmartValue(config, selected.dataset.smartValue);
+        return;
+      }
+      event.preventDefault();
+      if (!config.control.classList.contains('open')) openSmartSelect(config);
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      config.activeIndex = Math.max(0, Math.min(options.length - 1, config.activeIndex + direction));
+      options.forEach((option, index) => option.classList.toggle('active', index === config.activeIndex));
+      options[config.activeIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function refreshSmartSelect(inputId) {
+      const config = smartSelects.get(inputId);
+      if (!config) return;
+      if (config.control.classList.contains('open')) renderSmartSelectMenu(config);
     }
 
     function bindNavigation() {
@@ -1094,12 +1305,12 @@
       $('#inventoryForm').addEventListener('submit', handleInventoryMove);
       $('#visitForm').addEventListener('submit', handleVisit);
       $('#userForm').addEventListener('submit', handleSaveUser);
-      $('#saleProduct').addEventListener('change', updateSaleProduct);
       $('#saleQty').addEventListener('input', updateSaleSummary);
       $('#salePrice').addEventListener('input', updateSaleSummary);
       $('#invType').addEventListener('change', updateInventoryFields);
       $('#gpsBtn').addEventListener('click', captureGps);
       $('#removePhotoBtn').addEventListener('click', clearPhoto);
+      $('#regPhone').addEventListener('input', event => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 8); });
     }
 
     function bindCamera() {
@@ -1157,12 +1368,16 @@
       const btn = $('#loginBtn');
       setButtonLoading(btn, true, 'Нэвтэрч байна...');
       try {
+        const username = $('#loginUsername').value.trim();
+        const password = $('#loginPassword').value;
+        if (!username) throw new Error('Хэрэглэгчийн нэрээ оруулна уу.');
+        if (!password) throw new Error('Нууц үгээ оруулна уу.');
         if (!navigator.onLine) throw new Error('Анх нэвтрэхэд интернет холболт шаардлагатай.');
         ensureUrl();
         const url = new URL(APP_SCRIPT_URL);
         url.searchParams.set('action', 'login');
-        url.searchParams.set('username', $('#loginUsername').value.trim());
-        url.searchParams.set('password', $('#loginPassword').value);
+        url.searchParams.set('username', username);
+        url.searchParams.set('password', password);
         url.searchParams.set('_', String(Date.now()));
         const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store', redirect: 'follow' });
         const data = await parseResponse(response);
@@ -1192,30 +1407,66 @@
     async function handleRegister(event) {
       event.preventDefault();
       const btn = $('#registerBtn');
+      clearRegisterError();
       setButtonLoading(btn, true, 'Бүртгэж байна...');
       try {
-        if (!navigator.onLine) throw new Error('Компани бүртгэхэд интернет холболт шаардлагатай.');
-        ensureUrl();
         const payload = {
           action: 'registerCompany',
           companyName: $('#regCompany').value.trim(),
-          phone: $('#regPhone').value.trim(),
+          phone: $('#regPhone').value.replace(/\D/g, ''),
           email: $('#regEmail').value.trim(),
           managerName: $('#regManagerName').value.trim(),
           username: $('#regUsername').value.trim(),
           password: $('#regPassword').value
         };
+        if (!payload.companyName) throw fieldError_('Компанийн нэрээ оруулна уу.', '#regCompany');
+        if (!/^\d{8}$/.test(payload.phone)) throw fieldError_('Утасны дугаар яг 8 оронтой тоо байна.', '#regPhone');
+        if (payload.email && !$('#regEmail').validity.valid) throw fieldError_('Имэйл хаягаа зөв бичнэ үү.', '#regEmail');
+        if (!payload.managerName) throw fieldError_('Менежерийн бүтэн нэрийг оруулна уу.', '#regManagerName');
+        if (payload.username.length < 3) throw fieldError_('Хэрэглэгчийн нэр хамгийн багадаа 3 тэмдэгт байна.', '#regUsername');
+        if (/\s/.test(payload.username)) throw fieldError_('Хэрэглэгчийн нэрд зай оруулахгүй.', '#regUsername');
+        if (payload.password.length < 6) throw fieldError_('Нууц үг хамгийн багадаа 6 тэмдэгт байна.', '#regPassword');
+        if (!navigator.onLine) throw new Error('Компани бүртгэхэд интернет холболт шаардлагатай.');
+        ensureUrl();
         const data = await postAction(payload, false);
         if (!data.success) throw new Error(data.message || 'Бүртгэл үүсгэж чадсангүй.');
-        toast('Free эрх амжилттай нээгдлээ. Одоо нэвтэрнэ үү.', 'success');
+        toast('Үнэгүй эрх амжилттай үүслээ. Одоо нэвтэрнэ үү.', 'success');
         $('#loginUsername').value = payload.username;
         $('#loginPassword').value = payload.password;
         $('.auth-tab[data-auth-tab="login"]').click();
         $('#registerForm').reset();
+        clearRegisterError();
       } catch (error) {
+        showRegisterError(error.message, error.fieldSelector);
         toast(error.message, 'error');
       } finally {
         setButtonLoading(btn, false);
+      }
+    }
+
+    function fieldError_(message, fieldSelector) {
+      const error = new Error(message);
+      error.fieldSelector = fieldSelector;
+      return error;
+    }
+
+    function clearRegisterError() {
+      const box = $('#registerError');
+      box.textContent = '';
+      box.classList.add('hidden');
+      $$('#registerForm [aria-invalid="true"]').forEach(field => field.setAttribute('aria-invalid', 'false'));
+    }
+
+    function showRegisterError(message, fieldSelector) {
+      const box = $('#registerError');
+      box.textContent = message;
+      box.classList.remove('hidden');
+      if (fieldSelector) {
+        const field = $(fieldSelector);
+        if (field) {
+          field.setAttribute('aria-invalid', 'true');
+          field.focus();
+        }
       }
     }
 
@@ -1268,8 +1519,12 @@
           text: 'Бараа, тоо хэмжээ, үнэ, харилцагч болон төлбөрийн төрлийг сонгоод хадгална. Борлуулалт хадгалагдахад барааны үлдэгдэл автоматаар хасагдана.'
         },
         {
+          page: 'sales', selector: '#saleCustomer', title: 'Харилцагч сонгох',
+          text: 'Эхлээд бүртгэлтэй харилцагчаа хайж сонгоно. Жагсаалтад байхгүй бол нэрийг бичээд шинэ харилцагчаар шууд нэмнэ.'
+        },
+        {
           page: 'sales', selector: '#saleProduct', title: 'Бараа сонгох',
-          text: 'Бараагаа сонгоход нэгж үнэ болон боломжит үлдэгдэл автоматаар гарна. Нэгж үнийг тухайн борлуулалтад шаардлагатай бол засаж болно.'
+          text: 'Дараа нь бараагаа хайж сонгоно. Барааны бүртгэлд байгаа нэгж үнэ автоматаар санал болж, боломжит үлдэгдэл харагдана. Үнийг тухайн борлуулалтад засаж болно.'
         },
         {
           page: 'sales', selector: '#recentSalesList', title: 'Гүйлгээний түүх',
@@ -1673,13 +1928,14 @@
     }
 
     function renderSelects() {
-      fillSelect($('#saleProduct'), state.products, item => item.name, item => item.name, 'Бараа сонгох');
+      refreshSmartSelect('saleProduct');
+      refreshSmartSelect('saleCustomer');
       fillSelect($('#invProduct'), state.products, item => item.name, item => item.name, 'Бараа сонгох');
       fillSelect($('#singleWarehouse'), state.warehouses, item => item.name, item => item.name, 'Үндсэн агуулах');
       fillSelect($('#fromWarehouse'), state.warehouses, item => item.name, item => item.name, 'Гарах агуулах');
       fillSelect($('#toWarehouse'), state.warehouses, item => item.name, item => item.name, 'Хүлээн авах агуулах');
       fillSelect($('#saleLocation'), state.locations, item => item.name, item => item.name, 'Үндсэн байршил');
-      $('#customerList').innerHTML = state.customers.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+      $('#visitCustomerList').innerHTML = state.customers.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
       updateSaleProduct();
       updateInventoryFields();
     }
@@ -1693,8 +1949,16 @@
     }
 
     function updateSaleProduct() {
-      const product = state.products.find(x => x.name === $('#saleProduct').value);
-      if (product) $('#salePrice').value = product.price || 0;
+      const name = $('#saleProduct').value.trim();
+      const product = state.products.find(x => x.name === name);
+      if (product) {
+        $('#saleProduct').dataset.selectedValue = product.name;
+        $('#salePrice').value = product.price || 0;
+        $('#saleProductHint').textContent = `Бүртгэлтэй үнэ: ${money(product.price)} · Боломжит үлдэгдэл: ${formatNumber(product.stock)}`;
+      } else {
+        $('#saleProduct').dataset.selectedValue = '';
+        $('#saleProductHint').textContent = state.products.length ? 'Барааны бүртгэлээс хайж сонгоно уу.' : 'Одоогоор бараа бүртгэлгүй байна. Менежер компанийн Бараа хүснэгтэд бараа нэмнэ.';
+      }
       $('#saleStock').textContent = formatNumber(product?.stock || 0);
       updateSaleSummary();
     }
@@ -1724,12 +1988,19 @@
           location: isPremium() ? $('#saleLocation').value : (state.locations[0]?.name || 'Үндсэн байршил'),
           warehouse: state.warehouses[0]?.name || 'Үндсэн агуулах'
         };
-        if (!payload.customer) throw new Error('Харилцагч оруулна уу.');
+        if (!payload.customer) throw new Error('Харилцагч сонгох эсвэл шинээр нэмнэ үү.');
+        if (!state.customers.some(name => name.toLocaleLowerCase('mn-MN') === payload.customer.toLocaleLowerCase('mn-MN'))) {
+          state.customers.push(payload.customer);
+          state.customers.sort((a, b) => a.localeCompare(b, 'mn-MN'));
+        }
         const item = enqueueAction('addSale', payload);
         rebuildOptimisticState();
         renderAll();
         showSaleSuccess(payload, true);
         $('#saleForm').reset();
+        updateSaleProduct();
+        updateSaleSummary();
+        refreshSmartSelect('saleCustomer');
 
         if (!navigator.onLine) {
           toast('Борлуулалт офлайн хадгалагдлаа. Сүлжээ ороход автоматаар илгээгдэнэ.', 'success');
@@ -2541,7 +2812,8 @@ function handleRegisterCompany_(p) {
   const managerName = clean_(p.managerName);
   const username = clean_(p.username);
   const password = String(p.password || '');
-  if (!companyName || !phone || !managerName || !username || !password) throw new Error('Компанийн нэр, утас, менежерийн нэр, username, нууц үг шаардлагатай.');
+  if (!companyName || !phone || !managerName || !username || !password) throw new Error('Компанийн нэр, утас, менежерийн нэр, хэрэглэгчийн нэр, нууц үг шаардлагатай.');
+  if (!/^\d{8}$/.test(phone)) throw new Error('Утасны дугаар яг 8 оронтой тоо байна.');
   if (password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
   validateUsername_(username);
 
@@ -2562,7 +2834,7 @@ function handleRegisterCompany_(p) {
     // Sharing with a business owner's Google email is a manual DataLinx admin step.
     companySheet.appendRow([companyName, newSheetId, 'Active', new Date(), 0, phone, email]);
     userSheet.appendRow([username, sha256_(password), managerName, 'manager', companyName]);
-    return { success: true, message: 'Free эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
+    return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
   } finally {
     lock.releaseLock();
   }
