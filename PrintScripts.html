@@ -1,0 +1,50 @@
+(function () {
+  'use strict';
+
+  window.printCurrentDocument = function () {
+    window.print();
+  };
+
+  window.formatMongolianMoney = function (value) {
+    var number = Number(value || 0);
+    return number.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' ₮';
+  };
+
+  window.numberToMongolianWords = function (value) {
+    var number = Math.floor(Math.abs(Number(value) || 0));
+    if (number === 0) return 'тэг';
+    if (number > 999999999999) return String(number);
+    var ones = ['', 'нэг', 'хоёр', 'гурав', 'дөрөв', 'тав', 'зургаа', 'долоо', 'найм', 'ес'];
+    var tens = ['', 'арав', 'хорь', 'гуч', 'дөч', 'тавь', 'жар', 'дал', 'ная', 'ер'];
+
+    function underThousand(n) {
+      var words = [];
+      var hundred = Math.floor(n / 100);
+      var rest = n % 100;
+      if (hundred) words.push((hundred === 1 ? '' : ones[hundred] + ' ') + 'зуун');
+      var ten = Math.floor(rest / 10);
+      var one = rest % 10;
+      if (ten) words.push(tens[ten]);
+      if (one) words.push(ones[one]);
+      return words.join(' ');
+    }
+
+    var groups = [
+      { value: 1000000000, name: 'тэрбум' },
+      { value: 1000000, name: 'сая' },
+      { value: 1000, name: 'мянга' }
+    ];
+    var remaining = number;
+    var words = [];
+    groups.forEach(function (group) {
+      var amount = Math.floor(remaining / group.value);
+      if (amount) {
+        words.push(underThousand(amount));
+        words.push(group.name);
+        remaining %= group.value;
+      }
+    });
+    if (remaining) words.push(underThousand(remaining));
+    return words.join(' ').replace(/\s+/g, ' ').trim();
+  };
+})();
