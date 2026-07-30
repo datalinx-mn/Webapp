@@ -19,7 +19,7 @@
         if (!response.ok) throw new Error('Үндсэн апп ачаалсангүй.');
         let html = await response.text();
         html = html.replace('</head>', '<link rel="stylesheet" href="./premium-ads.css?v=20260730"></head>');
-        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260730"><\\/script></body>');
+        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260730"><\/script></body>');
         document.open();
         document.write(html);
         document.close();
