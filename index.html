@@ -789,6 +789,52 @@
       .quick-step .btn { grid-column: 1 / -1; width: 100%; }
     }
 
+
+    /* Free-with-ads access model */
+    .ad-slot { margin: 0 0 14px; }
+    .sponsor-ad {
+      min-height: 84px;
+      display: grid;
+      grid-template-columns: 74px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 12px;
+      border: 1px solid #D8E1D9;
+      border-radius: 16px;
+      background: #fff;
+      color: inherit;
+      text-decoration: none;
+      box-shadow: 0 3px 12px rgba(19,52,22,.04);
+    }
+    .sponsor-ad:hover { border-color: #A9C6AC; }
+    .sponsor-ad-image { width: 74px; height: 60px; border-radius: 11px; object-fit: cover; background: var(--green-soft); }
+    .sponsor-ad-placeholder { width: 74px; height: 60px; display: grid; place-items: center; border-radius: 11px; background: var(--green-soft); color: var(--green); font-weight: 950; font-size: 20px; }
+    .sponsor-ad-copy { min-width: 0; }
+    .sponsor-ad-label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+    .sponsor-ad-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sponsor-ad-copy small { display: block; margin-top: 4px; color: var(--muted); line-height: 1.35; }
+    .sponsor-ad-action { color: var(--green); font-weight: 900; white-space: nowrap; }
+
+    .sale-cart { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #FAFCFA; }
+    .sale-cart-head { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .sale-cart-head span { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .sale-cart-empty { padding: 13px; color: var(--muted); font-size: 13px; text-align: center; }
+    .sale-cart-item { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .sale-cart-item:last-child { border-bottom: 0; }
+    .sale-cart-item strong, .sale-cart-item small { display: block; }
+    .sale-cart-item small { margin-top: 3px; color: var(--muted); }
+    .sale-cart-remove { min-width: 40px; min-height: 40px; padding: 6px; border: 0; border-radius: 10px; background: #FCE9E7; color: var(--danger); font-weight: 900; }
+    .ad-privacy-note { border-left: 4px solid var(--green); }
+
+    @media (max-width: 560px) {
+      .sponsor-ad { grid-template-columns: 58px minmax(0,1fr); }
+      .sponsor-ad-image, .sponsor-ad-placeholder { width: 58px; height: 54px; }
+      .sponsor-ad-action { display: none; }
+      .sale-cart-item { grid-template-columns: minmax(0,1fr) auto; }
+      .sale-cart-item .amount { grid-column: 1; }
+      .sale-cart-remove { grid-column: 2; grid-row: 1 / span 2; }
+    }
+
     @media (min-width: 660px) {
       .form-grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -1022,7 +1068,7 @@
     <div class="auth-card">
       <div class="auth-brand">
         <h1>Борлуулалт ба түгээлт</h1>
-        <p>1–9 ажилтантай жижиг бизнест зориулсан энгийн борлуулалт, агуулах, түгээлтийн систем</p>
+        <p>1–9 ажилтантай бизнест зориулсан · бүх үндсэн боломж үнэгүй · зарын дэмжлэгтэй</p>
       </div>
       <div class="auth-tabs">
         <button class="auth-tab active" type="button" data-auth-tab="login">Нэвтрэх</button>
@@ -1086,7 +1132,7 @@
         <small id="userTitle">Хэрэглэгч</small>
       </div>
       <div class="topbar-actions">
-        <span id="topStatus" class="status-pill">FREE</span>
+        <span id="topStatus" class="status-pill">ҮНЭГҮЙ</span>
         <button id="helpBtn" class="icon-btn" type="button" aria-label="Ашиглах заавар нээх" title="Ашиглах заавар">?</button>
         <button id="refreshBtn" class="icon-btn" type="button" aria-label="Өгөгдөл шинэчлэх">↻</button>
       </div>
@@ -1142,8 +1188,10 @@
             <div class="card metric"><small>Бага үлдэгдэлтэй</small><strong id="todayLowStockCount">0</strong><div class="metric-footer"><span>Анхаарах бараа</span></div></div>
           </div>
 
+          <div class="ad-slot" data-ad-placement="sales"></div>
+
           <div class="grid grid-main">
-            <form id="saleForm" class="card form-grid">
+            <form id="saleForm" class="card form-grid" novalidate>
               <h3>Борлуулалт бүртгэх</h3>
               <div class="field">
                 <label for="saleCustomer">Харилцагч</label>
@@ -1175,6 +1223,11 @@
                   <label for="salePrice">Нэгж үнэ</label>
                   <input id="salePrice" type="number" inputmode="numeric" min="0" step="1" placeholder="Бүртгэлтэй үнээс санал болгоно" required>
                 </div>
+              </div>
+              <button id="addSaleItemBtn" class="btn btn-secondary btn-block" type="button">＋ Барааг сагсанд нэмэх</button>
+              <div id="saleCartWrap" class="sale-cart">
+                <div class="sale-cart-head"><strong>Борлуулалтын сагс</strong><span id="saleCartCount">0 бараа</span></div>
+                <div id="saleCartList"><div class="sale-cart-empty">Олон бараатай борлуулалт хийх бол бараагаа нэг нэгээр нь сагсанд нэмнэ.</div></div>
               </div>
               <div class="form-grid two">
                 <div class="field">
@@ -1216,6 +1269,7 @@
           <div class="page-head">
             <div><h2>Агуулах</h2><p>Үлдэгдэл болон агуулахын хөдөлгөөн удирдана.</p></div>
           </div>
+          <div class="ad-slot" data-ad-placement="inventory"></div>
           <details id="productManagementCard" class="card manager-only simple-details" style="margin-bottom:14px">
             <summary><span>Бараа удирдах<small>Шинэ бараа нэмэх, үнэ болон үлдэгдэл засах</small></span></summary>
             <div class="simple-details-body">
@@ -1322,6 +1376,7 @@
           <div class="page-head">
             <div><h2>Түгээлт</h2><p>Харилцагч дээр очсон бүртгэл, GPS, зураг хадгална.</p></div>
           </div>
+          <div class="ad-slot" data-ad-placement="distribution"></div>
           <div class="grid grid-main">
             <form id="visitForm" class="card form-grid">
               <h3>Шинэ түгээлт / айлчлал</h3>
@@ -1419,7 +1474,7 @@
             <div class="grid">
               <div id="routeCard" class="card premium-only">
                 <h3>Маршрутын түүх</h3>
-                <p class="card-subtitle">Premium эрхтэй үед бүх борлуулагчийн GPS цэг болон маршрут харагдана.</p>
+                <p class="card-subtitle">Менежер бүх борлуулагчийн GPS цэг болон маршрутыг харна.</p>
                 <div id="routeMap" class="route-map"></div>
                 <a id="openRouteLink" class="btn btn-secondary btn-block" href="#" target="_blank" rel="noopener" style="margin-top:12px;text-decoration:none">Google Maps дээр маршрут нээх</a>
               </div>
@@ -1435,12 +1490,13 @@
           <div class="page-head">
             <div><h2>Хяналт самбар</h2><p>Борлуулалт, бүтээгдэхүүн, борлуулагч, зээлийн тойм.</p></div>
           </div>
+          <div class="ad-slot" data-ad-placement="dashboard"></div>
           <div id="dashboardPremiumWrap" class="premium-wrap">
             <div id="dashboardLock" class="lock-overlay hidden">
               <div class="lock-panel">
                 <div class="lock-icon">🔒</div>
-                <h3>Premium хэсэг</h3>
-                <p>Хяналт самбар, борлуулагчийн харьцуулалт, сарын өсөлтийн тайланг идэвхжүүлнэ.</p>
+                <h3>Хяналтын самбар</h3>
+                <p>Борлуулалт, бараа, борлуулагч болон авлагын тойм.</p>
                 <a class="btn btn-primary btn-block" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener" style="text-decoration:none">DataLinx-тэй холбогдох</a>
               </div>
             </div>
@@ -1477,13 +1533,19 @@
 
         <section id="page-settings" class="page">
           <div class="page-head">
-            <div><h2>Тохиргоо</h2><p>Эрхийн төлөв, хэрэглэгч болон системийн мэдээлэл.</p></div>
+            <div><h2>Тохиргоо</h2><p>Үнэгүй эрх, зарын мэдээлэл, хэрэглэгч болон системийн тохиргоо.</p></div>
           </div>
+          <div class="ad-slot" data-ad-placement="settings"></div>
           <div class="grid">
             <div id="subscriptionBanner" class="banner">
-              <h3 id="subscriptionTitle">Free эрх</h3>
-              <p id="subscriptionText">Үндсэн функцууд ашиглах боломжтой.</p>
-              <a class="btn btn-primary" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener" style="margin-top:13px;text-decoration:none">Premium эрхийн талаар холбогдох</a>
+              <h3 id="subscriptionTitle">Үнэгүй · зарын дэмжлэгтэй</h3>
+              <p id="subscriptionText">Бүх үндсэн боломж нээлттэй.</p>
+              <a class="btn btn-primary" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener" style="margin-top:13px;text-decoration:none">Тусламж авах</a>
+            </div>
+
+            <div class="card ad-privacy-note">
+              <h3>Зар ба нууцлал</h3>
+              <p class="card-subtitle" style="margin:0;line-height:1.55">Системийг үнэ төлбөргүй ажиллуулахын тулд жижиг, саад болдоггүй ивээн тэтгэсэн зар харуулна. Сурталчлагчид танай борлуулалт, бараа, ажилтан, харилцагч болон GPS мэдээлэлд хандахгүй. Зар нь DataLinx-ийн master бүртгэлээс ирэх бөгөөд бизнесийн датаас тусдаа байна.</p>
             </div>
 
             <div class="grid grid-2">
@@ -1515,7 +1577,6 @@
                   </select>
                 </div>
                 <button id="saveUserBtn" class="btn btn-primary btn-block" type="submit">Хэрэглэгч хадгалах</button>
-                <small style="color:var(--muted)">Free эрхийн серверийн хязгаар: нэг компанид 5 хүртэл борлуулагч.</small>
               </form>
             </div>
 
@@ -1682,6 +1743,8 @@
       locations: [],
       visits: [],
       users: [],
+      ads: [],
+      saleCart: [],
       dashboard: null,
       historyCursor: '',
       hasMoreTransactions: false,
@@ -1905,6 +1968,11 @@
       $('#productManagementTable').addEventListener('click', handleProductTableClick);
       $('#saleQty').addEventListener('input', updateSaleSummary);
       $('#salePrice').addEventListener('input', updateSaleSummary);
+      $('#addSaleItemBtn').addEventListener('click', addCurrentSaleItemToCart);
+      $('#saleCartList').addEventListener('click', event => {
+        const button = event.target.closest('[data-cart-remove]');
+        if (button) removeSaleCartItem(Number(button.dataset.cartRemove));
+      });
       $('#invType').addEventListener('change', updateInventoryFields);
       $('#gpsBtn').addEventListener('click', captureGps);
       $('#removePhotoBtn').addEventListener('click', clearPhoto);
@@ -2297,6 +2365,8 @@
       state.serverProducts = [];
       state.serverTransactions = [];
       state.serverInventoryMoves = [];
+      state.ads = [];
+      state.saleCart = [];
       $('#appScreen').classList.add('hidden');
       $('#authScreen').classList.remove('hidden');
       $('#loginPassword').value = '';
@@ -2347,11 +2417,11 @@
         },
         {
           page: 'inventory', selector: '#productStockList', title: 'Агуулахын үлдэгдэл',
-          text: 'Бүх барааны одоогийн үлдэгдлийг эндээс хянана. Premium эрхтэй үед бага үлдэгдлийн хязгаар болон олон агуулахын боломж идэвхжинэ.'
+          text: 'Бүх барааны одоогийн үлдэгдлийг эндээс хянана. Бага үлдэгдлийн хязгаар болон олон агуулахын боломж бүх компанид нээлттэй.'
         },
         {
           page: 'inventory', selector: '#inventoryForm', title: 'Орлого, зарлага бүртгэх',
-          text: 'Бараа орлогод авах, зарлагадах эсвэл Premium эрхтэй үед агуулах хооронд шилжүүлэх хөдөлгөөнийг шалтгаантай нь бүртгэнэ.'
+          text: 'Бараа орлогод авах, зарлагадах эсвэл агуулах хооронд шилжүүлэх хөдөлгөөнийг шалтгаантай нь бүртгэнэ.'
         },
         {
           page: 'distribution', selector: '#visitForm', title: 'Түгээлтийн айлчлал',
@@ -2571,6 +2641,7 @@
       if (Array.isArray(data.inventoryMoves)) state.serverInventoryMoves = data.inventoryMoves;
       if (Array.isArray(data.visits)) state.visits = data.visits;
       if (Array.isArray(data.users)) state.users = data.users;
+      if (Array.isArray(data.ads)) state.ads = data.ads;
       if (data.dashboard) state.dashboard = data.dashboard;
       if (Object.prototype.hasOwnProperty.call(data, 'historyCursor')) state.historyCursor = data.historyCursor || '';
       if (Object.prototype.hasOwnProperty.call(data, 'hasMoreTransactions')) state.hasMoreTransactions = Boolean(data.hasMoreTransactions);
@@ -2597,16 +2668,23 @@
       queue.forEach(item => {
         const p = item.payload || {};
         if (item.action === 'addSale') {
-          const product = state.products.find(x => x.name === p.product);
-          if (product) product.stock = numberValue(product.stock) - numberValue(p.quantity);
+          const saleItems = Array.isArray(p.items) && p.items.length
+            ? p.items
+            : [{ product: p.product, quantity: p.quantity, unitPrice: p.unitPrice }];
+          saleItems.forEach(line => {
+            const product = state.products.find(x => x.name === line.product);
+            if (product) product.stock = numberValue(product.stock) - numberValue(line.quantity);
+          });
           if (!state.recentTransactions.some(x => x.clientId === item.id)) {
+            const total = saleItems.reduce((sum, line) => sum + numberValue(line.quantity) * numberValue(line.unitPrice), 0);
+            const quantity = saleItems.reduce((sum, line) => sum + numberValue(line.quantity), 0);
             state.recentTransactions.unshift({
               date: item.createdAt,
               rep: state.session?.user?.fullName || state.session?.user?.username || '',
-              product: p.product,
-              quantity: p.quantity,
-              unitPrice: p.unitPrice,
-              total: numberValue(p.quantity) * numberValue(p.unitPrice),
+              product: saleItems.length === 1 ? saleItems[0].product : `${saleItems.length} төрлийн бараа`,
+              quantity,
+              unitPrice: saleItems.length === 1 ? numberValue(saleItems[0].unitPrice) : 0,
+              total,
               customer: p.customer,
               paymentType: p.paymentType,
               location: p.location,
@@ -2738,7 +2816,7 @@
       }
     }
 
-    function isPremium() { return state.session?.companyStatus === 'Active'; }
+    function isPremium() { return state.session?.companyStatus !== 'Inactive'; }
     function isManager() { return ['manager','admin'].includes(state.session?.user?.role); }
 
     function renderAll() {
@@ -2749,8 +2827,8 @@
       $('#userTitle').textContent = `${user.fullName || user.username || ''} · ${roleLabel(user.role)}`;
       const status = state.session.companyStatus;
       const topStatus = $('#topStatus');
-      topStatus.textContent = status === 'Active' ? 'PREMIUM' : status === 'Inactive' ? 'ИДЭВХГҮЙ' : 'FREE';
-      topStatus.className = `status-pill ${status === 'Active' ? 'premium' : status === 'Inactive' ? 'inactive' : ''}`;
+      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : 'ҮНЭГҮЙ · ЗАРТАЙ';
+      topStatus.className = `status-pill ${status === 'Inactive' ? 'inactive' : ''}`;
       $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
       renderSelects();
       renderSales();
@@ -2760,6 +2838,8 @@
       renderVisits();
       renderDashboard();
       renderSettings();
+      renderAds();
+      renderSaleCart();
       applyTierUi();
       updateConnectivityUi();
     }
@@ -2806,8 +2886,70 @@
       updateSaleSummary();
     }
 
+    function readCurrentSaleLine(required = false) {
+      const productName = $('#saleProduct').value.trim();
+      const qtyRaw = $('#saleQty').value;
+      const priceRaw = $('#salePrice').value;
+      const hasDraft = Boolean(productName || qtyRaw || priceRaw);
+      if (!hasDraft && !required) return null;
+      const product = state.products.find(item => item.name === productName);
+      const quantity = numberValue(qtyRaw);
+      const unitPrice = numberValue(priceRaw);
+      if (!product) throw new Error('Бараа сонгоно уу.');
+      if (quantity <= 0) throw new Error('Тоо ширхэг 0-ээс их байна.');
+      if (unitPrice < 0) throw new Error('Нэгж үнэ 0-ээс бага байж болохгүй.');
+      const alreadyInCart = state.saleCart
+        .filter(item => item.product === product.name)
+        .reduce((sum, item) => sum + numberValue(item.quantity), 0);
+      if (quantity + alreadyInCart > numberValue(product.stock)) {
+        throw new Error(`${product.name} барааны үлдэгдэл хүрэлцэхгүй байна.`);
+      }
+      return { product: product.name, quantity, unitPrice };
+    }
+
+    function addCurrentSaleItemToCart() {
+      try {
+        const line = readCurrentSaleLine(true);
+        const existing = state.saleCart.find(item => item.product === line.product && numberValue(item.unitPrice) === line.unitPrice);
+        if (existing) existing.quantity = numberValue(existing.quantity) + line.quantity;
+        else state.saleCart.push(line);
+        $('#saleProduct').value = '';
+        $('#saleProduct').dataset.selectedValue = '';
+        $('#saleQty').value = '';
+        $('#salePrice').value = '';
+        updateSaleProduct();
+        renderSaleCart();
+        $('#saleProduct').focus();
+        toast('Бараа сагсанд нэмэгдлээ.', 'success');
+      } catch (error) {
+        toast(error.message, 'error');
+      }
+    }
+
+    function removeSaleCartItem(index) {
+      if (!Number.isInteger(index) || index < 0 || index >= state.saleCart.length) return;
+      state.saleCart.splice(index, 1);
+      renderSaleCart();
+      updateSaleSummary();
+    }
+
+    function renderSaleCart() {
+      const list = $('#saleCartList');
+      const count = state.saleCart.reduce((sum, item) => sum + numberValue(item.quantity), 0);
+      $('#saleCartCount').textContent = `${formatNumber(count)} нэгж · ${state.saleCart.length} төрөл`;
+      list.innerHTML = state.saleCart.length ? state.saleCart.map((item, index) => `
+        <div class="sale-cart-item">
+          <div><strong>${escapeHtml(item.product)}</strong><small>${formatNumber(item.quantity)} × ${money(item.unitPrice)}</small></div>
+          <div class="amount">${money(item.quantity * item.unitPrice)}</div>
+          <button class="sale-cart-remove" type="button" data-cart-remove="${index}" aria-label="Сагснаас хасах">×</button>
+        </div>`).join('') : '<div class="sale-cart-empty">Олон бараатай борлуулалт хийх бол бараагаа нэг нэгээр нь сагсанд нэмнэ.</div>';
+      updateSaleSummary();
+    }
+
     function updateSaleSummary() {
-      $('#saleTotal').textContent = money(numberValue($('#saleQty').value) * numberValue($('#salePrice').value));
+      const cartTotal = state.saleCart.reduce((sum, item) => sum + numberValue(item.quantity) * numberValue(item.unitPrice), 0);
+      const draftTotal = numberValue($('#saleQty').value) * numberValue($('#salePrice').value);
+      $('#saleTotal').textContent = money(cartTotal + draftTotal);
     }
 
     async function handleSale(event) {
@@ -2815,34 +2957,44 @@
       const btn = $('#saleBtn');
       setButtonLoading(btn, true, navigator.onLine ? 'Хадгалж байна...' : 'Офлайн хадгалж байна...');
       try {
-        const product = state.products.find(x => x.name === $('#saleProduct').value);
-        const quantity = numberValue($('#saleQty').value);
-        const unitPrice = numberValue($('#salePrice').value);
-        if (!product) throw new Error('Бараа сонгоно уу.');
-        if (quantity <= 0) throw new Error('Тоо ширхэг 0-ээс их байна.');
-        if (quantity > numberValue(product.stock)) throw new Error('Агуулахын үлдэгдэл хүрэлцэхгүй байна.');
+        const customer = $('#saleCustomer').value.trim();
+        if (!customer) throw new Error('Харилцагч сонгох эсвэл шинээр нэмнэ үү.');
+        const items = state.saleCart.map(item => ({ ...item }));
+        const currentLine = readCurrentSaleLine(items.length === 0);
+        if (currentLine) items.push(currentLine);
+        if (!items.length) throw new Error('Борлуулах бараа нэмнэ үү.');
+
+        const requestedByProduct = {};
+        items.forEach(line => { requestedByProduct[line.product] = (requestedByProduct[line.product] || 0) + numberValue(line.quantity); });
+        Object.entries(requestedByProduct).forEach(([name, quantity]) => {
+          const product = state.products.find(item => item.name === name);
+          if (!product || quantity > numberValue(product.stock)) throw new Error(`${name} барааны үлдэгдэл хүрэлцэхгүй байна.`);
+        });
+
+        const first = items[0];
         const payload = {
           action: 'addSale',
-          product: product.name,
-          quantity,
-          unitPrice,
-          customer: $('#saleCustomer').value.trim(),
+          items,
+          product: first.product,
+          quantity: first.quantity,
+          unitPrice: first.unitPrice,
+          customer,
           paymentType: $('#salePayment').value,
-          location: isPremium() ? $('#saleLocation').value : (state.locations[0]?.name || 'Үндсэн байршил'),
+          location: $('#saleLocation').value || state.locations[0]?.name || 'Үндсэн байршил',
           warehouse: state.warehouses[0]?.name || 'Үндсэн агуулах'
         };
-        if (!payload.customer) throw new Error('Харилцагч сонгох эсвэл шинээр нэмнэ үү.');
-        if (!state.customers.some(name => name.toLocaleLowerCase('mn-MN') === payload.customer.toLocaleLowerCase('mn-MN'))) {
-          state.customers.push(payload.customer);
+        if (!state.customers.some(name => name.toLocaleLowerCase('mn-MN') === customer.toLocaleLowerCase('mn-MN'))) {
+          state.customers.push(customer);
           state.customers.sort((a, b) => a.localeCompare(b, 'mn-MN'));
         }
         const item = enqueueAction('addSale', payload);
+        state.saleCart = [];
         rebuildOptimisticState();
         renderAll();
         showSaleSuccess(payload, true);
         $('#saleForm').reset();
+        renderSaleCart();
         updateSaleProduct();
-        updateSaleSummary();
         refreshSmartSelect('saleCustomer');
 
         if (!navigator.onLine) {
@@ -2852,7 +3004,7 @@
         const result = await syncOfflineQueue(item.id);
         if (result.status === 'rejected') throw new Error(result.message || 'Борлуулалтыг сервер хүлээж авсангүй.');
         if (result.status === 'synced') {
-          showSaleSuccess(payload, false, result.data?.saleId || result.data?.transaction?.saleId || "");
+          showSaleSuccess(payload, false, result.data?.saleId || result.data?.transaction?.saleId || '');
           toast('Борлуулалт амжилттай хадгалагдлаа.', 'success');
         } else {
           toast('Сервертэй холбогдсонгүй. Борлуулалт sync хүлээж байна.', 'error');
@@ -2867,12 +3019,16 @@
 
     function showSaleSuccess(payload, pending, saleId = '') {
       const effectiveId = saleId || payload.saleId || '';
+      const items = Array.isArray(payload.items) && payload.items.length ? payload.items : [payload];
+      const totalQty = items.reduce((sum, item) => sum + numberValue(item.quantity), 0);
+      const total = items.reduce((sum, item) => sum + numberValue(item.quantity) * numberValue(item.unitPrice), 0);
+      const productText = items.length === 1 ? items[0].product : `${items.length} төрлийн бараа`;
       $('#saleSuccessBody').innerHTML = [
         ['Төлөв', pending ? 'Sync хүлээж байна' : 'Серверт хадгалагдсан'],
         ['Sale ID', effectiveId || 'Sync хийсний дараа үүснэ'],
-        ['Бараа', payload.product],
-        ['Тоо', formatNumber(payload.quantity)],
-        ['Нийт дүн', money(payload.quantity * payload.unitPrice)],
+        ['Бараа', productText],
+        ['Нийт тоо', formatNumber(totalQty)],
+        ['Нийт дүн', money(total)],
         ['Харилцагч', payload.customer],
         ['Төлбөр', payload.paymentType]
       ].map(([a,b]) => `<div class="summary-row"><span>${escapeHtml(a)}</span><strong>${escapeHtml(String(b))}</strong></div>`).join('');
@@ -3616,30 +3772,69 @@
       `).join('') : emptyHtml(emptyText);
     }
 
+
+    function safeAdUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      try {
+        const url = new URL(raw, window.location.href);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+      } catch (error) {
+        return '';
+      }
+    }
+
+    function renderAds() {
+      const fallback = {
+        id: 'DATALINX-HOUSE',
+        title: 'DataLinx · Жижиг бизнесийн дижитал шийдэл',
+        description: 'Google Sheets, AppSheet болон автоматжуулалтын үйлчилгээ.',
+        imageUrl: '',
+        linkUrl: FACEBOOK_URL,
+        placement: 'all',
+        sponsor: 'DataLinx'
+      };
+      $$('.ad-slot').forEach(slot => {
+        const placement = slot.dataset.adPlacement || 'all';
+        const matches = state.ads.filter(ad => ['all', placement].includes(String(ad.placement || 'all').toLowerCase()));
+        const pool = matches.length ? matches : [fallback];
+        const daySeed = Math.floor(Date.now() / 86400000) + placement.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+        const ad = pool[Math.abs(daySeed) % pool.length];
+        const link = safeAdUrl(ad.linkUrl) || FACEBOOK_URL;
+        const image = safeAdUrl(ad.imageUrl);
+        slot.innerHTML = `<a class="sponsor-ad" href="${escapeHtml(link)}" target="_blank" rel="noopener sponsored">
+          ${image ? `<img class="sponsor-ad-image" src="${escapeHtml(image)}" alt="">` : '<div class="sponsor-ad-placeholder">DL</div>'}
+          <div class="sponsor-ad-copy">
+            <span class="sponsor-ad-label">Ивээн тэтгэсэн${ad.sponsor ? ` · ${escapeHtml(ad.sponsor)}` : ''}</span>
+            <strong>${escapeHtml(ad.title || '')}</strong>
+            <small>${escapeHtml(ad.description || '')}</small>
+          </div>
+          <span class="sponsor-ad-action">Дэлгэрэнгүй ›</span>
+        </a>`;
+      });
+    }
+
     function applyTierUi() {
-      const premium = isPremium();
-      $('#saleLocationField').classList.toggle('hidden', !premium);
-      $('#transferOption').classList.toggle('hidden', !premium);
-      if (!premium && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
+      const active = state.session?.companyStatus !== 'Inactive';
+      $('#saleLocationField').classList.toggle('hidden', !active || state.locations.length <= 1);
+      $('#transferOption').classList.toggle('hidden', !active || state.warehouses.length <= 1);
+      if ((!active || state.warehouses.length <= 1) && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
       updateInventoryFields();
-      $('#dashboardPremiumWrap').classList.toggle('locked', !premium);
-      $('#dashboardLock').classList.toggle('hidden', premium);
-      $('#routeCard').classList.toggle('hidden', !premium);
+      $('#dashboardPremiumWrap').classList.remove('locked');
+      $('#dashboardLock').classList.add('hidden');
+      $('#routeCard').classList.toggle('hidden', !active);
     }
 
     function renderSettings() {
       const status = state.session.companyStatus;
       const banner = $('#subscriptionBanner');
       banner.classList.toggle('inactive', status === 'Inactive');
-      if (status === 'Active') {
-        $('#subscriptionTitle').textContent = 'Premium эрх идэвхтэй';
-        $('#subscriptionText').textContent = state.session.expiresAt ? `Эрх дуусах огноо: ${formatDate(state.session.expiresAt)}` : 'Олон салбар, олон агуулах, маршрут, хяналтын самбар нээлттэй.';
-      } else if (status === 'Inactive') {
+      if (status === 'Inactive') {
         $('#subscriptionTitle').textContent = 'Эрх идэвхгүй';
         $('#subscriptionText').textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
       } else {
-        $('#subscriptionTitle').textContent = 'Free эрх';
-        $('#subscriptionText').textContent = 'Нэг үндсэн байршил, үндсэн агуулах, 5 хүртэл борлуулагч. Хяналтын самбар болон олон байршлын функц түгжээтэй.';
+        $('#subscriptionTitle').textContent = 'Үнэгүй · зарын дэмжлэгтэй';
+        $('#subscriptionText').textContent = 'Борлуулалт, агуулах, түгээлт, хяналтын самбар, олон байршил болон хэрэглэгчийн удирдлагын үндсэн боломжууд бүгд нээлттэй.';
       }
       const user = state.session.user;
       $('#profileInfo').innerHTML = [
@@ -3775,17 +3970,27 @@
     function commitQueueItem(item, data) {
       const p = item.payload;
       if (item.action === 'addSale') {
-        const product = state.serverProducts.find(x => x.name === p.product);
-        if (product) product.stock = Number.isFinite(Number(data.remainingStock)) ? Number(data.remainingStock) : numberValue(product.stock) - numberValue(p.quantity);
+        const saleItems = Array.isArray(p.items) && p.items.length
+          ? p.items
+          : [{ product: p.product, quantity: p.quantity, unitPrice: p.unitPrice }];
+        const remainingStocks = data.remainingStocks || {};
+        saleItems.forEach(line => {
+          const product = state.serverProducts.find(x => x.name === line.product);
+          if (!product) return;
+          if (Object.prototype.hasOwnProperty.call(remainingStocks, line.product)) product.stock = numberValue(remainingStocks[line.product]);
+          else product.stock = numberValue(product.stock) - numberValue(line.quantity);
+        });
         if (!state.serverTransactions.some(tx => tx.clientId === item.id)) {
           const transaction = data.transaction || {};
+          const fallbackTotal = saleItems.reduce((sum, line) => sum + numberValue(line.quantity) * numberValue(line.unitPrice), 0);
+          const fallbackQuantity = saleItems.reduce((sum, line) => sum + numberValue(line.quantity), 0);
           state.serverTransactions.unshift({
             date: transaction.date || data.date || item.createdAt,
             rep: transaction.rep || state.session?.user?.fullName || state.session?.user?.username || '',
-            product: transaction.product || p.product,
-            quantity: transaction.quantity ?? p.quantity,
-            unitPrice: transaction.unitPrice ?? p.unitPrice,
-            total: transaction.total ?? numberValue(p.quantity) * numberValue(p.unitPrice),
+            product: transaction.product || (saleItems.length === 1 ? saleItems[0].product : `${saleItems.length} төрлийн бараа`),
+            quantity: transaction.quantity ?? fallbackQuantity,
+            unitPrice: transaction.unitPrice ?? (saleItems.length === 1 ? numberValue(saleItems[0].unitPrice) : 0),
+            total: transaction.total ?? fallbackTotal,
             customer: transaction.customer || p.customer,
             paymentType: transaction.paymentType || p.paymentType,
             location: transaction.location || p.location,
@@ -3882,6 +4087,7 @@
         inventoryMoves: state.serverInventoryMoves,
         visits: state.visits,
         users: state.users,
+        ads: state.ads,
         dashboard: state.dashboard,
         historyCursor: state.historyCursor,
         hasMoreTransactions: state.hasMoreTransactions,

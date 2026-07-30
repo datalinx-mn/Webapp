@@ -2,8 +2,14 @@
 
 const MASTER_SHEETS = {
   COMPANIES: 'Компани',
-  USERS: 'Хэрэглэгч'
+  USERS: 'Хэрэглэгч',
+  ADS: 'Зар'
 };
+
+const MASTER_AD_HEADERS = [
+  'Ad ID','Гарчиг','Тайлбар','Зураг URL','Холбоос','Байрлал',
+  'Эхлэх огноо','Дуусах огноо','Төлөв','Ивээн тэтгэгч'
+];
 
 const COMPANY_SHEETS = {
   PRODUCTS: 'Бараа',
@@ -39,7 +45,6 @@ const SHEET_HEADERS = {
   DOCUMENTS: ['DocumentID','CompanyID','DocumentType','DocumentNumber','ReferenceType','ReferenceID','SaleID','DistributionID','CustomerID','FileName','DriveFileID','PdfUrl','Version','Status','CreatedBy','CreatedAt']
 };
 
-const FREE_REP_LIMIT = 5;
 const LOGIN_ATTEMPT_LIMIT = 10;
 const LOGIN_WINDOW_SECONDS = 60;
 const SESSION_SECONDS = 21600;
@@ -149,7 +154,9 @@ function buildInitialPayload_(auth) {
     user: { username: auth.username, fullName: auth.fullName, role: auth.role, company: auth.company },
     company: { name: company.name, phone: company.phone, email: company.email, spreadsheetId: company.spreadsheetId },
     companyStatus: company.status,
+    accessModel: 'FreeWithAds',
     expiresAt: company.expiresAt ? company.expiresAt.toISOString() : '',
+    ads: getActiveAds_(),
     products: getProducts_(companySs),
     customers: getCustomers_(companySs),
     warehouses: getWarehouses_(companySs),
@@ -168,10 +175,10 @@ function loadModule_(auth, moduleName) {
     return { success: true, inventoryMoves: getRecentInventoryMoves_(companySs, 100) };
   }
   if (moduleName === 'distribution') {
-    return { success: true, visits: getVisits_(companySs, auth, company.status, 50) };
+    return { success: true, visits: getVisits_(companySs, auth, 50) };
   }
   if (moduleName === 'dashboard') {
-    return { success: true, dashboard: company.status === 'Active' ? buildDashboard_(companySs) : lockedDashboard_() };
+    return { success: true, dashboard: buildDashboard_(companySs) };
   }
   if (moduleName === 'settings') {
     return { success: true, users: canManageUsers_(auth) ? getUsers_(auth.company) : [] };
@@ -247,8 +254,8 @@ function handleAddSale_(auth, p) {
   if (!customerName) throw new Error('Харилцагч сонгох эсвэл шинээр нэмнэ үү.');
   const paymentType = clean_(p.paymentType) === 'Зээл' ? 'Зээл' : 'Бэлэн';
   const clientId = clean_(p.clientId);
-  const location = company.status === 'Active' ? (clean_(p.location) || firstLocation_(companySs)) : firstLocation_(companySs);
-  const warehouse = company.status === 'Active' ? (clean_(p.warehouse) || firstWarehouse_(companySs)) : firstWarehouse_(companySs);
+  const location = clean_(p.location) || firstLocation_(companySs);
+  const warehouse = clean_(p.warehouse) || firstWarehouse_(companySs);
   const items = normalizeSaleItems_(p);
   if (!items.length) throw new Error('Бүтээгдэхүүнгүй борлуулалт бүртгэх боломжгүй.');
 
@@ -261,7 +268,7 @@ function handleAddSale_(auth, p) {
       const existing = findRowByHeaderValue_(salesSheet, ['Client ID','ClientID'], clientId);
       if (existing) {
         const mapped = mapSaleRow_(existing.values, existing.rowNumber, salesHeaders);
-        return { success: true, duplicate: true, date: mapped.date, total: mapped.total, remainingStock: mapped.remainingStock || 0, saleId: mapped.saleId, transaction: mapped };
+        return { success: true, duplicate: true, date: mapped.date, total: mapped.total, remainingStock: mapped.remainingStock || 0, remainingStocks: getSaleStockMap_(companySs, p), saleId: mapped.saleId, transaction: mapped };
       }
     }
 
@@ -274,6 +281,7 @@ function handleAddSale_(auth, p) {
     });
 
     const aggregated = {};
+    const remainingStocks = {};
     items.forEach(function(item) {
       const key = item.product.toLowerCase();
       if (!aggregated[key]) aggregated[key] = { product: item.product, quantity: 0 };
@@ -303,8 +311,10 @@ function handleAddSale_(auth, p) {
       const requested = aggregated[key];
       const entry = productByName[key];
       const stock = Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0);
-      setObjectFields_(productSheet, entry.rowNumber, { 'Одоогийн үлдэгдэл': stock - requested.quantity });
+      const updatedStock = stock - requested.quantity;
+      setObjectFields_(productSheet, entry.rowNumber, { 'Одоогийн үлдэгдэл': updatedStock });
       adjustWarehouseStock_(companySs, warehouse, requested.product, -requested.quantity, true, stock);
+      remainingStocks[requested.product] = updatedStock;
     });
 
     const salesRows = items.map(function(item, index) {
@@ -360,8 +370,7 @@ function handleAddSale_(auth, p) {
     });
     appendRows_(moveSheet, moveRows);
 
-    const refreshedFirstProduct = findObjectRowByValue_(productSheet, ['Барааны нэр'], items[0].product);
-    const remainingStock = refreshedFirstProduct ? Number(field_(refreshedFirstProduct.object, ['Одоогийн үлдэгдэл']) || 0) : 0;
+    const remainingStock = Number(remainingStocks[items[0].product] || 0);
     const transaction = {
       rowNumber: salesSheet.getLastRow() - salesRows.length + 1,
       date: now.toISOString(),
@@ -379,7 +388,7 @@ function handleAddSale_(auth, p) {
       warehouse: warehouse,
       dueDate: dueDate
     };
-    return { success: true, date: now.toISOString(), total: netTotal, remainingStock: remainingStock, saleId: saleId, transaction: transaction };
+    return { success: true, date: now.toISOString(), total: netTotal, remainingStock: remainingStock, remainingStocks: remainingStocks, saleId: saleId, transaction: transaction };
   } finally {
     lock.releaseLock();
   }
@@ -397,7 +406,6 @@ function handleAddInventoryMove_(auth, p) {
   const clientId = clean_(p.clientId);
   if (!productName) throw new Error('Бараа сонгоно уу.');
   if (['орлого', 'зарлага', 'шилжүүлэг'].indexOf(moveType) === -1) throw new Error('Хөдөлгөөний төрөл буруу байна.');
-  if (moveType === 'шилжүүлэг' && company.status !== 'Active') throw new Error('Агуулах хооронд шилжүүлэг нь Premium функц. ' + UPGRADE_URL);
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -413,7 +421,7 @@ function handleAddInventoryMove_(auth, p) {
     let newTotal = current;
     let fromWarehouse = '';
     let toWarehouse = '';
-    const warehouse = company.status === 'Active' ? (clean_(p.warehouse) || firstWarehouse_(companySs)) : firstWarehouse_(companySs);
+    const warehouse = clean_(p.warehouse) || firstWarehouse_(companySs);
 
     if (moveType === 'орлого') {
       newTotal = current + quantity;
@@ -576,17 +584,6 @@ function handleSaveUser_(auth, p) {
     const editing = originalUsername ? findRowByValue_(rows, 0, originalUsername) : existingTarget;
     if (existingTarget && (!editing || existingTarget.rowNumber !== editing.rowNumber)) throw new Error('Энэ хэрэглэгчийн нэр ашиглагдаж байна.');
 
-    const company = getCompany_(auth.company);
-    if (isSalesRole_(role) && company.status !== 'Active') {
-      const reps = rows.filter(function(row, index) {
-        if (index === 0) return false;
-        const same = clean_(row[4]).toLowerCase() === auth.company.toLowerCase();
-        const isRep = isSalesRole_(normalizeRole_(row[3]));
-        const editedRow = editing && index + 1 === editing.rowNumber;
-        return same && isRep && !editedRow;
-      }).length;
-      if (reps >= FREE_REP_LIMIT) throw new Error('Үнэгүй эрхээр 5 хүртэл борлуулагч бүртгэнэ. Premium эрх авах: ' + UPGRADE_URL);
-    }
 
     if (editing) {
       userSheet.getRange(editing.rowNumber, 1, 1, 5).setValues([[
@@ -771,10 +768,10 @@ function getRecentInventoryMoves_(companySs, limit) {
   }).reverse();
 }
 
-function getVisits_(companySs, auth, companyStatus, limit) {
+function getVisits_(companySs, auth, limit) {
   const data = sheetObjects_(companySs.getSheetByName(COMPANY_SHEETS.VISITS));
   return data.rows.filter(function(entry) {
-    if (companyStatus === 'Active' || isManagerRole_(auth.role)) return true;
+    if (isManagerRole_(auth.role)) return true;
     return clean_(field_(entry.object, ['Рэп нэр'])).toLowerCase() === clean_(auth.fullName || auth.username).toLowerCase() || clean_(field_(entry.object, ['Driver'])).toLowerCase() === clean_(auth.fullName || auth.username).toLowerCase();
   }).slice(-limit).reverse().map(function(entry) {
     return {
@@ -975,10 +972,53 @@ function setupNewCompanySpreadsheet_(ss, companyInfo) {
   seedCompanySettings_(ss, companyInfo || {});
 }
 
+
+function getActiveAds_() {
+  const sheet = masterSs_().getSheetByName(MASTER_SHEETS.ADS);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const now = new Date();
+  const activeValues = ['active','идэвхтэй','true','1','yes','тийм'];
+  return sheetObjects_(sheet).rows.map(function(entry) {
+    const row = entry.object;
+    return {
+      id: clean_(field_(row, ['Ad ID'])) || ('AD-' + entry.rowNumber),
+      title: clean_(field_(row, ['Гарчиг'])),
+      description: clean_(field_(row, ['Тайлбар'])),
+      imageUrl: clean_(field_(row, ['Зураг URL'])),
+      linkUrl: clean_(field_(row, ['Холбоос'])),
+      placement: clean_(field_(row, ['Байрлал'])).toLowerCase() || 'all',
+      startsAt: asDate_(field_(row, ['Эхлэх огноо'])),
+      endsAt: asDate_(field_(row, ['Дуусах огноо'])),
+      status: clean_(field_(row, ['Төлөв'])).toLowerCase(),
+      sponsor: clean_(field_(row, ['Ивээн тэтгэгч']))
+    };
+  }).filter(function(ad) {
+    if (!ad.title || !activeValues.includes(ad.status)) return false;
+    if (ad.startsAt && now.getTime() < ad.startsAt.getTime()) return false;
+    if (ad.endsAt) {
+      const endOfDay = new Date(ad.endsAt.getTime());
+      endOfDay.setHours(23, 59, 59, 999);
+      if (now.getTime() > endOfDay.getTime()) return false;
+    }
+    return true;
+  }).map(function(ad) {
+    return {
+      id: ad.id,
+      title: ad.title,
+      description: ad.description,
+      imageUrl: ad.imageUrl,
+      linkUrl: ad.linkUrl,
+      placement: ad.placement,
+      sponsor: ad.sponsor
+    };
+  });
+}
+
 function ensureMasterSheets_() {
   const ss = masterSs_();
   ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл']);
   ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр']);
+  ensureSheet_(ss, MASTER_SHEETS.ADS, MASTER_AD_HEADERS);
 }
 
 function ensureCompanySheets_(ss) {
@@ -1203,6 +1243,17 @@ function findProductRow_(rows, product) {
     if (clean_(rows[i][0]).toLowerCase() === product.toLowerCase()) return { rowNumber: i + 1, values: rows[i] };
   }
   return null;
+}
+
+function getSaleStockMap_(companySs, p) {
+  const result = {};
+  const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
+  normalizeSaleItems_(p).forEach(function(item) {
+    if (Object.prototype.hasOwnProperty.call(result, item.product)) return;
+    const entry = findObjectRowByValue_(productSheet, ['Барааны нэр'], item.product);
+    result[item.product] = entry ? Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0) : 0;
+  });
+  return result;
 }
 
 function normalizeSaleItems_(p) {
