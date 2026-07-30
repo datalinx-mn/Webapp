@@ -29,11 +29,15 @@ jobs:
           Path('/tmp/index-inline.js').write_text('\n'.join(scripts), encoding='utf-8')
           PY
           node --check /tmp/index-inline.js
+      - name: Validate Apps Script syntax
+        run: |
+          cp Code.gs /tmp/Code.js
+          node --check /tmp/Code.js
       - name: Commit fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
+          git add index.html Code.gs
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Fix multi-item cart validation and ad URL handling"
+          git commit -m "Finalize free-with-ads and multi-item synchronization"
           git push origin HEAD:feature/free-with-ads-masu-parity
