@@ -3,12 +3,6 @@ name: Apply Google Ads and Premium no-ads update
 on:
   push:
     branches:
-      - feature/google-ads-premium-no-ads
-    paths:
-      - scripts/apply_google_ads_premium.py
-      - .github/workflows/apply-google-ads-premium.yml
-  pull_request:
-    branches:
       - main
     paths:
       - scripts/apply_google_ads_premium.py
@@ -21,18 +15,13 @@ jobs:
   apply-and-validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout feature branch
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: feature/google-ads-premium-no-ads
+          ref: main
 
-      - name: Apply code update once
-        run: |
-          if grep -q "GOOGLE_ADSENSE_CLIENT" index.html && grep -q "PremiumNoAds" Code.gs; then
-            echo "Patch already applied"
-          else
-            python scripts/apply_google_ads_premium.py
-          fi
+      - name: Apply code update
+        run: python scripts/apply_google_ads_premium.py
 
       - name: Validate HTML and JavaScript
         run: |
@@ -79,12 +68,8 @@ jobs:
 
       - name: Commit final scripts
         run: |
-          if git diff --quiet -- index.html Code.gs GOOGLE_ADS_PREMIUM_SETUP.md; then
-            echo "No generated changes"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html Code.gs GOOGLE_ADS_PREMIUM_SETUP.md
           git commit -m "Add Google Ads for Free and remove ads for Premium"
-          git push origin HEAD:feature/google-ads-premium-no-ads
+          git push origin HEAD:main
