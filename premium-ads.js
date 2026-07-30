@@ -1,8 +1,9 @@
 'use strict';
 
-// Replace after the production site and responsive ad unit are approved by AdSense.
-const GOOGLE_ADSENSE_CLIENT = 'ca-pub-REPLACE_WITH_YOUR_PUBLISHER_ID';
-const GOOGLE_ADSENSE_SLOT = 'REPLACE_WITH_YOUR_AD_SLOT_ID';
+// Shared by the public landing page and the authenticated app.
+const ADSENSE_CONFIG = window.DATALINX_ADSENSE_CONFIG || {};
+const GOOGLE_ADSENSE_CLIENT = String(ADSENSE_CONFIG.client || 'ca-pub-REPLACE_WITH_YOUR_PUBLISHER_ID');
+const GOOGLE_ADSENSE_SLOT = String(ADSENSE_CONFIG.appSlot || 'REPLACE_WITH_APP_RESPONSIVE_AD_SLOT_ID');
 const GOOGLE_ADSENSE_SCRIPT_ID = 'datalinx-google-adsense-script';
 
 const dataLinxGoogleAds = { scriptPromise: null };
