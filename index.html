@@ -2365,6 +2365,8 @@
       state.serverProducts = [];
       state.serverTransactions = [];
       state.serverInventoryMoves = [];
+      state.ads = [];
+      state.saleCart = [];
       $('#appScreen').classList.add('hidden');
       $('#authScreen').classList.remove('hidden');
       $('#loginPassword').value = '';
@@ -3968,17 +3970,27 @@
     function commitQueueItem(item, data) {
       const p = item.payload;
       if (item.action === 'addSale') {
-        const product = state.serverProducts.find(x => x.name === p.product);
-        if (product) product.stock = Number.isFinite(Number(data.remainingStock)) ? Number(data.remainingStock) : numberValue(product.stock) - numberValue(p.quantity);
+        const saleItems = Array.isArray(p.items) && p.items.length
+          ? p.items
+          : [{ product: p.product, quantity: p.quantity, unitPrice: p.unitPrice }];
+        const remainingStocks = data.remainingStocks || {};
+        saleItems.forEach(line => {
+          const product = state.serverProducts.find(x => x.name === line.product);
+          if (!product) return;
+          if (Object.prototype.hasOwnProperty.call(remainingStocks, line.product)) product.stock = numberValue(remainingStocks[line.product]);
+          else product.stock = numberValue(product.stock) - numberValue(line.quantity);
+        });
         if (!state.serverTransactions.some(tx => tx.clientId === item.id)) {
           const transaction = data.transaction || {};
+          const fallbackTotal = saleItems.reduce((sum, line) => sum + numberValue(line.quantity) * numberValue(line.unitPrice), 0);
+          const fallbackQuantity = saleItems.reduce((sum, line) => sum + numberValue(line.quantity), 0);
           state.serverTransactions.unshift({
             date: transaction.date || data.date || item.createdAt,
             rep: transaction.rep || state.session?.user?.fullName || state.session?.user?.username || '',
-            product: transaction.product || p.product,
-            quantity: transaction.quantity ?? p.quantity,
-            unitPrice: transaction.unitPrice ?? p.unitPrice,
-            total: transaction.total ?? numberValue(p.quantity) * numberValue(p.unitPrice),
+            product: transaction.product || (saleItems.length === 1 ? saleItems[0].product : `${saleItems.length} төрлийн бараа`),
+            quantity: transaction.quantity ?? fallbackQuantity,
+            unitPrice: transaction.unitPrice ?? (saleItems.length === 1 ? numberValue(saleItems[0].unitPrice) : 0),
+            total: transaction.total ?? fallbackTotal,
             customer: transaction.customer || p.customer,
             paymentType: transaction.paymentType || p.paymentType,
             location: transaction.location || p.location,
@@ -4075,6 +4087,7 @@
         inventoryMoves: state.serverInventoryMoves,
         visits: state.visits,
         users: state.users,
+        ads: state.ads,
         dashboard: state.dashboard,
         historyCursor: state.historyCursor,
         hasMoreTransactions: state.hasMoreTransactions,

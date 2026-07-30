@@ -268,7 +268,7 @@ function handleAddSale_(auth, p) {
       const existing = findRowByHeaderValue_(salesSheet, ['Client ID','ClientID'], clientId);
       if (existing) {
         const mapped = mapSaleRow_(existing.values, existing.rowNumber, salesHeaders);
-        return { success: true, duplicate: true, date: mapped.date, total: mapped.total, remainingStock: mapped.remainingStock || 0, saleId: mapped.saleId, transaction: mapped };
+        return { success: true, duplicate: true, date: mapped.date, total: mapped.total, remainingStock: mapped.remainingStock || 0, remainingStocks: getSaleStockMap_(companySs, p), saleId: mapped.saleId, transaction: mapped };
       }
     }
 
@@ -281,6 +281,7 @@ function handleAddSale_(auth, p) {
     });
 
     const aggregated = {};
+    const remainingStocks = {};
     items.forEach(function(item) {
       const key = item.product.toLowerCase();
       if (!aggregated[key]) aggregated[key] = { product: item.product, quantity: 0 };
@@ -310,8 +311,10 @@ function handleAddSale_(auth, p) {
       const requested = aggregated[key];
       const entry = productByName[key];
       const stock = Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0);
-      setObjectFields_(productSheet, entry.rowNumber, { 'Одоогийн үлдэгдэл': stock - requested.quantity });
+      const updatedStock = stock - requested.quantity;
+      setObjectFields_(productSheet, entry.rowNumber, { 'Одоогийн үлдэгдэл': updatedStock });
       adjustWarehouseStock_(companySs, warehouse, requested.product, -requested.quantity, true, stock);
+      remainingStocks[requested.product] = updatedStock;
     });
 
     const salesRows = items.map(function(item, index) {
@@ -367,8 +370,7 @@ function handleAddSale_(auth, p) {
     });
     appendRows_(moveSheet, moveRows);
 
-    const refreshedFirstProduct = findObjectRowByValue_(productSheet, ['Барааны нэр'], items[0].product);
-    const remainingStock = refreshedFirstProduct ? Number(field_(refreshedFirstProduct.object, ['Одоогийн үлдэгдэл']) || 0) : 0;
+    const remainingStock = Number(remainingStocks[items[0].product] || 0);
     const transaction = {
       rowNumber: salesSheet.getLastRow() - salesRows.length + 1,
       date: now.toISOString(),
@@ -386,7 +388,7 @@ function handleAddSale_(auth, p) {
       warehouse: warehouse,
       dueDate: dueDate
     };
-    return { success: true, date: now.toISOString(), total: netTotal, remainingStock: remainingStock, saleId: saleId, transaction: transaction };
+    return { success: true, date: now.toISOString(), total: netTotal, remainingStock: remainingStock, remainingStocks: remainingStocks, saleId: saleId, transaction: transaction };
   } finally {
     lock.releaseLock();
   }
@@ -1241,6 +1243,17 @@ function findProductRow_(rows, product) {
     if (clean_(rows[i][0]).toLowerCase() === product.toLowerCase()) return { rowNumber: i + 1, values: rows[i] };
   }
   return null;
+}
+
+function getSaleStockMap_(companySs, p) {
+  const result = {};
+  const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
+  normalizeSaleItems_(p).forEach(function(item) {
+    if (Object.prototype.hasOwnProperty.call(result, item.product)) return;
+    const entry = findObjectRowByValue_(productSheet, ['Барааны нэр'], item.product);
+    result[item.product] = entry ? Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0) : 0;
+  });
+  return result;
 }
 
 function normalizeSaleItems_(p) {
