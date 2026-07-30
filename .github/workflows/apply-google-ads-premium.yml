@@ -7,6 +7,12 @@ on:
     paths:
       - scripts/apply_google_ads_premium.py
       - .github/workflows/apply-google-ads-premium.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply_google_ads_premium.py
+      - .github/workflows/apply-google-ads-premium.yml
 
 permissions:
   contents: write
@@ -20,8 +26,13 @@ jobs:
         with:
           ref: feature/google-ads-premium-no-ads
 
-      - name: Apply code update
-        run: python scripts/apply_google_ads_premium.py
+      - name: Apply code update once
+        run: |
+          if grep -q "GOOGLE_ADSENSE_CLIENT" index.html && grep -q "PremiumNoAds" Code.gs; then
+            echo "Patch already applied"
+          else
+            python scripts/apply_google_ads_premium.py
+          fi
 
       - name: Validate HTML and JavaScript
         run: |
