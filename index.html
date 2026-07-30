@@ -1132,7 +1132,7 @@
         <small id="userTitle">Хэрэглэгч</small>
       </div>
       <div class="topbar-actions">
-        <span id="topStatus" class="status-pill">FREE</span>
+        <span id="topStatus" class="status-pill">ҮНЭГҮЙ</span>
         <button id="helpBtn" class="icon-btn" type="button" aria-label="Ашиглах заавар нээх" title="Ашиглах заавар">?</button>
         <button id="refreshBtn" class="icon-btn" type="button" aria-label="Өгөгдөл шинэчлэх">↻</button>
       </div>
@@ -1191,7 +1191,7 @@
           <div class="ad-slot" data-ad-placement="sales"></div>
 
           <div class="grid grid-main">
-            <form id="saleForm" class="card form-grid">
+            <form id="saleForm" class="card form-grid" novalidate>
               <h3>Борлуулалт бүртгэх</h3>
               <div class="field">
                 <label for="saleCustomer">Харилцагч</label>
@@ -3772,8 +3772,10 @@
 
 
     function safeAdUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
       try {
-        const url = new URL(String(value || ''), window.location.href);
+        const url = new URL(raw, window.location.href);
         return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
       } catch (error) {
         return '';
