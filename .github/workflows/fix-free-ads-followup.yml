@@ -1,0 +1,39 @@
+name: Fix free ads followup
+
+on:
+  push:
+    branches:
+      - feature/free-with-ads-masu-parity
+    paths:
+      - scripts/fix_free_ads_followup.py
+      - .github/workflows/fix-free-ads-followup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/free-with-ads-masu-parity
+      - run: python scripts/fix_free_ads_followup.py
+      - name: Validate embedded JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
+          Path('/tmp/index-inline.js').write_text('\n'.join(scripts), encoding='utf-8')
+          PY
+          node --check /tmp/index-inline.js
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Fix multi-item cart validation and ad URL handling"
+          git push origin HEAD:feature/free-with-ads-masu-parity
