@@ -1,8 +1,9 @@
 'use strict';
 
-// Replace after the production site and responsive ad unit are approved by AdSense.
-const GOOGLE_ADSENSE_CLIENT = 'ca-pub-REPLACE_WITH_YOUR_PUBLISHER_ID';
-const GOOGLE_ADSENSE_SLOT = 'REPLACE_WITH_YOUR_AD_SLOT_ID';
+// Shared by the public landing page and the authenticated app.
+const ADSENSE_CONFIG = window.DATALINX_ADSENSE_CONFIG || {};
+const GOOGLE_ADSENSE_CLIENT = String(ADSENSE_CONFIG.client || 'ca-pub-REPLACE_WITH_YOUR_PUBLISHER_ID');
+const GOOGLE_ADSENSE_SLOT = String(ADSENSE_CONFIG.appSlot || 'REPLACE_WITH_APP_RESPONSIVE_AD_SLOT_ID');
 const GOOGLE_ADSENSE_SCRIPT_ID = 'datalinx-google-adsense-script';
 
 const dataLinxGoogleAds = { scriptPromise: null };
@@ -10,7 +11,11 @@ const dataLinxGoogleAds = { scriptPromise: null };
 function isFreePlan() { return state.session?.companyStatus === 'Free'; }
 function isAdFreePlan() { return state.session?.companyStatus === 'Active'; }
 function currentPageName() { return document.querySelector('.page.active')?.id?.replace(/^page-/, '') || 'sales'; }
-function isGoogleAdsConfigured() { return /^ca-pub-\d{10,}$/.test(GOOGLE_ADSENSE_CLIENT) && /^\d{6,}$/.test(GOOGLE_ADSENSE_SLOT); }
+function isGoogleAdsConfigured() {
+  const pageLanguage = String(document.documentElement.lang || '').toLowerCase().split('-')[0];
+  const languageAllowed = Array.isArray(ADSENSE_CONFIG.supportedLanguages) && ADSENSE_CONFIG.supportedLanguages.includes(pageLanguage);
+  return ADSENSE_CONFIG.enabled === true && languageAllowed && /^ca-pub-\d{10,}$/.test(GOOGLE_ADSENSE_CLIENT) && /^\d{6,}$/.test(GOOGLE_ADSENSE_SLOT);
+}
 
 function upgradeSettingsDesign() {
   const banner = document.getElementById('subscriptionBanner');
@@ -39,7 +44,7 @@ function upgradeSettingsDesign() {
   const settingsAd = document.querySelector('[data-ad-placement="settings"]');
   if (settingsAd && settingsGrid) premiumCard.insertAdjacentElement('afterend', settingsAd);
   const privacy = document.querySelector('#page-settings .ad-privacy-note .card-subtitle');
-  if (privacy) privacy.textContent = 'Free эрхийн үед жижиг, саад болдоггүй зар харуулна. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Premium эрхтэй үед зарын код огт ачаалагдахгүй.';
+  if (privacy) privacy.textContent = 'Free эрхийн үед жижиг, саад болдоггүй шууд ивээн тэтгэсэн зар харуулна. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Premium эрхтэй үед зарын код огт ачаалагдахгүй.';
   const subtitle = document.querySelector('#page-settings .page-head p');
   if (subtitle) subtitle.textContent = 'Эрхийн төлөв, зар, хэрэглэгч болон системийн тохиргоо.';
 }
