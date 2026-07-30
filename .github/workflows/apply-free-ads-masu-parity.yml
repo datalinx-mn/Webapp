@@ -1,0 +1,54 @@
+name: Apply free with ads MASU parity
+
+on:
+  push:
+    branches:
+      - feature/free-with-ads-masu-parity
+    paths:
+      - scripts/apply_free_ads_masu_parity.py
+      - .github/workflows/apply-free-ads-masu-parity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/free-with-ads-masu-parity
+
+      - name: Apply update
+        run: python scripts/apply_free_ads_masu_parity.py
+
+      - name: Validate frontend JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
+          if not scripts:
+              raise SystemExit('No inline JavaScript found')
+          Path('/tmp/index-inline.js').write_text('\n'.join(scripts), encoding='utf-8')
+          PY
+          node --check /tmp/index-inline.js
+
+      - name: Validate Apps Script syntax
+        run: |
+          cp Code.gs /tmp/Code.js
+          node --check /tmp/Code.js
+
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html Code.gs
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git commit -m "Make all core features free with first-party ads"
+          git push origin HEAD:feature/free-with-ads-masu-parity
