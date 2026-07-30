@@ -3,31 +3,216 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1B5E20">
-  <title>DataLinx · Борлуулалт, Агуулах, Түгээлт</title>
-  <style>
-    html,body{margin:0;min-height:100%;background:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-    .boot{min-height:100vh;display:grid;place-items:center;color:#1B5E20}.boot-card{display:flex;align-items:center;gap:12px;padding:16px 20px;border:1px solid #dce5dd;border-radius:16px;background:#fff;box-shadow:0 8px 26px rgba(22,48,24,.1);font-weight:800}.boot-spin{width:20px;height:20px;border:3px solid #d7ead9;border-top-color:#1B5E20;border-radius:50%;animation:spin .75s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-  </style>
+  <meta name="theme-color" content="#155D2A">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+  <meta name="description" content="DataLinx нь 1–9 ажилтантай жижиг бизнест зориулсан борлуулалт, агуулах, түгээлт, баркод, тайлан болон PDF баримтын веб систем. Үнэгүй эрх нь зарын дэмжлэгтэй, Premium эрх нь заргүй.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="DataLinx · Жижиг бизнесийн борлуулалт, агуулах, түгээлтийн систем">
+  <meta property="og:description" content="Борлуулалт, барааны үлдэгдэл, түгээлт, баркод, тайлангаа гар утас болон компьютерээс нэг дор удирдана.">
+  <title>DataLinx · Жижиг бизнесийн борлуулалт, агуулах, түгээлтийн систем</title>
+  <link rel="stylesheet" href="./public-site.css?v=20260730">
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"SoftwareApplication",
+    "name":"DataLinx",
+    "applicationCategory":"BusinessApplication",
+    "operatingSystem":"Web, Android browser, iOS browser, Desktop browser",
+    "description":"1–9 ажилтантай жижиг бизнест зориулсан борлуулалт, агуулах, түгээлт, баркод болон тайлангийн веб систем.",
+    "offers":[
+      {"@type":"Offer","name":"Free","price":"0","priceCurrency":"MNT","description":"Зарын дэмжлэгтэй үнэгүй эрх"},
+      {"@type":"Offer","name":"Premium","description":"Заргүй эрх"}
+    ],
+    "publisher":{"@type":"Organization","name":"DataLinx"}
+  }
+  </script>
 </head>
 <body>
-  <div class="boot"><div class="boot-card"><span class="boot-spin"></span><span>DataLinx ачаалж байна...</span></div></div>
-  <script>
-    (async function loadDataLinx() {
-      try {
-        const response = await fetch('./app-core.html?v=20260730', { cache: 'no-cache' });
-        if (!response.ok) throw new Error('Үндсэн апп ачаалсангүй.');
-        let html = await response.text();
-        html = html.replace('</head>', '<link rel="stylesheet" href="./premium-ads.css?v=20260730"></head>');
-        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260730"><\/script></body>');
-        document.open();
-        document.write(html);
-        document.close();
-      } catch (error) {
-        document.body.innerHTML = '<div class="boot"><div class="boot-card">Апп ачаалж чадсангүй. Интернэт холболтоо шалгаад дахин нээнэ үү.</div></div>';
-        console.error(error);
-      }
-    })();
-  </script>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="./" aria-label="DataLinx нүүр хуудас">
+        <span class="brand-mark">DL</span>
+        <span>DataLinx</span>
+      </a>
+      <nav class="nav-links" data-nav-links aria-label="Үндсэн цэс">
+        <a href="#features">Боломжууд</a>
+        <a href="#how">Хэрхэн ажиллах вэ</a>
+        <a href="#pricing">Эрхийн төрөл</a>
+        <a href="#faq">Түгээмэл асуулт</a>
+        <a href="#contact">Холбоо барих</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="./app.html">Нэвтрэх</a>
+        <a class="btn btn-primary" href="./app.html#register">Үнэгүй эхлэх</a>
+        <button class="menu-toggle" type="button" data-menu-toggle aria-label="Цэс нээх" aria-expanded="false">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>1–9 ажилтантай бизнест зориулсан</span>
+          <h1>Борлуулалт, агуулах, түгээлтээ нэг дор хялбар удирдана.</h1>
+          <p class="hero-copy">DataLinx нь жижиг дэлгүүр, бөөний худалдаа, түгээлтийн баг болон үйлчилгээний байгууллагад зориулсан mobile-first веб систем. Бараа, харилцагч, борлуулалт, үлдэгдэл, хүргэлт, тайлан болон PDF баримтаа гар утас эсвэл компьютерээс бүртгэнэ.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="./app.html#register">Үнэгүй эрхээр бүртгүүлэх</a>
+            <a class="btn btn-secondary" href="#how">Ажиллах зарчим</a>
+          </div>
+          <div class="hero-note">
+            <span>Сарын төлбөргүй Free эрх</span>
+            <span>Гар утасны баркод уншигч</span>
+            <span>Компанийн тусдаа Google Sheet</span>
+          </div>
+        </div>
+
+        <div class="product-preview" aria-label="DataLinx системийн жишээ дэлгэц">
+          <div class="preview-top">
+            <div class="preview-title"><span class="brand-mark">DL</span><span>Өнөөдрийн тойм</span></div>
+            <span class="preview-status">Онлайн</span>
+          </div>
+          <div class="preview-metrics">
+            <div class="preview-metric"><small>Борлуулалт</small><strong>1,280,000₮</strong></div>
+            <div class="preview-metric"><small>Гүйлгээ</small><strong>24</strong></div>
+            <div class="preview-metric"><small>Бага үлдэгдэл</small><strong>3</strong></div>
+          </div>
+          <div class="preview-list">
+            <div class="preview-row"><span class="preview-icon">₮</span><div><strong>Борлуулалт бүртгэх</strong><small>Олон барааны сагс, төлбөр, харилцагч</small></div><span class="preview-value">Хурдан</span></div>
+            <div class="preview-row"><span class="preview-icon">▦</span><div><strong>Агуулахын үлдэгдэл</strong><small>Орлого, зарлага, шилжүүлэг</small></div><span class="preview-value">Бодит цаг</span></div>
+            <div class="preview-row"><span class="preview-icon">⌁</span><div><strong>Түгээлт ба хүргэлт</strong><small>Маршрут, GPS, зураг, төлбөр</small></div><span class="preview-value">Mobile</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section section-white">
+      <div class="container">
+        <div class="section-head center">
+          <span class="eyebrow">Үндсэн боломжууд</span>
+          <h2>Жижиг бизнест хэрэгтэй ажлуудыг нэг урсгалд оруулна.</h2>
+          <p>Хэт олон цэс, үнэтэй ERP тохиргооноос зайлсхийж, өдөр бүр ашигладаг борлуулалт, үлдэгдэл, түгээлтийн ажлуудыг ойлгомжтой байдлаар нэгтгэсэн.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card"><span class="feature-icon">₮</span><h3>Борлуулалтын бүртгэл</h3><p>Нэг эсвэл олон барааг сагсанд нэмэх, үнэ, тоо хэмжээ, төлбөрийн төрөл, харилцагч болон хүргэлтийн мэдээллийг хадгална.</p></article>
+          <article class="feature-card"><span class="feature-icon">▦</span><h3>Бараа ба агуулах</h3><p>Менежер бараа нэмэх, үнэ болон үлдэгдэл засах, бага үлдэгдлийн хязгаар тохируулах, агуулахын хөдөлгөөн бүртгэх боломжтой.</p></article>
+          <article class="feature-card"><span class="feature-icon">▥</span><h3>Mobile баркод</h3><p>Утасны камераар EAN, UPC, Code 128 зэрэг баркод уншуулж борлуулалт, агуулахын хөдөлгөөн болон барааны бүртгэлд ашиглана.</p></article>
+          <article class="feature-card"><span class="feature-icon">⌁</span><h3>Түгээлт ба GPS</h3><p>Харилцагчийн хаяг, маршрут, жолооч, хүргэлтийн төлөв, GPS, зураг, буцаалт, авлага болон хураасан төлбөрийг бүртгэнэ.</p></article>
+          <article class="feature-card"><span class="feature-icon">▤</span><h3>PDF баримт</h3><p>Нэхэмжлэх, агуулахын зарлага болон түгээлтийн баримтыг PDF хэлбэрээр үүсгэж, түүхээс дахин нээх боломжтой.</p></article>
+          <article class="feature-card"><span class="feature-icon">↻</span><h3>Offline queue</h3><p>Интернэт тасарсан үед бүртгэлийг төхөөрөмж дээр түр хадгалж, холболт сэргэхэд сервер рүү автоматаар илгээх урсгалтай.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="section">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Хэрхэн ажиллах вэ</span>
+          <h2>Гурван алхмаар ашиглаж эхэлнэ.</h2>
+          <p>Тусгай сервер суулгахгүй. Компанийн мэдээлэл тусдаа Google Spreadsheet-д хадгалагдаж, хэрэглэгчид веб апп-аар ажиллана.</p>
+        </div>
+        <div class="steps">
+          <article class="step"><h3>Компани болон хэрэглэгчээ бүртгэнэ</h3><p>Менежер эрхтэй үндсэн хэрэглэгч үүсээд, дараа нь борлуулагч, агуулах, жолооч болон бусад ажилтны эрхийг тохируулна.</p></article>
+          <article class="step"><h3>Бараа, харилцагчаа оруулна</h3><p>Барааны нэр, код, баркод, нэгж үнэ, эхний үлдэгдэл болон бага үлдэгдлийн хязгаарыг бүртгэнэ. Харилцагчийг борлуулалтын үед шууд нэмэх боломжтой.</p></article>
+          <article class="step"><h3>Өдөр тутмын гүйлгээгээ хийнэ</h3><p>Борлуулалт, агуулахын орлого/зарлага, түгээлт болон төлбөрөө бүртгэхэд үлдэгдэл, тайлан, баримтын мэдээлэл нэг дор шинэчлэгдэнэ.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-white">
+      <div class="container audience-grid">
+        <article class="audience-card">
+          <h3>Хэнд тохирох вэ?</h3>
+          <p>Өдөр тутмын бүртгэлээ дэвтэр, чат эсвэл олон Excel файл дээр салангид хөтөлдөг жижиг багуудад.</p>
+          <ul class="check-list">
+            <li>Жижиглэн болон бөөний худалдаа</li>
+            <li>Хот доторх түгээлт, хүргэлтийн баг</li>
+            <li>Нарийн боов, хүнс, өргөн хэрэглээний бараа</li>
+            <li>1–9 ажилтантай үйлчилгээний бизнес</li>
+          </ul>
+        </article>
+        <article class="audience-card alt">
+          <h3>Яагаад DataLinx вэ?</h3>
+          <p>Өндөр өртөгтэй, олон сарын нэвтрүүлэлт шаарддаг системийн оронд үндсэн ажлаа шууд эхлүүлэхэд төвлөрсөн.</p>
+          <ul class="check-list">
+            <li>Mobile-first, Монгол хэлтэй интерфэйс</li>
+            <li>Free эрх дээр үндсэн боломжууд нээлттэй</li>
+            <li>Компанийн мэдээлэл тусдаа Sheet-д хадгалагдана</li>
+            <li>Premium эрхээр заргүй орчин ашиглана</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="pricing" class="section">
+      <div class="container">
+        <div class="section-head center">
+          <span class="eyebrow">Эрхийн төрөл</span>
+          <h2>Үндсэн систем үнэгүй. Заргүй ашиглах сонголттой.</h2>
+          <p>Free болон Premium хэрэглэгчид ижил үндсэн бизнесийн боломжуудыг ашиглана. Ялгаа нь зарын харагдац.</p>
+        </div>
+        <div class="pricing-grid">
+          <article class="price-card">
+            <span class="price-badge">Эхлэхэд тохиромжтой</span>
+            <h3>Free</h3>
+            <div class="price">0₮ <small>/ үндсэн эрх</small></div>
+            <p>Бүх үндсэн боломж нээлттэй, системийн зардлыг жижиг responsive зар дэмжинэ.</p>
+            <ul><li>Борлуулалт ба олон барааны сагс</li><li>Бараа, агуулах, баркод</li><li>Түгээлт, GPS, зураг</li><li>Dashboard, PDF, offline queue</li><li>Саад болдоггүй зарын байрлал</li></ul>
+            <a class="btn btn-secondary" href="./app.html#register">Free эрхээр эхлэх</a>
+          </article>
+          <article class="price-card featured">
+            <span class="price-badge">Заргүй</span>
+            <h3>Premium</h3>
+            <div class="price">Заргүй <small>/ цэвэр орчин</small></div>
+            <p>Үндсэн боломжууд хэвээр, Google Ads болон ивээн тэтгэсэн зарын код хэрэглэгчийн апп-д ачаалагдахгүй.</p>
+            <ul><li>Free эрхийн бүх боломж</li><li>Бүх цэс заргүй</li><li>Илүү цэвэр ажлын дэлгэц</li><li>Premium төлөвийн тэмдэглэгээ</li><li>DataLinx-тэй шууд холбогдох</li></ul>
+            <a class="btn btn-primary" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener">Premium талаар асуух</a>
+          </article>
+        </div>
+
+        <div class="public-ad-wrap" aria-label="Сурталчилгааны хэсэг">
+          <div class="public-ad-label"><span>Зар</span><a href="./privacy.html#advertising">Зар ба нууцлал</a></div>
+          <div class="public-ad-slot" data-public-ad-slot><div class="public-ad-placeholder">AdSense тохируулсны дараа энэ хэсэгт responsive зар харагдана.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="section section-white">
+      <div class="container">
+        <div class="section-head center"><span class="eyebrow">Түгээмэл асуулт</span><h2>Ашиглаж эхлэхийн өмнөх гол асуултууд</h2></div>
+        <div class="faq">
+          <details><summary>DataLinx зөвхөн гар утсан дээр ажиллах уу?</summary><p>Үгүй. Android, iPhone, tablet болон desktop browser дээр ажиллана. Mobile дээр камерын баркод, GPS, зураг авах боломжийг ашиглахад илүү тохиромжтой.</p></details>
+          <details><summary>Free эрх дээр ямар боломж хаалттай вэ?</summary><p>Үндсэн борлуулалт, агуулах, түгээлт, dashboard, barcode, PDF болон offline queue нээлттэй. Free эрхийн хэрэглэгчид цөөн тооны, тодорхой тэмдэглэсэн зар харна.</p></details>
+          <details><summary>Premium эрхийн ялгаа юу вэ?</summary><p>Premium эрхтэй үед хэрэглэгч нэвтэрсэн апп дотор Google Ads болон ивээн тэтгэсэн зарын код ачаалагдахгүй. Үндсэн функцууд Free эрхтэй ижил байна.</p></details>
+          <details><summary>Компанийн мэдээлэл сурталчлагчид очих уу?</summary><p>Үгүй. DataLinx нь борлуулалт, бараа, ажилтан, харилцагч, үлдэгдэл, авлага, GPS болон түгээлтийн зургийг зар сонгох зорилгоор сурталчлагчид дамжуулахгүй.</p></details>
+          <details><summary>Интернэтгүй үед ашиглаж болох уу?</summary><p>Зарим бүртгэлийг offline queue-д түр хадгалж болно. Гэхдээ анхны нэвтрэлт, серверийн шинэ мэдээлэл татах, PDF үүсгэх зэрэг үйлдэлд интернэт шаардлагатай.</p></details>
+          <details><summary>Google Sheets-тэй яаж холбогддог вэ?</summary><p>Компанийн бизнесийн мэдээлэл тусдаа Google Spreadsheet-д хадгалагдана. Веб апп нь Google Apps Script backend-аар дамжин тухайн компанийн Sheet-тэй ажиллана.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="section">
+      <div class="container">
+        <div class="cta">
+          <div><h2>Жижиг бизнесийн бүртгэлээ өнөөдөр цэгцэл.</h2><p>Free эрхээр эхэлж, бараа болон эхний борлуулалтаа хэдхэн алхмаар бүртгэнэ.</p></div>
+          <div class="hero-actions"><a class="btn btn-secondary" href="./app.html#register">Үнэгүй бүртгүүлэх</a><a class="btn btn-secondary" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener">DataLinx-тэй холбогдох</a></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div><a class="brand" href="./"><span class="brand-mark">DL</span><span>DataLinx</span></a><p class="footer-copy">1–9 ажилтантай жижиг бизнест зориулсан борлуулалт, агуулах, түгээлтийн mobile-first веб систем.</p></div>
+        <div class="footer-links"><strong>Систем</strong><a href="#features">Боломжууд</a><a href="#pricing">Эрхийн төрөл</a><a href="./app.html">Нэвтрэх</a><a href="./app.html#register">Бүртгүүлэх</a></div>
+        <div class="footer-links"><strong>Мэдээлэл</strong><a href="./privacy.html">Нууцлалын бодлого</a><a href="./terms.html">Үйлчилгээний нөхцөл</a><a href="#faq">Түгээмэл асуулт</a><a href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener">Холбоо барих</a></div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 DataLinx. Бүх эрх хуулиар хамгаалагдсан.</span><span>Бизнесийн мэдээллийг зар сонгоход ашиглахгүй.</span></div>
+    </div>
+  </footer>
+
+  <script src="./ads-config.js?v=20260730"></script>
+  <script src="./public-ads.js?v=20260730"></script>
 </body>
 </html>
