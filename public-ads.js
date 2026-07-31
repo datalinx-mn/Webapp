@@ -23,6 +23,31 @@
     }));
   }
 
+  function ensureTrustLinks() {
+    const groups = Array.from(document.querySelectorAll('.footer-links'));
+    const infoGroup = groups.find(group => {
+      const title = group.querySelector('strong');
+      return title && /Мэдээлэл|Бодлого/.test(title.textContent || '');
+    });
+    if (!infoGroup) return;
+
+    const links = [
+      ['./about.html', 'Бидний тухай'],
+      ['./contact.html', 'Холбоо барих'],
+      ['./privacy.html', 'Нууцлалын бодлого'],
+      ['./terms.html', 'Үйлчилгээний нөхцөл'],
+      ['./ads-and-cookies.html', 'Зар ба cookie']
+    ];
+
+    links.forEach(([href, label]) => {
+      if (infoGroup.querySelector(`a[href="${href}"]`)) return;
+      const link = document.createElement('a');
+      link.href = href;
+      link.textContent = label;
+      infoGroup.appendChild(link);
+    });
+  }
+
   function showSponsor() {
     if (!slot) return;
     slot.innerHTML = '<a class="sponsor-ad" href="https://www.facebook.com/DataLinxMN" target="_blank" rel="noopener sponsored" style="width:100%;display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:14px;padding:16px;text-decoration:none;color:inherit"><span class="brand-mark">DL</span><span><strong style="display:block">DataLinx · Жижиг бизнесийн дижитал шийдэл</strong><small style="display:block;color:#627067;margin-top:3px">Google Sheets, AppSheet болон бизнесийн автоматжуулалтын үйлчилгээ.</small></span><strong style="color:#155D2A">Дэлгэрэнгүй ›</strong></a>';
@@ -54,5 +79,6 @@
   }
 
   setupMenu();
+  ensureTrustLinks();
   loadAds();
 })();
