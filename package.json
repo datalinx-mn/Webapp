@@ -1,0 +1,11 @@
+{
+  "name": "datalinx-webapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development checks for the static DataLinx app and Apps Script services",
+  "scripts": {
+    "test": "node tests/operations.test.cjs && node tests/dom.test.cjs"
+  },
+  "devDependencies": {"jsdom": "26.1.0"},
+  "engines": {"node": ">=20"}
+}

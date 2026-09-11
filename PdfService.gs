@@ -18,7 +18,7 @@ function generatePdfDocument_(auth, documentType, referenceId, options) {
 
   try {
     const version = latest ? Number(field_(latest, ['Version']) || 1) + 1 : 1;
-    if (latest) markDocumentSuperseded_(company.spreadsheetId, clean_(field_(latest, ['DocumentID'])));
+
 
     const documentHtml = buildPrintableDocumentHtml_(printable, type, { pdf: true });
     const fullHtml = renderPrintTemplate_(documentHtml, printable.meta.documentTitle + ' ' + printable.meta.documentNumber);
@@ -51,6 +51,7 @@ function generatePdfDocument_(auth, documentType, referenceId, options) {
       createdBy: auth.username,
       createdAt: createdAt
     });
+    if (latest) markDocumentSuperseded_(company.spreadsheetId, clean_(field_(latest, ['DocumentID'])));
     updateReferencePdfFields_(company.spreadsheetId, type, printable.meta.referenceId, printable.meta.documentNumber, pdfUrl, createdAt);
 
     return {
@@ -386,7 +387,9 @@ function buildTotalsBox_(totals, dueDate) {
     ['Хөнгөлөлт', totals.discount],
     ['НӨАТ', totals.vat],
     ['Нийт төлөх дүн', totals.total],
+    ['Буцаалтын дүн', totals.returned || 0],
     ['Төлсөн дүн', totals.paid],
+    ['Буцааж олгох дүн', totals.refundDue || 0],
     ['Үлдэгдэл', totals.remaining]
   ];
   return '<section class="totals-box">' + rows.map(function(item, index) {

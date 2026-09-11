@@ -1515,7 +1515,7 @@
                 <div class="card metric">
                   <small>Зээлийн үлдэгдэл</small>
                   <strong id="dashCreditTotal">0₮</strong>
-                  <div class="metric-footer"><span>Төлөлтийн тусдаа бүртгэлгүй тооцоо</span></div>
+                  <div class="metric-footer"><span>Төлөлт, буцаалтыг тооцсон үлдэгдэл</span></div>
                 </div>
               </div>
 
@@ -2366,6 +2366,8 @@
       state.serverTransactions = [];
       state.serverInventoryMoves = [];
       state.ads = [];
+      state.visits=[];state.users=[];state.customers=[];state.dashboard=null;
+      state.selectedSale=null;state.selectedDistribution=null;
       state.saleCart = [];
       $('#appScreen').classList.add('hidden');
       $('#authScreen').classList.remove('hidden');
@@ -2429,9 +2431,7 @@
         },
         {
           page: 'dashboard', selector: '#dashboardPremiumWrap', title: 'Хяналтын самбар',
-          text: isPremium()
-            ? 'Энэ сарын борлуулалт, шилдэг бараа, борлуулагчдын гүйцэтгэл, зээлийн үлдэгдэл болон өмнөх сартай харьцуулалтыг эндээс харна.'
-            : 'Хяналтын самбар нь Premium боломж. Free эрхтэй үед хэсэг түгжээтэй харагдах бөгөөд Premium эрх идэвхжүүлсний дараа тайлангууд нээгдэнэ.'
+          text: 'Энэ сарын борлуулалт, бараа, борлуулагч болон авах мөнгөний тойм. Үндсэн тайлан үнэгүй.'
         },
         {
           page: 'settings', selector: '#subscriptionBanner', title: 'Эрхийн төлөв',
@@ -2445,7 +2445,7 @@
         });
         steps.push({
           page: 'settings', selector: '#userForm', title: 'Хэрэглэгч удирдах',
-          text: 'Менежер шинэ борлуулагч эсвэл менежер нэмэх, мэдээллийг засах боломжтой. Free эрхийн хэрэглэгчийн хязгаарыг сервер талд автоматаар шалгана.'
+          text: 'Менежер шинэ борлуулагч эсвэл менежер нэмэх, мэдээллийг засах боломжтой. Ажилтан бүрт өөрийн ажлын эрхийг сонгоно.'
         });
       }
       steps.push({
@@ -2603,6 +2603,7 @@
     async function refreshData(showToast = false) {
       if (!state.session?.token) throw new Error('Нэвтрэх мэдээлэл хүчингүй байна.');
       if (!navigator.onLine) throw new Error('Сүлжээгүй үед шинэчлэх боломжгүй. Офлайн бүртгэлүүд хадгалагдсан хэвээр байна.');
+      const refreshToken = state.session.token;
       const btn = $('#refreshBtn');
       btn.disabled = true;
       btn.textContent = '…';
@@ -2614,6 +2615,7 @@
         url.searchParams.set('_', String(Date.now()));
         const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
         const data = await parseResponse(response);
+        if(state.session?.token!==refreshToken) return;
         if (!data.success) {
           if (String(data.message).toLowerCase().includes('session')) logout();
           throw new Error(data.message || 'Өгөгдөл шинэчилж чадсангүй.');
@@ -2662,12 +2664,13 @@
       state.inventoryMoves = state.serverInventoryMoves.map(item => ({ ...item, syncStatus: 'synced' }));
 
       const queue = getQueue()
-        .filter(item => sameCompany(item.company, state.session?.company?.name || state.session?.user?.company))
+        .filter(item => sameCompany(item.company, state.session?.company?.name || state.session?.user?.company) && item.username === state.session?.user?.username && !item.failed)
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
       queue.forEach(item => {
         const p = item.payload || {};
         if (item.action === 'addSale') {
+          if(state.serverTransactions.some(tx=>tx.clientId===item.id)) return;
           const saleItems = Array.isArray(p.items) && p.items.length
             ? p.items
             : [{ product: p.product, quantity: p.quantity, unitPrice: p.unitPrice }];
@@ -2697,6 +2700,7 @@
           }
         }
         if (item.action === 'addInventoryMove') {
+          if(state.serverInventoryMoves.some(tx=>tx.clientId===item.id)) return;
           const product = state.products.find(x => x.name === p.product);
           if (product && p.moveType === 'орлого') product.stock = numberValue(product.stock) + numberValue(p.quantity);
           if (product && p.moveType === 'зарлага') product.stock = numberValue(product.stock) - numberValue(p.quantity);
@@ -2741,6 +2745,7 @@
       // duplicate Apps Script calls and prevents the UI from appearing stuck.
       if (state.moduleLoads[module]) return state.moduleLoads[module];
 
+      const moduleToken=state.session.token;
       const request = (async () => {
         try {
           const url = new URL(APP_SCRIPT_URL);
@@ -2751,6 +2756,7 @@
           const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
           const data = await parseResponse(response);
           if (!data.success) throw new Error(data.message || 'Мэдээлэл ачаалж чадсангүй.');
+          if(state.session?.token!==moduleToken) return;
           if (module === 'inventory') {
             state.serverInventoryMoves = Array.isArray(data.inventoryMoves) ? data.inventoryMoves : [];
             state.loaded.inventory = true;
@@ -3024,7 +3030,7 @@
       const total = items.reduce((sum, item) => sum + numberValue(item.quantity) * numberValue(item.unitPrice), 0);
       const productText = items.length === 1 ? items[0].product : `${items.length} төрлийн бараа`;
       $('#saleSuccessBody').innerHTML = [
-        ['Төлөв', pending ? 'Sync хүлээж байна' : 'Серверт хадгалагдсан'],
+        ['Төлөв', pending ? 'Утсанд хадгалсан' : 'Системд хадгалсан'],
         ['Sale ID', effectiveId || 'Sync хийсний дараа үүснэ'],
         ['Бараа', productText],
         ['Нийт тоо', formatNumber(totalQty)],
@@ -3076,7 +3082,7 @@
         return threshold > 0 && numberValue(product.stock) <= threshold;
       });
       if ($('#todaySalesAmount')) $('#todaySalesAmount').textContent = money(todayTotal);
-      if ($('#todaySalesCount')) $('#todaySalesCount').textContent = formatNumber(todayRows.length);
+      if ($('#todaySalesCount')) $('#todaySalesCount').textContent = formatNumber(new Set(todayRows.map(tx=>transactionId(tx))).size);
       if ($('#todayLowStockCount')) $('#todayLowStockCount').textContent = formatNumber(lowStock.length);
 
       const done = {
@@ -3916,6 +3922,7 @@
         id: createClientId(),
         action,
         company: state.session?.company?.name || state.session?.user?.company || '',
+        username: state.session?.user?.username || '',
         createdAt: new Date().toISOString(),
         payload: { ...payload }
       };
@@ -3933,16 +3940,21 @@
         return { status: 'queued' };
       }
       state.syncing = true;
+      const syncToken=state.session.token;
       let targetResult = { status: targetId ? 'queued' : 'done' };
       try {
         const currentCompany = state.session?.company?.name || state.session?.user?.company || '';
-        const items = getQueue().filter(item => sameCompany(item.company, currentCompany));
+        const items = getQueue().filter(item => sameCompany(item.company, currentCompany) && item.username === state.session?.user?.username && !item.failed);
         for (const item of items) {
-          if (targetId && item.id !== targetId) continue;
+          if(state.session?.token!==syncToken) break;
+          // Preserve queue order, including transactions entered before this one.
           try {
             const data = await postAction(item.payload);
+            if(state.session?.token!==syncToken) break;
             if (!data.success) {
-              removeQueueItem(item.id);
+              if (String(data.message).toLowerCase().includes('session')) throw new Error(data.message);
+              const retained=getQueue(); const failed=retained.find(x=>x.id===item.id);
+              if(failed){failed.failed=true;failed.error=data.message || 'Хадгалж чадсангүй.';saveQueue(retained);}
               if (item.id === targetId) targetResult = { status: 'rejected', message: data.message || 'Сервер хүсэлтийг хүлээж авсангүй.' };
               else toast(`${item.action === 'addSale' ? 'Борлуулалт' : 'Агуулахын хөдөлгөөн'} буцаагдлаа: ${data.message || ''}`, 'error');
               continue;
@@ -4031,7 +4043,7 @@
     function removeQueueItem(id) { saveQueue(getQueue().filter(item => item.id !== id)); }
     function pendingQueueCount() {
       const company = state.session?.company?.name || state.session?.user?.company || '';
-      return getQueue().filter(item => sameCompany(item.company, company)).length;
+      return getQueue().filter(item => sameCompany(item.company, company) && item.username === state.session?.user?.username).length;
     }
     function createClientId() {
       return `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -4075,6 +4087,7 @@
     function saveCache() {
       if (!state.session) return;
       const payload = {
+        operationsVersion: typeof operationsUIActivated !== 'undefined' && operationsUIActivated ? 1 : 0,
         user: state.session.user,
         company: state.session.company,
         companyStatus: state.session.companyStatus,
@@ -4097,7 +4110,7 @@
     }
 
     function readCache() {
-      try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
+      try { const cached=JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return cached && cached.user?.username === state.session?.user?.username && sameCompany(cached.user?.company,state.session?.user?.company) ? cached : null; }
       catch (error) { return null; }
     }
 
