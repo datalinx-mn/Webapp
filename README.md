@@ -1,7 +1,9 @@
 # DataLinx — жижиг бизнесийн өдөр тутмын ажил
 
-1–9 ажилтантай бизнесийн борлуулалт, бараа, хүргэлт, авах мөнгөний Монгол хэлтэй web app.
-GitHub Pages дээрх static frontend нь Google Apps Script API-тай холбогдоно. Компани бүрийн бизнесийн мэдээлэл тусдаа private Google Spreadsheet-д хадгалагдана.
+1–9 ажилтантай хүнсний бөөний худалдаа, түгээлтийн бизнесийн борлуулалт, бараа, хүргэлт, авах мөнгөний Монгол хэлтэй web app.
+Netlify-д байрлуулахад бэлтгэсэн static frontend нь Google Apps Script API-тай холбогдоно. Компани бүрийн бизнесийн мэдээлэл тусдаа private Google Spreadsheet-д хадгалагдана.
+
+Шинэ суулгах үндсэн заавар: [Найдвартай ажиллагааны release](RELIABILITY_RELEASE_MN.md). POST login ба шинэ серверийн файлууд шаардлагатай.
 
 ## Энэ хувилбар
 
@@ -26,7 +28,7 @@ npm ci
 npm test
 ```
 
-Npm нь хөгжүүлэлтийн шалгалтад хэрэглэгдэнэ. GitHub Pages сайт build алхам, runtime npm dependency шаардахгүй.
+`npm run build` нь Netlify-ийн `dist` хавтсыг үүсгэнэ. `npm run bundle:gas` нь Apps Script-д зориулсан нийлмэл `release/Code.gs` үүсгэнэ. Browser runtime npm dependency шаардахгүй.
 
 ## Кодын бүтэц
 

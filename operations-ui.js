@@ -21,6 +21,7 @@ function opsPage(name,title,subtitle) {
   const section=document.createElement('section');section.id='page-'+name;section.className='page';
   section.innerHTML=`<div class="page-head"><div><h2>${title}</h2><p>${subtitle}</p></div>${opsButton('Шинэчлэх','refresh')}</div><div id="ops-${name}"></div>`;
   opsEl('page-sales').parentElement.appendChild(section);
+  if(['today','money'].includes(name)){const ad=document.createElement('div');ad.className='ad-slot';ad.dataset.adPlacement=name;section.appendChild(ad);}
 }
 function installOperations() {
   opsPage('today','Өнөөдөр','Хүргэх захиалга, авах мөнгө, анхаарах бараа.');
@@ -71,8 +72,7 @@ async function loadOperations(force=false) {
   const promise=(async()=>{
     try {
       operations.error='';renderOperations();
-      const url=new URL(APP_SCRIPT_URL);url.searchParams.set('action','operations');url.searchParams.set('token',state.session.token);
-      const result=await parseResponse(await fetch(url,{cache:'no-store',redirect:'follow'}));
+      const result=await postAction({action:'operations'});
       if(owner!==opsIdentity())return;
       if(!result.success||!result.operations)throw new Error(result.message||'Өдөр тутмын мэдээлэл одоогоор бэлэн болоогүй байна.');
       operations.data=result.operations;
@@ -82,8 +82,8 @@ async function loadOperations(force=false) {
 }
 async function opsGetSale(id) {
   if(!navigator.onLine)throw new Error('Энэ үйлдэлд интернэт холболт шаардлагатай.');
-  const owner=opsIdentity(),url=new URL(APP_SCRIPT_URL);url.searchParams.set('action','operations');url.searchParams.set('token',state.session.token);url.searchParams.set('saleId',id);
-  const data=await parseResponse(await fetch(url,{cache:'no-store',redirect:'follow'}));
+  const owner=opsIdentity();
+  const data=await postAction({action:'operations',saleId:id});
   if(owner!==opsIdentity())throw new Error('Нэвтрэх эрх өөрчлөгдсөн байна.');
   if(!data.success||!data.sale)throw new Error(data.message||'Борлуулалт олдсонгүй.');return data.sale;
 }
@@ -103,6 +103,7 @@ function renderOperations() {
   if(d.legacyDeliveryPayments)opsEl('ops-money').insertAdjacentHTML('afterbegin','<p class="ops-notice">Өмнөх түгээлтэд төлбөрийн тэмдэглэл байна. Давхар тооцохоос сэргийлж нягтлан эхний үлдэгдэлтэй тулгана уу.</p>');
   opsEl('ops-batches').innerHTML=opsStockRole()?`<h3>Цуврал ба дуусах хугацаа</h3><p>Хугацаа нь эхэлж дуусах бараанаас борлуулна. Хугацаа дууссан барааг борлуулахгүй.</p>${d.batches.map(b=>`<div class="ops-row ${b['Дуусах огноо']&&b['Дуусах огноо']<d.today?'ops-expired':''}"><div><strong>${opsEsc(b['Бараа'])}</strong><small>${opsEsc(b['Агуулах'])} · ${opsEsc(b['Дуусах огноо']||'Хугацаа заагаагүй')}</small></div><span>${formatNumber(b['Үлдэгдэл'])}</span></div>`).join('')||emptyHtml('Цуврал бүртгэлгүй. Бараа нэмэхдээ хугацааг оруулж эхэлнэ.')}<h3>Агуулахад хүлээн авах буцаалт</h3>${(d.pendingReturns||[]).map(r=>`<div class="ops-row"><div><strong>${opsEsc(r['Бараа'])} · ${formatNumber(r['Тоо'])}</strong><small>${opsEsc(r['Шалтгаан'])}</small></div>${opsButton('Буцаан авах','receive-return',r.ReturnID)}</div>`).join('')||emptyHtml('Хүлээгдэж буй буцаалт алга.')}`:'';
   opsRenderQueue();
+  window.renderReliability?.(d);
 }
 function opsModal(title,html,action,values={}) {
   operations.formAction=action;operations.formValues=values;operations.requestId=createClientId();operations.formOwner=opsIdentity();
@@ -134,7 +135,7 @@ async function handleOperationsClick(event) {
     }
     if(action==='delivery'){
       const v=operations.data.deliveries.find(d=>d.distributionId===id);const sale=await opsGetSale(v.saleId);operations.modalSale=sale;
-      opsModal('Хүргэлтийн тооцоо',`<p>${opsEsc(v.customer)} · ${opsEsc(v.driver)}</p><p>Тоо нь нийт хүргэсэн, нийт буцаасан тоо байна. Буцаалт авах мөнгөнөөс хасагдаж, барааг нярав хүлээн авна.</p>${sale.items.map((i,index)=>{const line=v.items[index]||{};return `<fieldset><legend>${opsEsc(i.product)} · Ачсан ${formatNumber(i.quantity)}</legend><div class="form-grid two">${opsField('Нийт хүргэсэн',`delivered-${index}`,'number',line.delivered||0,`min="0" max="${i.quantity}" step="any" required`)}${opsField('Нийт буцаасан',`returned-${index}`,'number',line.returned||0,`min="0" max="${i.quantity}" step="any" required`)}</div></fieldset>`;}).join('')}${opsSelect('Төлөв','status',['Түгээлтэд гарсан','Хэсэгчлэн хүргэсэн','Хүргэгдсэн','Хүргэлт амжилтгүй'].map(s=>opsOption(s,s,v.status===s)).join(''))}${opsField('Хүргэх өдөр','date','date',v.date||operations.data.today,'required')}${opsField('Хаяг','address','text',v.customerAddress||'')}${opsField('Тэмдэглэл / буцаалтын шалтгаан','notes','text',v.deliveryNotes||'')}`,'saveDelivery',{saleId:v.saleId,distributionId:id,driver:v.driverUsername});return;
+      opsModal('Хүргэлтийн тооцоо',`<p>${opsEsc(v.customer)} · ${opsEsc(v.driver)}</p><p>Тоо нь нийт хүргэсэн, нийт буцаасан тоо байна. Буцаалтын мөнгийг менежер эсвэл нягтлан зөвшөөрсний дараа авлагаас хасна. Барааг нярав тусад нь хүлээн авна.</p>${sale.items.map((i,index)=>{const line=v.items[index]||{};return `<fieldset><legend>${opsEsc(i.product)} · Ачсан ${formatNumber(i.quantity)}</legend><div class="form-grid two">${opsField('Нийт хүргэсэн',`delivered-${index}`,'number',line.delivered||0,`min="0" max="${i.quantity}" step="any" required`)}${opsField('Нийт буцаасан',`returned-${index}`,'number',line.returned||0,`min="0" max="${i.quantity}" step="any" required`)}</div></fieldset>`;}).join('')}${opsSelect('Төлөв','status',['Түгээлтэд гарсан','Хэсэгчлэн хүргэсэн','Хүргэгдсэн','Хүргэлт амжилтгүй'].map(s=>opsOption(s,s,v.status===s)).join(''))}${opsField('Хүргэх өдөр','date','date',v.date||operations.data.today,'required')}${opsField('Хаяг','address','text',v.customerAddress||'')}${opsField('Тэмдэглэл / буцаалтын шалтгаан','notes','text',v.deliveryNotes||'')}`,'saveDelivery',{saleId:v.saleId,distributionId:id,driver:v.driverUsername});return;
     }
     const sale=await opsGetSale(action==='repeat-selected'?transactionId(state.selectedSale):id);operations.modalSale=sale;
     if(action==='repeat'||action==='repeat-selected'){
@@ -181,6 +182,7 @@ function opsRenderQueue() {
   const legacy=opsManager()?getQueue().filter(i=>sameCompany(i.company,state.session.user.company)&&!i.username):[];
   opsEl('ops-queue').innerHTML=`<section class="card"><h3>Утсанд хадгалсан бүртгэл</h3>${items.map(i=>`<div class="ops-row"><div><strong>${i.action==='addSale'?'Борлуулалт':'Барааны хөдөлгөөн'}</strong><small>${opsEsc(i.error||'Илгээхийг хүлээж байна')}</small></div>${i.failed?opsButton('Дахин илгээх','retry-queue',i.id):''}</div>`).join('')||emptyHtml('Илгээхийг хүлээж буй бүртгэл алга.')}${legacy.length?'<h3>Хуучин хувилбараас үлдсэн бүртгэл</h3><p>Үүсгэсэн ажилтан тодорхойгүй. Менежер шалгаад хариуцаж илгээнэ.</p>'+legacy.map(i=>`<div class="ops-row"><div><strong>${opsEsc(i.payload?.customer||i.payload?.product||'Бүртгэл')}</strong><small>${opsEsc(formatDate(i.createdAt))} · ${opsEsc(i.action)} · ${opsEsc(JSON.stringify(i.payload?.items||{quantity:i.payload?.quantity,moveType:i.payload?.moveType}))}</small></div>${opsButton('Хариуцаж илгээх','claim-legacy-queue',i.id)}</div>`).join(''):''}</section>`;
 }
+window.refreshReliabilityOperations=()=>loadOperations(true);
 installOperations();
 const opsOriginalShowApp=showApp;
 showApp=function(){opsOriginalShowApp();showPage('today');void loadOperations(true);};

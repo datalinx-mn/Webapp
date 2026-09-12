@@ -42,7 +42,7 @@ const SHEET_HEADERS = {
   SETTINGS: ['Түлхүүр','Утга','Тайлбар'],
   PAYMENTS: ['PaymentID','SaleID','Огноо','Дүн','Төлбөрийн арга','Баталгаажуулсан','Тэмдэглэл','CreatedBy'],
   DOCUMENT_NUMBERS: ['CompanyID','DocumentType','Prefix','LastNumber','UpdatedAt','UpdatedBy'],
-  DOCUMENTS: ['DocumentID','CompanyID','DocumentType','DocumentNumber','ReferenceType','ReferenceID','SaleID','DistributionID','CustomerID','FileName','DriveFileID','PdfUrl','Version','Status','CreatedBy','CreatedAt']
+  DOCUMENTS: ['DocumentID','CompanyID','DocumentType','DocumentNumber','ReferenceType','ReferenceID','SaleID','DistributionID','CustomerID','FileName','DriveFileID','PdfUrl','Version','Status','CreatedBy','CreatedAt','ContentHash']
 };
 
 const LOGIN_ATTEMPT_LIMIT = 10;
@@ -56,7 +56,8 @@ function doGet(e) {
   try {
     ensureMasterSheets_();
     const action = clean_(e && e.parameter && e.parameter.action);
-    if (action === 'login') return json_(handleLogin_(e.parameter || {}));
+    if(action==='capabilities')return json_({success:true,operationsVersion:1,reliabilityVersion:1});
+    if (action === 'login') throw new Error('Шинэ хувилбараа нээнэ үү. Нэвтрэхэд POST шаардлагатай.');
     if (action === 'bootstrap') {
       const auth = requireSession_(clean_(e.parameter.token));
       return json_(withOperationsRead_(auth,()=>buildInitialPayload_(auth)));
@@ -84,10 +85,23 @@ function doPost(e) {
     ensureMasterSheets_();
     const payload = parseBody_(e);
     const action = clean_(payload.action);
+    if (action === 'login') return json_(handleLogin_(payload));
+    if (action === 'completeRecovery') return json_(securityCompleteRecovery_(payload));
     if (action === 'registerCompany') return json_(handleRegisterCompany_(payload));
 
     const auth = requireSession_(clean_(payload.token));
-    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash'].includes(action)) return json_(handleOperation_(auth, payload));
+    if(action==='sponsorEvent')return json_(recordSponsorEvent_(auth,payload));
+    if(action==='bootstrap')return json_(withOperationsRead_(auth,()=>buildInitialPayload_(auth)));
+    if(action==='operations')return json_(loadOperations_(auth,payload));
+    if(action==='module')return json_(withOperationsRead_(auth,()=>loadModule_(auth,clean_(payload.module))));
+    if(action==='history')return json_(withOperationsRead_(auth,()=>loadOlderHistory_(auth,payload)));
+    if(action==='backupStatus'||action==='createBackup'||action==='testRestore')return json_(backupAction_(auth,payload));
+    if(action==='inspectRequest'||action==='cancelRequest')return json_(dataQueueAction_(auth,payload));
+    if(action==='previewImport')return json_(dataPreviewImport_(auth,payload));
+    if(action==='logout')return json_(securityLogout_(auth,payload));
+    if(action==='changePassword')return json_(securityChangePassword_(auth,payload));
+    if(action==='issueRecovery')return json_(securityIssueRecovery_(auth,payload));
+    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash','approveReturn','reversePayment','cancelSale','importData','stocktake'].includes(action)) return json_(handleOperation_(auth, payload));
     recoverOperations_(auth);
     if (action === 'saveProduct') return json_(handleSaveProduct_(auth, payload));
     if (action === 'deleteProduct') return json_(handleDeleteProduct_(auth, payload));
@@ -105,50 +119,7 @@ function doPost(e) {
   }
 }
 
-function handleLogin_(params) {
-  const username = clean_(params.username);
-  const password = String(params.password || '');
-  if (!username || !password) throw new Error('Хэрэглэгчийн нэр болон нууц үг шаардлагатай.');
-
-  const cache = CacheService.getScriptCache();
-  const rateKey = 'login:' + username.toLowerCase();
-  const failed = Number(cache.get(rateKey) || 0);
-  if (failed >= LOGIN_ATTEMPT_LIMIT) {
-    throw new Error('Нэг минутанд 10-аас олон буруу оролдлого хийсэн тул түр хаагдлаа. 1 минутын дараа дахин оролдоно уу.');
-  }
-
-  const master = masterSs_();
-  const users = values_(master.getSheetByName(MASTER_SHEETS.USERS));
-  const userRow = findRowByValue_(users, 0, username);
-  if (!userRow || !passwordMatches_(password, userRow.values[1])) {
-    cache.put(rateKey, String(failed + 1), LOGIN_WINDOW_SECONDS);
-    throw new Error('Хэрэглэгчийн нэр эсвэл нууц үг буруу байна.');
-  }
-
-  cache.remove(rateKey);
-  const companyName = clean_(userRow.values[4]);
-  const company = getCompany_(companyName);
-  if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
-  if (!company.spreadsheetId) throw new Error('Компанийн Spreadsheet ID бүртгэгдээгүй байна.');
-  if (company.status === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. ' + UPGRADE_URL);
-
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-
-  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
-  const auth = {
-    username: clean_(userRow.values[0]),
-    fullName: clean_(userRow.values[2]),
-    role: normalizeRole_(userRow.values[3]),
-    company: companyName,
-    issuedAt: new Date().toISOString()
-  };
-  cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
-
-  const result = withOperationsRead_(auth,()=>buildInitialPayload_(auth));
-  result.token = token;
-  return result;
-}
+function handleLogin_(params) {return secureLogin_(params);}
 
 function buildInitialPayload_(auth) {
   const company = requireActiveCompany_(auth.company);
@@ -159,6 +130,7 @@ function buildInitialPayload_(auth) {
   return {
     success: true,
     operationsVersion: 1,
+    reliabilityVersion: 1,
     user: { username: auth.username, fullName: auth.fullName, role: auth.role, company: auth.company },
     company: { name: company.name, phone: company.phone, email: company.email, spreadsheetId: company.spreadsheetId },
     companyStatus: company.status,
@@ -226,7 +198,9 @@ function handleRegisterCompany_(p) {
   const password = String(p.password || '');
   if (!companyName || !phone || !managerName || !username || !password) throw new Error('Компанийн нэр, утас, менежерийн нэр, хэрэглэгчийн нэр, нууц үг шаардлагатай.');
   if (!/^\d{8}$/.test(phone)) throw new Error('Утасны дугаар яг 8 оронтой тоо байна.');
-  if (password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
+  securityRate_('register:'+phone,3,3600);
+  securityRate_('register:global',20,3600);
+  const passwordHash=strongPassword_(password,false);
   validateUsername_(username);
 
   const lock = LockService.getScriptLock();
@@ -247,7 +221,7 @@ function handleRegisterCompany_(p) {
     // тухайн spreadsheet-ийг хэрэглэгчийн Google имэйлтэй ГАРААР share хийнэ.
     // Автоматаар share хийхгүй — энэ нь зориудын manual admin алхам.
     companySheet.appendRow([companyName, newSheetId, 'Free', new Date(), 0, phone, email]);
-    userSheet.appendRow([username, sha256_(password), managerName, 'manager', companyName]);
+    userSheet.appendRow([username, passwordHash, managerName, 'manager', companyName,Date.now()]);
     return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
   } finally {
     lock.releaseLock();
@@ -367,7 +341,7 @@ function handleSaveUser_(auth, p) {
   const password = String(p.password || '');
   if (!username || !fullName) throw new Error('Нэр болон хэрэглэгчийн нэр шаардлагатай.');
   validateUsername_(username);
-  if (password && password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
+  const passwordHash=password?strongPassword_(password,false):'';
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -381,17 +355,20 @@ function handleSaveUser_(auth, p) {
 
     if (editing && clean_(editing.values[4]).toLowerCase() !== auth.company.toLowerCase()) throw new Error('Хэрэглэгч олдсонгүй.');
     if (editing && clean_(editing.values[0]) === auth.username && !isManagerRole_(role)) throw new Error('Өөрийн удирдах эрхийг хасах боломжгүй.');
+    if (editing && originalUsername && username!==originalUsername)throw new Error('Хэрэглэгчийн нэрийг солихгүй. Шинэ ажилтан үүсгэнэ үү.');
     if (editing) {
+      const oldUser=securityUser_(originalUsername||username);
+      if(passwordHash)securitySavePassword_(oldUser,passwordHash);
       userSheet.getRange(editing.rowNumber, 1, 1, 5).setValues([[
         username,
-        password ? sha256_(password) : String(editing.values[1] || ''),
+        passwordHash || String(editing.values[1] || ''),
         fullName,
         role,
         auth.company
       ]]);
     } else {
       if (!password) throw new Error('Шинэ хэрэглэгчид нууц үг шаардлагатай.');
-      userSheet.appendRow([username, sha256_(password), fullName, role, auth.company]);
+      userSheet.appendRow([username, passwordHash, fullName, role, auth.company,Date.now()]);
     }
     return { success: true };
   } finally {
@@ -646,7 +623,7 @@ function buildDashboard_(companySs) {
   let creditTotal = 0;
   const currentSaleIds = {};
   const returnedByLine = {};
-  opsRows_(companySs,'Буцаалт').forEach(e=>{const r=e.object,key=r.SaleID+'|'+r.LineID;const value=returnedByLine[key]||(returnedByLine[key]={amount:0,quantity:0});value.amount+=Number(r['Дүн']||0);value.quantity+=Number(r['Тоо']||0);});
+  opsRows_(companySs,'Буцаалт').filter(e=>opsCreditApproved_(e.object)).forEach(e=>{const r=e.object,key=r.SaleID+'|'+r.LineID;const value=returnedByLine[key]||(returnedByLine[key]={amount:0,quantity:0});value.amount+=Number(r['Дүн']||0);value.quantity+=Number(r['Тоо']||0);});
   const byProduct = {};
   const byRep = {};
   const creditByCustomer = {};
@@ -671,6 +648,7 @@ function buildDashboard_(companySs) {
   });
 
   const ids = new Set(data.rows.map(saleRowIdentifier_));
+  opsRows_(companySs,'Эхний авлага').forEach(e=>ids.add(e.object.OpeningID));
   ids.forEach(id => {
     const sale = opsSale_(companySs, id, {role:'manager'});
     if (['cancelled','цуцлагдсан','draft','ноорог'].includes(sale.status.toLowerCase())) return;
@@ -825,7 +803,7 @@ function getActiveAds_() {
 function ensureMasterSheets_() {
   const ss = masterSs_();
   ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл']);
-  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр']);
+  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр'].concat(SECURITY_USER_HEADERS));
   ensureSheet_(ss, MASTER_SHEETS.ADS, MASTER_AD_HEADERS);
 }
 
@@ -861,7 +839,7 @@ function seedCompanySettings_(ss, companyInfo) {
     ['VatRate', '0', 'НӨАТ хувь'],
     ['DefaultPaymentTermDays', '14', 'Зээлийн төлбөрийн хугацаа (хоног)'],
     ['PdfRootFolderId', '', 'Систем автоматаар үүсгэнэ'],
-    ['PdfShareMode', 'LINK', 'LINK үед PDF-ийг холбоостой хүн үзнэ; PRIVATE үед зөвхөн Drive эрхтэй хүн үзнэ'],
+    ['PdfShareMode', 'PRIVATE', 'LINK үед PDF-ийг холбоостой хүн үзнэ; PRIVATE үед зөвхөн Drive эрхтэй хүн үзнэ'],
     ['WarehouseManager', '', 'Үндсэн нярав'],
     ['DefaultDriver', '', 'Үндсэн жолооч'],
     ['DefaultVehicle', '', 'Үндсэн тээврийн хэрэгсэл'],
@@ -873,7 +851,7 @@ function seedCompanySettings_(ss, companyInfo) {
   appendRows_(sheet, rows);
 }
 
-function masterSs_() { return SpreadsheetApp.getActiveSpreadsheet(); }
+function masterSs_() { const active=SpreadsheetApp.getActiveSpreadsheet();return active||SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('DATALINX_MASTER_ID')); }
 
 function ensureSheet_(ss, name, requiredHeaders) {
   let sheet = ss.getSheetByName(name);
@@ -901,13 +879,19 @@ function requireSession_(token) {
   const auth = JSON.parse(raw);
   const user = findRowByValue_(values_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)), 0, auth.username);
   if (!user || clean_(user.values[4]) !== auth.company) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  const current=securityUser_(auth.username);
+  if(Number(current.object.SessionVersion||0)!==Number(auth.sessionVersion||0))throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  if(auth.issuedAt && Date.now()-Date.parse(auth.issuedAt)>86400000)throw new Error('Session хугацаа дууссан.');
   auth.role = normalizeRole_(user.values[3]); auth.fullName = clean_(user.values[2]);
   cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
   return auth;
 }
 
 function passwordMatches_(input, stored) {
-  return String(stored || '') === sha256_(input) || String(stored || '') === String(input || '');
+  stored=String(stored||'');input=String(input||'');
+  if(stored.startsWith('$2'))return !bcrypt.truncates(input)&&bcrypt.compareSync(input,stored);
+  if(/^[a-f0-9]{64}$/i.test(stored))return secureEqual_(stored.toLowerCase(),sha256_(input));
+  return !!stored && secureEqual_(stored,input); // Legacy plaintext is upgraded immediately on successful login.
 }
 
 function sha256_(text) {

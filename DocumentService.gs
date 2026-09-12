@@ -323,6 +323,7 @@ function savePdfRecord(documentData) {
   ensureCompanySheets_(ss);
   const sheet = ss.getSheetByName(COMPANY_SHEETS.DOCUMENTS);
   const record = {
+    'ContentHash': documentData.contentHash || '',
     'DocumentID': documentData.documentId || createBusinessId_('DOC'),
     'CompanyID': documentData.companyId,
     'DocumentType': normalizeDocumentType_(documentData.documentType),
@@ -411,7 +412,7 @@ function mapCustomerObject_(object) {
 }
 
 function getPaymentsForSale_(ss, saleId) {
-  return opsRows_(ss, COMPANY_SHEETS.PAYMENTS).filter(function(entry) {
+  return opsGrouped_(ss, COMPANY_SHEETS.PAYMENTS,'SaleID',saleId).filter(function(entry) {
     return clean_(field_(entry.object, ['SaleID'])) === saleId && !['үгүй','false','0','no'].includes(clean_(field_(entry.object, ['Баталгаажуулсан'])).toLowerCase());
   }).map(function(entry) {
     return {
@@ -420,6 +421,7 @@ function getPaymentsForSale_(ss, saleId) {
       amount: Number(field_(entry.object, ['Дүн']) || 0),
       method: clean_(field_(entry.object, ['Төлбөрийн арга'])),
       notes: clean_(field_(entry.object, ['Тэмдэглэл'])),
+      reversalOf: clean_(entry.object.ReversalOf),
       source: clean_(entry.object.Source)
     };
   });

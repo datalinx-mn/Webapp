@@ -4,8 +4,15 @@
   "private": true,
   "description": "Development checks for the static DataLinx app and Apps Script services",
   "scripts": {
-    "test": "node tests/operations.test.cjs && node tests/dom.test.cjs"
+    "test": "node tests/reliability.test.cjs && node tests/dom.test.cjs",
+    "build": "node scripts/build-static.cjs",
+    "bundle:gas": "node scripts/bundle-apps-script.cjs"
   },
-  "devDependencies": {"jsdom": "26.1.0"},
-  "engines": {"node": ">=20"}
+  "devDependencies": {
+    "bcryptjs": "3.0.2",
+    "jsdom": "26.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }

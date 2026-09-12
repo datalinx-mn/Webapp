@@ -1115,7 +1115,7 @@
             <div class="field">
               <label for="regPassword">Нууц үг</label>
               <input id="regPassword" type="password" autocomplete="new-password" aria-describedby="regPasswordHint" required>
-              <small id="regPasswordHint" class="field-hint">Хамгийн багадаа 6 тэмдэгт</small>
+              <small id="regPasswordHint" class="field-hint">Хамгийн багадаа 12 тэмдэгт</small>
             </div>
           </div>
           <div id="registerError" class="form-error hidden" role="alert"></div>
@@ -2252,13 +2252,7 @@
         if (!password) throw new Error('Нууц үгээ оруулна уу.');
         if (!navigator.onLine) throw new Error('Анх нэвтрэхэд интернет холболт шаардлагатай.');
         ensureUrl();
-        const url = new URL(APP_SCRIPT_URL);
-        url.searchParams.set('action', 'login');
-        url.searchParams.set('username', username);
-        url.searchParams.set('password', password);
-        url.searchParams.set('_', String(Date.now()));
-        const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store', redirect: 'follow' });
-        const data = await parseResponse(response);
+        const data=await postAction({action:'login',username,password},false);
         if (!data.success) throw new Error(data.message || 'Нэвтрэхэд алдаа гарлаа.');
         if (data.companyStatus === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. DataLinx-тэй холбогдоно уу.');
 
@@ -2303,7 +2297,7 @@
         if (!payload.managerName) throw fieldError_('Менежерийн бүтэн нэрийг оруулна уу.', '#regManagerName');
         if (payload.username.length < 3) throw fieldError_('Хэрэглэгчийн нэр хамгийн багадаа 3 тэмдэгт байна.', '#regUsername');
         if (/\s/.test(payload.username)) throw fieldError_('Хэрэглэгчийн нэрд зай оруулахгүй.', '#regUsername');
-        if (payload.password.length < 6) throw fieldError_('Нууц үг хамгийн багадаа 6 тэмдэгт байна.', '#regPassword');
+        if (payload.password.length < 12) throw fieldError_('Нууц үг хамгийн багадаа 6 тэмдэгт байна.', '#regPassword');
         if (!navigator.onLine) throw new Error('Компани бүртгэхэд интернет холболт шаардлагатай.');
         ensureUrl();
         const data = await postAction(payload, false);
@@ -2356,6 +2350,8 @@
     }
 
     function logout() {
+      const oldToken=state.session?.token;
+      if(oldToken&&navigator.onLine)void postAction({action:'logout',token:oldToken},false).catch(()=>{});
       finishWalkthrough(false, false);
       closeCamera();
       closeBarcodeScanner();
@@ -2609,12 +2605,7 @@
       btn.textContent = '…';
       try {
         ensureUrl();
-        const url = new URL(APP_SCRIPT_URL);
-        url.searchParams.set('action', 'bootstrap');
-        url.searchParams.set('token', state.session.token);
-        url.searchParams.set('_', String(Date.now()));
-        const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
-        const data = await parseResponse(response);
+        const data = await postAction({action:'bootstrap'});
         if(state.session?.token!==refreshToken) return;
         if (!data.success) {
           if (String(data.message).toLowerCase().includes('session')) logout();
@@ -2748,13 +2739,7 @@
       const moduleToken=state.session.token;
       const request = (async () => {
         try {
-          const url = new URL(APP_SCRIPT_URL);
-          url.searchParams.set('action', 'module');
-          url.searchParams.set('module', module);
-          url.searchParams.set('token', state.session.token);
-          url.searchParams.set('_', String(Date.now()));
-          const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
-          const data = await parseResponse(response);
+          const data = await postAction({action:'module',module});
           if (!data.success) throw new Error(data.message || 'Мэдээлэл ачаалж чадсангүй.');
           if(state.session?.token!==moduleToken) return;
           if (module === 'inventory') {
@@ -2795,14 +2780,7 @@
       setButtonLoading(btn, true, 'Ачаалж байна...');
       try {
         if (!navigator.onLine) throw new Error('Хуучин түүх ачаалахад интернет шаардлагатай.');
-        const url = new URL(APP_SCRIPT_URL);
-        url.searchParams.set('action', 'history');
-        url.searchParams.set('token', state.session.token);
-        url.searchParams.set('beforeRow', state.historyCursor);
-        url.searchParams.set('limit', '100');
-        url.searchParams.set('_', String(Date.now()));
-        const response = await fetch(url.toString(), { cache: 'no-store', redirect: 'follow' });
-        const data = await parseResponse(response);
+        const data = await postAction({action:'history',beforeRow:state.historyCursor,limit:100});
         if (!data.success) throw new Error(data.message || 'Түүх ачаалж чадсангүй.');
         const existing = new Set(state.serverTransactions.map(x => x.rowNumber || x.clientId || `${x.date}|${x.product}|${x.total}`));
         (data.transactions || []).forEach(tx => {
@@ -4087,6 +4065,7 @@
     function saveCache() {
       if (!state.session) return;
       const payload = {
+        reliabilityVersion: state.reliabilityVersion||0,
         operationsVersion: typeof operationsUIActivated !== 'undefined' && operationsUIActivated ? 1 : 0,
         user: state.session.user,
         company: state.session.company,
