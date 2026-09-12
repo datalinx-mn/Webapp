@@ -32,9 +32,9 @@
 
 `netlify.toml`: build `npm run build`, publish `dist`, Node 22. Эх backend, repository metadata болон тестийг нийтэд publish хийхгүй. `dist`-ийг гараар ч Netlify-д upload хийж болно.
 
-Энэ ажлаар DataLinx-д холбогдсон Netlify project ID тогтоогдоогүй. Холбогдсон account-ын өөр төслүүдийг ашиглаагүй. Шинэ project үүсгэх эсвэл одоо байгаа project ID-г сонгох шийдвэр шаардлагатай. Netlify deployment tool нь ID олдохгүй үед шинэ project гэдгийг хэрэглэгч батлахыг шаарддаг.
+2026-09-12: хэрэглэгчийн зөвшөөрлөөр `datalinx-business` project үүсгэж production frontend байршуулсан. URL: https://datalinx-business.netlify.app/ . Project ID: `f7d72260-d8ba-494f-86ab-c3ddf3d19291`. Дэлгэрэнгүй: `NETLIFY_DEPLOYMENT.md`.
 
-Project үүссэний дараа repository `datalinx-mn/Webapp`, шалгагдсан branch/commit-ийг холбоно. Эхлээд preview дээр шалгаж, дараа нь production болгоно. Нийтийн canonical URL, sitemap/robots болон холбогдох хуучин GitHub Pages холбоосуудыг шинэ домэйнээр шинэчилнэ. Домэйн тодорхойгүй үед зохиомол URL бичихгүй.
+Нийтийн хуудсуудын canonical болон sitemap шинэ домэйнтэй. Байршуулалт нь source upload ашигласан; GitHub push-ээс автоматаар redeploy хийх холболт хараахан хийгдээгүй. Backend-ийн capabilities шалгалтад `SyntaxError: Identifier DOCUMENT_TYPES has already been declared (DocumentService, line 1)` ирсэн тул бодит нэвтрэлт, бизнесийн бичилт баталгаажаагүй. Apps Script шинэ deployment тусдаа шаардлагатай.
 
 ## Өдөр тутмын хяналт ба сэргээх
 
