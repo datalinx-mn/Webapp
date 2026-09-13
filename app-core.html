@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1B5E20">
+  <meta name="theme-color" content="#164d43">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>Борлуулалт, Агуулах, Түгээлтийн систем</title>
+  <title>DataLinx · Өдөр тутмын бүртгэл</title>
   <style>
     :root {
       --green: #1B5E20;
@@ -1067,18 +1067,18 @@
   <section id="authScreen" class="auth-shell">
     <div class="auth-card">
       <div class="auth-brand">
-        <h1>Борлуулалт ба түгээлт</h1>
-        <p>1–9 ажилтантай бизнест зориулсан · бүх үндсэн боломж үнэгүй · зарын дэмжлэгтэй</p>
+        <a class="auth-logo" href="./"><img src="./brand-mark.svg" width="44" height="44" alt="">DataLinx</a><h1>Өдөр тутмын бүртгэл.<br>Нэг дор.</h1>
+        <p>Борлуулалт, бараа, авах мөнгөө хялбар бүртгэнэ.</p>
       </div>
-      <div class="auth-tabs">
+      <div class="auth-utility"><a href="./">← Нүүр хуудас</a><button type="button" data-text-size aria-pressed="false">Аа · Үсэг томруулах</button></div><div class="auth-tabs" aria-label="Нэвтрэх эсвэл бүртгүүлэх">
         <button class="auth-tab active" type="button" data-auth-tab="login">Нэвтрэх</button>
         <button class="auth-tab" type="button" data-auth-tab="register">Шинээр бүртгүүлэх</button>
       </div>
       <div class="auth-body">
-        <form id="loginForm" class="form-grid" autocomplete="on" novalidate>
+        <p class="auth-welcome">Танай бүртгэлд тавтай морил.</p><form id="loginForm" class="form-grid" autocomplete="on" novalidate>
           <div class="field">
             <label for="loginUsername">Хэрэглэгчийн нэр</label>
-            <input id="loginUsername" name="username" autocomplete="username" required>
+            <input id="loginUsername" autocapitalize="none" spellcheck="false" name="username" autocomplete="username" required>
           </div>
           <div class="field">
             <label for="loginPassword">Нууц үг</label>
@@ -1089,7 +1089,7 @@
 
         <form id="registerForm" class="form-grid hidden" autocomplete="off" novalidate>
           <div class="field">
-            <label for="regCompany">Компанийн нэр</label>
+            <label for="regCompany">Бизнес / дэлгүүрийн нэр</label>
             <input id="regCompany" required>
           </div>
           <div class="form-grid two">
@@ -1099,7 +1099,7 @@
               <small id="regPhoneHint" class="field-hint">Монголын 8 оронтой утасны дугаар</small>
             </div>
             <div class="field">
-              <label for="regEmail">Имэйл</label>
+              <label for="regEmail">Имэйл (сонголттой)</label>
               <input id="regEmail" type="email" inputmode="email">
             </div>
           </div>
@@ -1110,7 +1110,7 @@
           <div class="form-grid two">
             <div class="field">
               <label for="regUsername">Менежерийн хэрэглэгчийн нэр</label>
-              <input id="regUsername" autocomplete="username" required>
+              <input id="regUsername" autocapitalize="none" spellcheck="false" autocomplete="username" required>
             </div>
             <div class="field">
               <label for="regPassword">Нууц үг</label>
@@ -1147,7 +1147,7 @@
         <button class="nav-btn" type="button" data-page="settings"><span>⚙</span>Тохиргоо</button>
       </nav>
 
-      <section class="content">
+      <section class="content" id="work-content" tabindex="-1">
         <section id="page-sales" class="page active">
           <div class="page-head">
             <div><h2>Борлуулалт</h2><p>Өдөр тутмын борлуулалтаа хэдхэн алхмаар бүртгэнэ.</p></div>
@@ -1562,11 +1562,11 @@
                   <input id="userFullName" required>
                 </div>
                 <div class="form-grid two">
-                  <div class="field"><label for="userUsername">Username</label><input id="userUsername" required></div>
-                  <div class="field"><label for="userPassword">Нууц үг</label><input id="userPassword" type="password" minlength="6" placeholder="Засахгүй бол хоосон"></div>
+                  <div class="field"><label for="userUsername">Хэрэглэгчийн нэр</label><input id="userUsername" required></div>
+                  <div class="field"><label for="userPassword">Нууц үг</label><input id="userPassword" type="password" minlength="12" placeholder="Засахгүй бол хоосон"></div>
                 </div>
                 <div class="field">
-                  <label for="userRole">Роль</label>
+                  <label for="userRole">Ажилтны эрх</label>
                   <select id="userRole">
                     <option value="rep">Борлуулагч</option>
                     <option value="manager">Менежер</option>
@@ -2346,7 +2346,7 @@
       $('#authScreen').classList.add('hidden');
       $('#appScreen').classList.remove('hidden');
       renderAll();
-      maybeStartWalkthrough();
+      // Help remains available on demand; never interrupt a first sale with an automatic tour.
     }
 
     function logout() {
@@ -2715,7 +2715,7 @@
 
     function showPage(page, loadData = true) {
       $$('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
-      $$('.nav-btn[data-page]').forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
+      $$('.nav-btn[data-page]').forEach(btn => {btn.classList.toggle('active', btn.dataset.page === page);if(btn.dataset.page===page)btn.setAttribute('aria-current','page');else btn.removeAttribute('aria-current');});
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       // Menu switching is immediate. Lazy module data loads in the background

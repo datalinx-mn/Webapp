@@ -34,7 +34,7 @@
 
 2026-09-12: хэрэглэгчийн зөвшөөрлөөр `datalinx-business` project үүсгэж production frontend байршуулсан. URL: https://datalinx-business.netlify.app/ . Project ID: `f7d72260-d8ba-494f-86ab-c3ddf3d19291`. Дэлгэрэнгүй: `NETLIFY_DEPLOYMENT.md`.
 
-Нийтийн хуудсуудын canonical болон sitemap шинэ домэйнтэй. Байршуулалт нь source upload ашигласан; GitHub push-ээс автоматаар redeploy хийх холболт хараахан хийгдээгүй. Backend-ийн capabilities шалгалтад `SyntaxError: Identifier DOCUMENT_TYPES has already been declared (DocumentService, line 1)` ирсэн тул бодит нэвтрэлт, бизнесийн бичилт баталгаажаагүй. Apps Script шинэ deployment тусдаа шаардлагатай.
+Нийтийн хуудсуудын canonical болон sitemap шинэ домэйнтэй. Байршуулалт нь source upload ашигласан; GitHub push-ээс автоматаар redeploy хийх холболт хараахан хийгдээгүй. Хэрэглэгч модуль файлууд, гурван Print HTML-ийг хадгалж дахин нийтэлсний дараа capabilities шалгалт `success:true, operationsVersion:1, reliabilityVersion:1` гэж хариулсан. Хэрэглэгч `setupDailyBackups` ажиллуулсан гэж мэдээлсэн. Бодит хэрэглэгчийн нэвтрэлт, бизнесийн бичилт болон нөөцийн үр дүнг тусад нь шалгах шаардлагатай.
 
 ## Өдөр тутмын хяналт ба сэргээх
 

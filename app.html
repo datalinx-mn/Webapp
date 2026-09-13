@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1B5E20">
+  <meta name="theme-color" content="#164d43">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <title>DataLinx апп · Нэвтрэх</title>
   <style>
@@ -19,8 +19,8 @@
         const response = await fetch('./app-core.html?v=20260912', { cache: 'no-cache' });
         if (!response.ok) throw new Error('Үндсэн апп ачаалсангүй.');
         let html = await response.text();
-        html = html.replace('</head>', '<meta name="robots" content="noindex,nofollow,noarchive"><link rel="stylesheet" href="./premium-ads.css?v=20260912"><link rel="stylesheet" href="./operations-ui.css?v=20260912"><script src="./ads-config.js?v=20260912"><\/script></head>');
-        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260912"><\/script><script src="./operations-ui.js?v=20260912"><\/script><script src="./sponsor-metrics.js?v=20260912"><\/script><script src="./reliability-ui.js?v=20260912"><\/script><script src="./app-route.js?v=20260912"><\/script></body>');
+        html = html.replace('</head>', '<meta name="robots" content="noindex,nofollow,noarchive"><link rel="stylesheet" href="./premium-ads.css?v=20260912"><link rel="stylesheet" href="./operations-ui.css?v=20260912"><link rel="stylesheet" href="./brand.css?v=20260912ux"><link rel="stylesheet" href="./workspace-ui.css?v=20260912ux"><link rel="icon" href="./brand-mark.svg"><script src="./ads-config.js?v=20260912"><\/script></head>');
+        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260912"><\/script><script src="./operations-ui.js?v=20260912"><\/script><script src="./sponsor-metrics.js?v=20260912"><\/script><script src="./reliability-ui.js?v=20260912"><\/script><script src="./brand.js?v=20260912ux"><\/script><script src="./workspace-ui.js?v=20260912ux"><\/script><script src="./app-route.js?v=20260912"><\/script></body>');
         document.open();
         document.write(html);
         document.close();
