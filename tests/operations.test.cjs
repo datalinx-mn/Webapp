@@ -139,5 +139,19 @@ test('plan expiry falls back to Free without deleting company data',()=>{
   f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Business','Plan End':'2020-01-01','Төлөв':'Active'});
   const c=f.ctx.getCompany_('Alpha');assert.equal(c.planId,'Free');assert.equal(c.status,'Free');assert.equal(f.stock(),100);
 });
+
+test('seat limits survive downgrade and prioritize company managers',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Free',0);const company=f.ctx.getCompany_('Alpha');
+  const status=f.ctx.planSeatStatus_(company);
+  assert.equal(status.used,5);assert.equal(status.max,2);assert.equal(status.over,3);
+  assert.equal(f.ctx.planSeatAllowed_(company,'owner'),true);
+  assert.equal(f.ctx.planSeatAllowed_(company,'rep'),true);
+  assert.equal(f.ctx.planSeatAllowed_(company,'driver'),false);
+  assert.throws(()=>f.ctx.secureLogin_({username:'driver',password:'pw'}),/2 идэвхтэй хэрэглэгч/);
+});
+test('Business seat allowance admits five active company users',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const company=f.ctx.getCompany_('Alpha');
+  for(const username of ['owner','rep','driver','warehouse','accountant'])assert.equal(f.ctx.planSeatAllowed_(company,username),true);
+});
 module.exports={fixture,test};
 console.log(`${tests.length} scenarios passed`);
