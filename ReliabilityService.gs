@@ -94,6 +94,57 @@ function dataImport_(auth,p,ss,tx){
   correction_(tx,auth,'Import '+p.kind,p.clientId,'Импорт '+p.rows.length+' мөр');return {imported:p.rows.length};
 }
 function dataPreviewImport_(auth,p){return withOperationsRead_(auth,()=>{const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),tx=opsPlan_(ss);const result=dataImport_(auth,p,ss,tx);if(JSON.stringify(tx.changes()).length>OPS_PLAN_MAX_CHARS)throw new Error('Файл том байна. Мөрөө хуваана уу.');return Object.assign({success:true,preview:true},result);});}
+function dataIntegrityCheck_(auth){
+  opsAssertRole_(auth,['manager','admin']);
+  return withOperationsRead_(auth,()=>{
+    const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),issues=[];
+    const add=(severity,code,message)=>issues.push({severity,code,message});
+    const duplicates=(rows,key,label)=>{
+      const seen=new Set(),dups=new Set();
+      rows.forEach(e=>{const v=clean_(e.object[key]);if(!v)return;if(seen.has(v))dups.add(v);else seen.add(v);});
+      if(dups.size)add('error','DUPLICATE_'+key,label+' давхардсан: '+Array.from(dups).slice(0,8).join(', ')+(dups.size>8?' …':''));
+    };
+    const products=opsRows_(ss,COMPANY_SHEETS.PRODUCTS).filter(e=>clean_(e.object['Барааны нэр']));
+    const customers=opsRows_(ss,COMPANY_SHEETS.CUSTOMERS).filter(e=>clean_(e.object['Харилцагчийн нэр']));
+    duplicates(products,'ProductID','ProductID');
+    duplicates(customers,'CustomerID','CustomerID');
+    duplicates(opsRows_(ss,COMPANY_SHEETS.SALES),'LineID','Борлуулалтын LineID');
+    duplicates(opsRows_(ss,COMPANY_SHEETS.PAYMENTS),'PaymentID','PaymentID');
+    duplicates(opsRows_(ss,'Буцаалт'),'ReturnID','ReturnID');
+    duplicates(opsRows_(ss,COMPANY_SHEETS.VISITS),'DistributionID','DistributionID');
+    duplicates(opsRows_(ss,'Үйлдлийн журнал'),'RequestID','RequestID');
+    const missingProductIds=products.filter(e=>!clean_(e.object.ProductID)).length;
+    const missingCustomerIds=customers.filter(e=>!clean_(e.object.CustomerID)).length;
+    if(missingProductIds)add('warning','MISSING_PRODUCT_ID',missingProductIds+' бараанд ProductID дутуу байна.');
+    if(missingCustomerIds)add('warning','MISSING_CUSTOMER_ID',missingCustomerIds+' харилцагчид CustomerID дутуу байна.');
+    const warehouseRows=opsRows_(ss,COMPANY_SHEETS.WAREHOUSE_STOCK);
+    products.forEach(p=>{
+      const name=clean_(p.object['Барааны нэр']),id=clean_(p.object.ProductID),total=opsQty_(Number(p.object['Одоогийн үлдэгдэл']||0));
+      if(total < -0.000001)add('error','NEGATIVE_PRODUCT_STOCK',name+' нийт үлдэгдэл сөрөг: '+total);
+      const matching=warehouseRows.filter(w=>(id&&clean_(w.object.ProductID)===id)||(!clean_(w.object.ProductID)&&clean_(w.object['Бараа']).toLowerCase()===name.toLowerCase()));
+      matching.forEach(w=>{if(Number(w.object['Үлдэгдэл']||0)<-0.000001)add('error','NEGATIVE_WAREHOUSE_STOCK',name+' / '+clean_(w.object['Агуулах'])+' үлдэгдэл сөрөг.');});
+      if(matching.length){
+        const sum=opsQty_(matching.reduce((s,w)=>s+Number(w.object['Үлдэгдэл']||0),0));
+        if(Math.abs(sum-total)>0.000001)add('error','STOCK_TOTAL_MISMATCH',name+': нийт '+total+', агуулахуудын нийлбэр '+sum+'.');
+      }
+    });
+    const batches=opsRows_(ss,'Цуврал');
+    warehouseRows.forEach(w=>{
+      const name=clean_(w.object['Бараа']),id=clean_(w.object.ProductID),warehouse=clean_(w.object['Агуулах']),stock=opsQty_(Number(w.object['Үлдэгдэл']||0));
+      const batchTotal=opsQty_(batches.filter(b=>clean_(b.object['Агуулах'])===warehouse&&((id&&clean_(b.object.ProductID)===id)||(!clean_(b.object.ProductID)&&clean_(b.object['Бараа']).toLowerCase()===name.toLowerCase()))).reduce((s,b)=>s+Number(b.object['Үлдэгдэл']||0),0));
+      if(batchTotal>stock+0.000001)add('error','BATCH_OVER_STOCK',name+' / '+warehouse+': цуврал '+batchTotal+' > агуулах '+stock+'.');
+    });
+    batches.filter(b=>Number(b.object['Үлдэгдэл']||0)<-0.000001).forEach(b=>add('error','NEGATIVE_BATCH',clean_(b.object['Бараа'])+' цувралын үлдэгдэл сөрөг.'));
+    const pending=opsRows_(ss,'Үйлдлийн журнал').filter(e=>e.object.Status==='Pending');
+    if(pending.length)add('error','PENDING_JOURNAL',pending.length+' сэргээгдээгүй Pending үйлдэл байна.');
+    getUsers_(auth.companyId||auth.company).filter(u=>['driver','manager','admin'].includes(u.role)).forEach(u=>{
+      const cash=opsDriverCash_(ss,u.username);
+      if(cash.remaining < -0.009)add('error','NEGATIVE_DRIVER_CASH',(u.fullName||u.username)+' жолоочийн тушаах үлдэгдэл сөрөг: '+cash.remaining);
+    });
+    return {success:true,checkedAt:new Date().toISOString(),ok:!issues.some(i=>i.severity==='error'),issues};
+  });
+}
+
 function dataQueueAction_(auth,p){
   const id=clean_(p.requestId);if(!id||id.length>120)throw new Error('Бүртгэлийн дугаар буруу байна.');
   const ss=openCompanySs_(requireActiveCompany_(auth.companyId || auth.company)),lock=LockService.getScriptLock();lock.waitLock(30000);
