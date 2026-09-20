@@ -52,7 +52,7 @@ function installOperations() {
   const inv=document.createElement('div');inv.className='form-grid two';inv.innerHTML='<label class="field">Тоо оруулах нэгж<select id="ops-inv-unit"><option value="base">Үндсэн нэгж</option></select></label><label class="field">Дуусах огноо (бараа нэмэхэд)<input id="ops-expiry" type="date"></label><label class="field">Цувралын дугаар (сонголттой)<input id="ops-batch" maxlength="30"></label>';
   opsEl('inventoryForm').querySelector('button[type="submit"]').before(inv);
   opsEl('invProduct').addEventListener('change',opsInventoryUnits);
-  const pack=document.createElement('div');pack.className='form-grid two';pack.innerHTML='<label class="field">Савлагааны нэр<input id="ops-pack-name" value="Хайрцаг" maxlength="30"></label><label class="field">Нэг савлагаанд хэдэн үндсэн нэгж вэ?<input id="ops-pack-size" type="number" value="1" min="1" step="any"></label>';
+  const pack=document.createElement('div');pack.className='form-grid two';pack.innerHTML='<label class="field">Савлагааны нэр<input id="ops-pack-name" value="Хайрцаг" maxlength="30"></label><label class="field">Нэг савлагаанд хэдэн үндсэн нэгж вэ?<input id="ops-pack-size" type="number" value="1" min="1" step="any"></label><label class="field">Дундаж / эхний өртөг<input id="ops-product-cost" type="number" min="0" step="0.01" placeholder="Мэдэж байвал оруулна"></label></div><p class="field-hint">Өртөг хоосон бол систем ашиг зохиож харуулахгүй. Өртөг нь энэ мөчөөс хойших борлуулалтын тооцоонд хэрэглэгдэнэ.</p>';
   opsEl('saveProductBtn').before(pack);
   const payments=document.createElement('details');payments.className='simple-details';payments.innerHTML='<summary>Төлбөрийн нэмэлт мэдээлэл</summary><div class="form-grid two"><label class="field">Одоо төлсөн дүн<input id="ops-sale-paid" type="number" min="0" step="0.01" placeholder="Хоосон бол төлбөрийн төрлөөр"></label><label class="field">Одоо төлсөн мөнгөний арга<select id="ops-sale-initial-method"><option value="Бэлэн">Бэлэн</option><option value="Банк">Банканд орсон</option></select></label><label class="field">Үлдэгдэл төлөх өдөр<input id="ops-sale-due" type="date"></label></div><p class="field-hint">Зээлээр борлуулахдаа урьдчилгаа авсан бол дүн болон мөнгө орсон аргыг хоёуланг нь сонгоно.</p>';
   opsEl('saleBtn').before(payments);
@@ -251,14 +251,14 @@ enqueueAction=function(action,payload){
   return queued;
 };
 const opsOriginalEdit=editProduct;
-editProduct=function(name){opsOriginalEdit(name);const p=state.products.find(p=>p.name===name);opsEl('ops-pack-name').value=p?.packName||'Хайрцаг';opsEl('ops-pack-size').value=p?.packSize||1;opsEl('productStock').readOnly=true;};
+editProduct=function(name){opsOriginalEdit(name);const p=state.products.find(p=>p.name===name);opsEl('ops-pack-name').value=p?.packName||'Хайрцаг';opsEl('ops-pack-size').value=p?.packSize||1;opsEl('ops-product-cost').value=p?.costKnown&&p?.averageCost!==null?p.averageCost:'';opsEl('productStock').readOnly=true;};
 const opsOriginalReset=resetProductForm;
-resetProductForm=function(){opsOriginalReset();opsEl('ops-pack-name').value='Хайрцаг';opsEl('ops-pack-size').value=1;opsEl('productStock').readOnly=false;};
+resetProductForm=function(){opsOriginalReset();opsEl('ops-pack-name').value='Хайрцаг';opsEl('ops-pack-size').value=1;opsEl('ops-product-cost').value='';opsEl('productStock').readOnly=false;};
 const opsOriginalCommit=commitQueueItem;
 commitQueueItem=function(item,data){opsOriginalCommit(item,data);operations.data=null;void loadOperations(true);};
 const opsOriginalPost=postAction;
 postAction=async function(payload,include=true){
-  if(payload.action==='saveProduct')payload={...payload,packName:opsEl('ops-pack-name').value,packSize:opsEl('ops-pack-size').value};
+  if(payload.action==='saveProduct')payload={...payload,packName:opsEl('ops-pack-name').value,packSize:opsEl('ops-pack-size').value,averageCost:opsEl('ops-product-cost').value};
   const owner=opsIdentity();
   const result=await opsOriginalPost(payload,include);
   if(include && owner!==opsIdentity())throw new Error('Нэвтрэх эрх өөрчлөгдсөн. Мэдээллээ шинэчилнэ үү.');
