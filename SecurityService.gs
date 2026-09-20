@@ -36,6 +36,7 @@ function secureLogin_(p) {
     const currentActive=clean_(field_(current.object,['Идэвхтэй'])).toLowerCase();
     if(['үгүй','inactive','false','0'].includes(currentActive))throw new Error('Хэрэглэгчийн эрх идэвхгүй байна.');
     const company=requireActiveCompany_(clean_(field_(current.object,['Company ID']))||current.object['Компани нэр']);
+    if(!planSeatAllowed_(company,current.object.Username))throw new Error(company.entitlements.name+' багц '+company.entitlements.maxUsers+' идэвхтэй хэрэглэгч хүртэл. Менежер илүүдэл хэрэглэгчийг идэвхгүй болгох эсвэл багцаа ахиулна уу: '+UPGRADE_URL);
     if(upgraded)setObjectFields_(masterSs_().getSheetByName(MASTER_SHEETS.USERS),current.rowNumber,{Password:upgraded});
     auth={
       userId:clean_(field_(current.object,['User ID','UserID'])),
