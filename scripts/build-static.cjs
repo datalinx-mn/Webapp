@@ -10,7 +10,7 @@ console.log(`Static build: ${files.length} public files and CSV templates. Backe
 let app=fs.readFileSync('app-core.html','utf8');
 const head='<meta name="robots" content="noindex,nofollow,noarchive"><link rel="icon" href="./brand-mark.svg">'+['premium-ads.css','operations-ui.css','brand.css','workspace-ui.css'].map(f=>`<link rel="stylesheet" href="./${f}?v=20260912ux">`).join('')+'<script src="./ads-config.js?v=20260912ux"></script>';
 const buildInfo={
-  sourceRelease:'2026.09.20.1',
+  sourceRelease:'2026.09.20.3',
   commitRef:process.env.COMMIT_REF||process.env.HEAD||'',
   deployId:process.env.DEPLOY_ID||'',
   context:process.env.CONTEXT||'local',
