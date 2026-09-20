@@ -252,10 +252,10 @@ function opsAddSale_(auth,p,ss,tx) {
   const items=raw.map(i=>{
     const product=opsProduct_(ss,i.productId||i.product);
     const inputUnit=clean_(i.inputUnit)||'base';
-    const inputQuantity=positiveNumber_(i.quantity,'Тоо хэмжээ');
+    const inputQuantity=positiveNumber_(i.inputQuantity!==undefined&&i.inputQuantity!==''?i.inputQuantity:i.quantity,'Тоо хэмжээ');
     const quantity=opsUnit_(product,inputQuantity,inputUnit);
     const factor=inputUnit==='pack'?positiveNumber_(product.object.PackSize,'Савлагааны тоо'):1;
-    const inputUnitPrice=nonNegativeNumber_(i.unitPrice,'Үнэ');
+    const inputUnitPrice=nonNegativeNumber_(i.inputUnitPrice!==undefined&&i.inputUnitPrice!==''?i.inputUnitPrice:i.unitPrice,'Үнэ');
     return {productId:clean_(product.object.ProductID),product:product.object['Барааны нэр'],quantity,inputUnit,inputQuantity:opsQty_(inputQuantity),inputUnitPrice,unitPrice:inputUnitPrice/factor,record:product};
   });
   const gross=opsMoney_(items.reduce((s,i)=>s+i.quantity*i.unitPrice,0));
