@@ -140,18 +140,18 @@ function opsRecover_(ss) {
   opsRows_(ss,'Үйлдлийн журнал').filter(e=>e.object.Status==='Pending').forEach(e=>opsReplay_(ss,e));
 }
 function withOperationsRead_(auth,read) {
-  const ss=openCompanySs_(requireActiveCompany_(auth.company));
+  const ss=openCompanySs_(requireActiveCompany_(auth.companyId || auth.company));
   const lock=LockService.getScriptLock();lock.waitLock(30000);
   try {ensureCompanySheets_(ss);opsRecover_(ss);opsReadCache_={};return read();}
   finally {opsReadCache_=null;lock.releaseLock();}
 }
 function recoverOperations_(auth) {
-  const ss=openCompanySs_(requireActiveCompany_(auth.company));
+  const ss=openCompanySs_(requireActiveCompany_(auth.companyId || auth.company));
   const lock=LockService.getScriptLock(); lock.waitLock(30000);
   try { ensureOperationsSheets_(ss); opsRecover_(ss); } finally { lock.releaseLock(); }
 }
 function handleOperation_(auth,p) {
-  const ss=openCompanySs_(requireActiveCompany_(auth.company));
+  const ss=openCompanySs_(requireActiveCompany_(auth.companyId || auth.company));
   const lock=LockService.getScriptLock(); lock.waitLock(30000);
   try {
     ensureCompanySheets_(ss); ensureOperationsSheets_(ss); opsRecover_(ss);
@@ -398,7 +398,7 @@ function opsDriverCash_(ss,driver) {
   return {driver,collected,remitted,remaining:opsMoney_(collected-remitted)};
 }
 function loadOperations_(auth,p) {
-  const ss=openCompanySs_(requireActiveCompany_(auth.company));
+  const ss=openCompanySs_(requireActiveCompany_(auth.companyId || auth.company));
   const lock=LockService.getScriptLock();lock.waitLock(30000);
   try {
     ensureCompanySheets_(ss);ensureOperationsSheets_(ss);opsRecover_(ss);
