@@ -38,14 +38,14 @@ function upgradeSettingsDesign() {
   const premiumCard = document.createElement('section');
   premiumCard.id = 'premiumNoAdsCard';
   premiumCard.className = 'card premium-no-ads hidden';
-  premiumCard.innerHTML = '<div class="premium-no-ads-icon" aria-hidden="true">✓</div><div><h3>Төлбөртэй багц · заргүй</h3><p>Business болон Pro багцад Google AdSense болон ивээн тэтгэсэн зарын код нэвтэрсэн апп дотор ачаалагдахгүй.</p></div>';
+  premiumCard.innerHTML = '<div class="premium-no-ads-icon" aria-hidden="true">✓</div><div><h3>Төлбөртэй багц · заргүй</h3><p>Business болон Pro багцад Google AdSense-ийн гуравдагч талын script ачаалагдахгүй, sponsor content болон sponsor metric илгээгдэхгүй.</p></div>';
   banner.insertAdjacentElement('afterend', premiumCard);
 
   const settingsGrid = banner.parentElement;
   const settingsAd = document.querySelector('[data-ad-placement="settings"]');
   if (settingsAd && settingsGrid) premiumCard.insertAdjacentElement('afterend', settingsAd);
   const privacy = document.querySelector('#page-settings .ad-privacy-note .card-subtitle');
-  if (privacy) privacy.textContent = 'Free багцад жижиг, саад болдоггүй зар/ивээн тэтгэсэн мэдээлэл харагдаж болно. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Business/Pro багцад нэвтэрсэн апп дотор зарын код ачаалагдахгүй.';
+  if (privacy) privacy.textContent = 'Free багцад жижиг, саад болдоггүй зар/ивээн тэтгэсэн мэдээлэл харагдаж болно. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Business/Pro багцад Google AdSense-ийн гуравдагч талын script ачаалагдахгүй, sponsor content болон sponsor metric илгээгдэхгүй.';
   const subtitle = document.querySelector('#page-settings .page-head p');
   if (subtitle) subtitle.textContent = 'Эрхийн төлөв, зар, хэрэглэгч болон системийн тохиргоо.';
 }
@@ -97,7 +97,7 @@ function loadGoogleAdsScript() {
     script.crossOrigin = 'anonymous';
     script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(GOOGLE_ADSENSE_CLIENT)}`;
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Google Ads script ачаалсангүй.'));
+    script.onerror = () => reject(new Error('Google AdSense script ачаалсангүй.'));
     document.head.appendChild(script);
   }).catch(error => { dataLinxGoogleAds.scriptPromise = null; throw error; });
   return dataLinxGoogleAds.scriptPromise;
@@ -123,7 +123,7 @@ function renderFirstPartyAd(slot, placement, notice = '') {
 function renderGoogleAd(slot, placement) {
   if (slot.dataset.adProvider === 'google' && slot.dataset.adRendered === 'true') return;
   slot.dataset.adProvider = 'google'; slot.dataset.adRendered = 'false';
-  slot.innerHTML = `<section class="ad-shell" aria-label="Google зар">${adHeader('Google Ads')}<div class="google-ad-surface"><div class="ad-loading">Зар ачаалж байна...</div><ins class="adsbygoogle" style="display:block" data-ad-client="${escapeHtml(GOOGLE_ADSENSE_CLIENT)}" data-ad-slot="${escapeHtml(GOOGLE_ADSENSE_SLOT)}" data-ad-format="auto" data-full-width-responsive="true"></ins></div></section>`;
+  slot.innerHTML = `<section class="ad-shell" aria-label="Google зар">${adHeader('Google AdSense')}<div class="google-ad-surface"><div class="ad-loading">Зар ачаалж байна...</div><ins class="adsbygoogle" style="display:block" data-ad-client="${escapeHtml(GOOGLE_ADSENSE_CLIENT)}" data-ad-slot="${escapeHtml(GOOGLE_ADSENSE_SLOT)}" data-ad-format="auto" data-full-width-responsive="true"></ins></div></section>`;
   loadGoogleAdsScript().then(() => {
     if (!isFreePlan() || slot.classList.contains('hidden') || slot.dataset.adRendered === 'true') return;
     slot.querySelector('.ad-loading')?.remove();
