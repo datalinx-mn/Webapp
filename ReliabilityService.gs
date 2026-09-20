@@ -96,7 +96,7 @@ function dataImport_(auth,p,ss,tx){
 function dataPreviewImport_(auth,p){return withOperationsRead_(auth,()=>{const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),tx=opsPlan_(ss);const result=dataImport_(auth,p,ss,tx);if(JSON.stringify(tx.changes()).length>OPS_PLAN_MAX_CHARS)throw new Error('Файл том байна. Мөрөө хуваана уу.');return Object.assign({success:true,preview:true},result);});}
 function dataQueueAction_(auth,p){
   const id=clean_(p.requestId);if(!id||id.length>120)throw new Error('Бүртгэлийн дугаар буруу байна.');
-  const ss=openCompanySs_(requireActiveCompany_(auth.company)),lock=LockService.getScriptLock();lock.waitLock(30000);
+  const ss=openCompanySs_(requireActiveCompany_(auth.companyId || auth.company)),lock=LockService.getScriptLock();lock.waitLock(30000);
   try{ensureCompanySheets_(ss);opsRecover_(ss);
     const old=opsRows_(ss,'Үйлдлийн журнал').find(e=>e.object.RequestID===id);
     if(old){if(old.object.CreatedBy!==auth.username)throw new Error('Өөр ажилтны хүсэлт байна.');return {success:true,status:old.object.Status,result:JSON.parse(old.object.Result)};}
