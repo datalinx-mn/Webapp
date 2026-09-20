@@ -51,12 +51,12 @@ const SESSION_SECONDS = 21600;
 const INITIAL_HISTORY_DAYS = 60;
 const INITIAL_HISTORY_LIMIT = 100;
 const UPGRADE_URL = 'https://datalinx-business.netlify.app/plans.html';
-const DATALINX_BACKEND_RELEASE = '2026.09.20.2';
-const DATALINX_SCHEMA_VERSION = 3;
+const DATALINX_BACKEND_RELEASE = '2026.09.20.3';
+const DATALINX_SCHEMA_VERSION = 4;
 const DATALINX_PLAN_CATALOG = {
-  Free: {
-    id:'Free', name:'Free', monthlyPriceMnt:0, ads:true, maxUsers:2, maxWarehouses:1,
-    features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:false,pdf:false,backup:false,csvImport:false,suppliers:false,cashClose:false,profitability:false,integrityAudit:false,advancedReports:false,prioritySupport:false}
+  Trial: {
+    id:'Trial', name:'1 сарын үнэгүй туршилт', monthlyPriceMnt:0, ads:false, maxUsers:5, maxWarehouses:2, trial:true,
+    features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:true,pdf:true,backup:true,csvImport:true,suppliers:true,cashClose:true,profitability:false,integrityAudit:false,advancedReports:true,prioritySupport:false}
   },
   Business: {
     id:'Business', name:'Business', monthlyPriceMnt:24900, ads:false, maxUsers:5, maxWarehouses:2,
@@ -65,6 +65,10 @@ const DATALINX_PLAN_CATALOG = {
   Pro: {
     id:'Pro', name:'Pro', monthlyPriceMnt:59900, ads:false, maxUsers:20, maxWarehouses:10,
     features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:true,pdf:true,backup:true,csvImport:true,suppliers:true,cashClose:true,profitability:true,integrityAudit:true,advancedReports:true,prioritySupport:true}
+  },
+  Expired: {
+    id:'Expired', name:'Туршилтын хугацаа дууссан', monthlyPriceMnt:0, ads:false, maxUsers:1, maxWarehouses:1, expired:true,
+    features:{sales:false,inventory:false,receivables:false,returns:false,basicDashboard:false,offline:false,delivery:false,pdf:false,backup:false,csvImport:false,suppliers:false,cashClose:false,profitability:false,integrityAudit:false,advancedReports:false,prioritySupport:false}
   }
 };
 
@@ -72,10 +76,11 @@ function normalizePlanId_(value) {
   const v=clean_(value).toLowerCase();
   if(v==='pro')return 'Pro';
   if(['business','active','premium','идэвхтэй'].includes(v))return 'Business';
-  return 'Free';
+  if(v==='expired')return 'Expired';
+  return 'Trial';
 }
 function planEntitlements_(planId) {
-  const plan=DATALINX_PLAN_CATALOG[normalizePlanId_(planId)]||DATALINX_PLAN_CATALOG.Free;
+  const plan=DATALINX_PLAN_CATALOG[normalizePlanId_(planId)]||DATALINX_PLAN_CATALOG.Trial;
   return JSON.parse(JSON.stringify(plan));
 }
 function companyHasFeature_(company,feature) {
@@ -84,7 +89,7 @@ function companyHasFeature_(company,feature) {
 function assertEntitlement_(auth,feature) {
   const company=requireActiveCompany_(auth.companyId||auth.company);
   if(!companyHasFeature_(company,feature)){
-    const current=company.entitlements?.name||'Free';
+    const current=company.entitlements?.name||'Туршилт';
     throw new Error(current+' багцад энэ боломж ороогүй. Багцаа ахиулна уу: '+UPGRADE_URL);
   }
   return company;
@@ -181,7 +186,7 @@ function buildInitialPayload_(auth) {
     companyStatus: company.status,
     plan: publicPlan_(company),
     entitlements: company.entitlements,
-    accessModel: 'PlanEntitlementsV1',
+    accessModel: 'TrialPaidPlansV2',
     expiresAt: company.expiresAt ? company.expiresAt.toISOString() : '',
     ads: company.entitlements.ads ? getActiveAds_() : [],
     products: getProducts_(companySs),
@@ -270,10 +275,11 @@ function handleRegisterCompany_(p) {
     // Автоматаар share хийхгүй — энэ нь зориудын manual admin алхам.
     const companyId = createMasterId_('CMP');
     const userId = createMasterId_('USR');
+    const trialStart=new Date(),trialEnd=addMonths_(trialStart,1);
     appendObjectRow_(companySheet, {
-      'Компани нэр': companyName, 'Spreadsheet ID': newSheetId, 'Төлөв': 'Free',
-      'Идэвхжүүлсэн огноо': new Date(), 'Хугацаа(сар)': 0, 'Утас': phone, 'Имэйл': email,
-      'Company ID': companyId, Plan:'Free', 'Plan Start':new Date(), 'Plan End':'', 'Billing Cycle':'free'
+      'Компани нэр': companyName, 'Spreadsheet ID': newSheetId, 'Төлөв': 'Active',
+      'Идэвхжүүлсэн огноо': trialStart, 'Хугацаа(сар)': 1, 'Утас': phone, 'Имэйл': email,
+      'Company ID': companyId, Plan:'Trial', 'Plan Start':trialStart, 'Plan End':trialEnd, 'Billing Cycle':'trial'
     });
     appendObjectRow_(userSheet, {
       Username: username, Password: passwordHash, 'Бүтэн нэр': managerName,
@@ -281,7 +287,7 @@ function handleRegisterCompany_(p) {
       'Компани нэр': companyName, SessionVersion: Date.now(),
       'User ID': userId, 'Company ID': companyId, 'Идэвхтэй': 'Тийм'
     });
-    return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', companyId: companyId };
+    return { success: true, message: '1 сарын үнэгүй Business туршилт амжилттай үүслээ.', companyId: companyId, trialEndsAt: trialEnd.toISOString() };
   } finally {
     lock.releaseLock();
   }
@@ -491,14 +497,15 @@ function getCompany_(companyRef) {
   const configuredPlan = normalizePlanId_(field_(row, ['Plan']));
   const planStart = asDate_(field_(row, ['Plan Start'])) || activated;
   let expiresAt = asDate_(field_(row, ['Plan End']));
-  if (!expiresAt && configuredPlan!=='Free' && activated && months>0) expiresAt=addMonths_(activated,months);
+  if (!expiresAt && configuredPlan==='Trial' && planStart) expiresAt=addMonths_(planStart,1);
+  if (!expiresAt && ['Business','Pro'].includes(configuredPlan) && activated && months>0) expiresAt=addMonths_(activated,months);
   let planId=configuredPlan;
-  let status='Free';
+  let status='Active';
   if (explicitStatus === 'inactive' || explicitStatus === 'идэвхгүй') {
     status='Inactive';
-  } else {
-    if(planId!=='Free' && expiresAt && expiresAt.getTime()<Date.now()) planId='Free';
-    status=planId==='Free'?'Free':'Active';
+  } else if (configuredPlan==='Expired' || (expiresAt && expiresAt.getTime()<Date.now())) {
+    planId='Expired';
+    status='Expired';
   }
   const entitlements=planEntitlements_(planId);
   return {
@@ -513,7 +520,7 @@ function getCompany_(companyRef) {
     planStart: planStart,
     months: months,
     expiresAt: expiresAt,
-    billingCycle: clean_(field_(row, ['Billing Cycle'])) || (planId==='Free'?'free':'monthly'),
+    billingCycle: clean_(field_(row, ['Billing Cycle'])) || (planId==='Trial'?'trial':'monthly'),
     phone: clean_(field_(row, ['Утас'])),
     email: clean_(field_(row, ['Имэйл']))
   };
@@ -526,11 +533,11 @@ function setCompanyPlan(companyRef,planId,months) {
   const sheet=masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES);
   const entry=sheetObjects_(sheet).rows.find(e=>clean_(e.object['Company ID'])===company.id);
   if(!entry)throw new Error('Компани олдсонгүй.');
-  const now=new Date(),m=plan==='Free'?0:Math.max(1,Math.floor(Number(months||1)));
-  const end=plan==='Free'?'':addMonths_(now,m);
+  const now=new Date(),m=plan==='Trial'?1:Math.max(1,Math.floor(Number(months||1)));
+  const end=addMonths_(now,m);
   setObjectFields_(sheet,entry.rowNumber,{
-    Plan:plan,'Plan Start':now,'Plan End':end,'Billing Cycle':plan==='Free'?'free':'monthly',
-    'Төлөв':plan==='Free'?'Free':'Active','Идэвхжүүлсэн огноо':now,'Хугацаа(сар)':m
+    Plan:plan,'Plan Start':now,'Plan End':end,'Billing Cycle':plan==='Trial'?'trial':'monthly',
+    'Төлөв':'Active','Идэвхжүүлсэн огноо':now,'Хугацаа(сар)':m
   });
   return {companyId:company.id,plan:plan,startsAt:now.toISOString(),expiresAt:end?end.toISOString():'',monthlyPriceMnt:DATALINX_PLAN_CATALOG[plan].monthlyPriceMnt};
 }
@@ -1029,16 +1036,28 @@ function backfillMasterIds_(companySheet, userSheet) {
       const name = clean_(row[companyNameIndex]);
       let id = clean_(row[companyIdIndex]);
       if (!id) { id = createMasterId_('CMP'); row[companyIdIndex] = id; changed = true; }
-      if (planIndex >= 0 && !clean_(row[planIndex])) {
+      if (planIndex >= 0) {
+        const currentPlan=clean_(row[planIndex]).toLowerCase();
         const status=statusIndex>=0?clean_(row[statusIndex]).toLowerCase():'';
         const activated=activatedIndex>=0?asDate_(row[activatedIndex]):null;
         const months=monthsIndex>=0?Number(row[monthsIndex]||0):0;
         const legacyEnd=activated&&months>0?addMonths_(activated,months):null;
         const paid=['active','premium','идэвхтэй'].includes(status)||(legacyEnd&&legacyEnd.getTime()>=Date.now());
-        row[planIndex]=paid?'Business':'Free'; changed=true;
-        if(planStartIndex>=0&&paid&&activated&&!row[planStartIndex])row[planStartIndex]=activated;
-        if(planEndIndex>=0&&paid&&legacyEnd&&!row[planEndIndex])row[planEndIndex]=legacyEnd;
-        if(billingIndex>=0&&!clean_(row[billingIndex]))row[billingIndex]=paid?'monthly':'free';
+        if(!currentPlan){
+          row[planIndex]=paid?'Business':'Trial'; changed=true;
+          if(planStartIndex>=0&&!row[planStartIndex])row[planStartIndex]=paid&&activated?activated:new Date();
+          if(planEndIndex>=0&&!row[planEndIndex])row[planEndIndex]=paid&&legacyEnd?legacyEnd:addMonths_(new Date(),1);
+          if(billingIndex>=0&&!clean_(row[billingIndex]))row[billingIndex]=paid?'monthly':'trial';
+        } else if(currentPlan==='free'){
+          const now=new Date();
+          row[planIndex]='Trial'; changed=true;
+          if(planStartIndex>=0)row[planStartIndex]=now;
+          if(planEndIndex>=0)row[planEndIndex]=addMonths_(now,1);
+          if(billingIndex>=0)row[billingIndex]='trial';
+          if(statusIndex>=0)row[statusIndex]='Active';
+          if(activatedIndex>=0)row[activatedIndex]=now;
+          if(monthsIndex>=0)row[monthsIndex]=1;
+        }
       }
       if (name) companyIdsByName[name.toLowerCase()] = id;
     });
