@@ -51,12 +51,14 @@ const SESSION_SECONDS = 21600;
 const INITIAL_HISTORY_DAYS = 60;
 const INITIAL_HISTORY_LIMIT = 100;
 const UPGRADE_URL = 'https://www.facebook.com/DataLinxMN';
+const DATALINX_BACKEND_RELEASE = '2026.09.20.1';
+const DATALINX_SCHEMA_VERSION = 2;
 
 function doGet(e) {
   try {
     ensureMasterSheets_();
     const action = clean_(e && e.parameter && e.parameter.action);
-    if(action==='capabilities')return json_({success:true,operationsVersion:1,reliabilityVersion:1});
+    if(action==='capabilities')return json_({success:true,operationsVersion:1,reliabilityVersion:1,schemaVersion:DATALINX_SCHEMA_VERSION,backendRelease:DATALINX_BACKEND_RELEASE});
     if (action === 'login') throw new Error('Шинэ хувилбараа нээнэ үү. Нэвтрэхэд POST шаардлагатай.');
     if (action === 'bootstrap') {
       const auth = requireSession_(clean_(e.parameter.token));
@@ -122,7 +124,7 @@ function doPost(e) {
 function handleLogin_(params) {return secureLogin_(params);}
 
 function buildInitialPayload_(auth) {
-  const company = requireActiveCompany_(auth.company);
+  const company = requireActiveCompany_(auth.companyId || auth.company);
   const companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
   const recent = getRecentTransactions_(companySs, INITIAL_HISTORY_DAYS, INITIAL_HISTORY_LIMIT);
@@ -131,8 +133,10 @@ function buildInitialPayload_(auth) {
     success: true,
     operationsVersion: 1,
     reliabilityVersion: 1,
-    user: { username: auth.username, fullName: auth.fullName, role: auth.role, company: auth.company },
-    company: { name: company.name, phone: company.phone, email: company.email, spreadsheetId: company.spreadsheetId },
+    schemaVersion: DATALINX_SCHEMA_VERSION,
+    backendRelease: DATALINX_BACKEND_RELEASE,
+    user: { id: auth.userId || '', username: auth.username, fullName: auth.fullName, role: auth.role, company: company.name, companyId: company.id },
+    company: { id: company.id, name: company.name, phone: company.phone, email: company.email },
     companyStatus: company.status,
     accessModel: 'FreeWithAds',
     expiresAt: company.expiresAt ? company.expiresAt.toISOString() : '',
@@ -220,9 +224,20 @@ function handleRegisterCompany_(p) {
     // Харилцагч өөрийн sheet-ээ шууд үзэх/экспортлох хүсэлт гаргавал DataLinx админ
     // тухайн spreadsheet-ийг хэрэглэгчийн Google имэйлтэй ГАРААР share хийнэ.
     // Автоматаар share хийхгүй — энэ нь зориудын manual admin алхам.
-    companySheet.appendRow([companyName, newSheetId, 'Free', new Date(), 0, phone, email]);
-    userSheet.appendRow([username, passwordHash, managerName, 'manager', companyName,Date.now()]);
-    return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
+    const companyId = createMasterId_('CMP');
+    const userId = createMasterId_('USR');
+    appendObjectRow_(companySheet, {
+      'Компани нэр': companyName, 'Spreadsheet ID': newSheetId, 'Төлөв': 'Free',
+      'Идэвхжүүлсэн огноо': new Date(), 'Хугацаа(сар)': 0, 'Утас': phone, 'Имэйл': email,
+      'Company ID': companyId
+    });
+    appendObjectRow_(userSheet, {
+      Username: username, Password: passwordHash, 'Бүтэн нэр': managerName,
+      'Роль (manager/rep/admin/sales/warehouse/driver/accountant)': 'manager',
+      'Компани нэр': companyName, SessionVersion: Date.now(),
+      'User ID': userId, 'Company ID': companyId, 'Идэвхтэй': 'Тийм'
+    });
+    return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', companyId: companyId };
   } finally {
     lock.releaseLock();
   }
@@ -353,22 +368,36 @@ function handleSaveUser_(auth, p) {
     if (existingTarget && (!editing || existingTarget.rowNumber !== editing.rowNumber)) throw new Error('Энэ хэрэглэгчийн нэр ашиглагдаж байна.');
 
 
-    if (editing && clean_(editing.values[4]).toLowerCase() !== auth.company.toLowerCase()) throw new Error('Хэрэглэгч олдсонгүй.');
+    if (editing) {
+      const editingObject = rowToObject_(getHeaders_(userSheet), editing.values);
+      const editingCompanyId = clean_(field_(editingObject, ['Company ID']));
+      if ((auth.companyId && editingCompanyId && editingCompanyId !== auth.companyId) ||
+          (!editingCompanyId && clean_(field_(editingObject, ['Компани нэр'])).toLowerCase() !== auth.company.toLowerCase())) {
+        throw new Error('Хэрэглэгч олдсонгүй.');
+      }
+    }
     if (editing && clean_(editing.values[0]) === auth.username && !isManagerRole_(role)) throw new Error('Өөрийн удирдах эрхийг хасах боломжгүй.');
     if (editing && originalUsername && username!==originalUsername)throw new Error('Хэрэглэгчийн нэрийг солихгүй. Шинэ ажилтан үүсгэнэ үү.');
     if (editing) {
       const oldUser=securityUser_(originalUsername||username);
       if(passwordHash)securitySavePassword_(oldUser,passwordHash);
-      userSheet.getRange(editing.rowNumber, 1, 1, 5).setValues([[
-        username,
-        passwordHash || String(editing.values[1] || ''),
-        fullName,
-        role,
-        auth.company
-      ]]);
+      setObjectFields_(userSheet, editing.rowNumber, {
+        Username: username,
+        Password: passwordHash || String(editing.values[1] || ''),
+        'Бүтэн нэр': fullName,
+        'Роль (manager/rep/admin/sales/warehouse/driver/accountant)': role,
+        'Компани нэр': auth.company,
+        'Company ID': auth.companyId || '',
+        'Идэвхтэй': 'Тийм'
+      });
     } else {
       if (!password) throw new Error('Шинэ хэрэглэгчид нууц үг шаардлагатай.');
-      userSheet.appendRow([username, passwordHash, fullName, role, auth.company,Date.now()]);
+      appendObjectRow_(userSheet, {
+        Username: username, Password: passwordHash, 'Бүтэн нэр': fullName,
+        'Роль (manager/rep/admin/sales/warehouse/driver/accountant)': role,
+        'Компани нэр': auth.company, SessionVersion: Date.now(),
+        'User ID': createMasterId_('USR'), 'Company ID': auth.companyId || '', 'Идэвхтэй': 'Тийм'
+      });
     }
     return { success: true };
   } finally {
@@ -377,25 +406,41 @@ function handleSaveUser_(auth, p) {
 }
 
 function handleDeleteUser_(auth, p) {
-  if (!canManageUsers_(auth)) throw new Error('Хэрэглэгч устгах эрх хүрэлцэхгүй байна.');
+  if (!canManageUsers_(auth)) throw new Error('Хэрэглэгч идэвхгүй болгох эрх хүрэлцэхгүй байна.');
   const username = clean_(p.username);
   if (!username) throw new Error('Хэрэглэгчийн нэр шаардлагатай.');
-  if (username.toLowerCase() === auth.username.toLowerCase()) throw new Error('Өөрийн хэрэглэгчийг устгах боломжгүй.');
+  if (username.toLowerCase() === auth.username.toLowerCase()) throw new Error('Өөрийн хэрэглэгчийг идэвхгүй болгох боломжгүй.');
   const sheet = masterSs_().getSheetByName(MASTER_SHEETS.USERS);
-  const rows = values_(sheet);
-  const found = findRowByValue_(rows, 0, username);
-  if (!found || clean_(found.values[4]).toLowerCase() !== auth.company.toLowerCase()) throw new Error('Хэрэглэгч олдсонгүй.');
-  sheet.deleteRow(found.rowNumber);
-  return { success: true };
+  const found = securityUser_(username);
+  if (!found) throw new Error('Хэрэглэгч олдсонгүй.');
+  const row = found.object;
+  const companyId = clean_(field_(row, ['Company ID']));
+  if ((auth.companyId && companyId && auth.companyId !== companyId) ||
+      (!companyId && clean_(field_(row, ['Компани нэр'])).toLowerCase() !== auth.company.toLowerCase())) throw new Error('Хэрэглэгч олдсонгүй.');
+  setObjectFields_(sheet, found.rowNumber, {
+    'Идэвхтэй': 'Үгүй',
+    SessionVersion: Date.now(),
+    RecoveryHash: '',
+    RecoveryExpires: '',
+    RecoveryIssuedBy: ''
+  });
+  return { success: true, deactivated: true };
 }
 
-function getCompany_(companyName) {
-  const match = findRowByValue_(values_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES)), 0, companyName);
-  if (!match) return null;
-  const row = match.values;
-  const explicitStatus = clean_(row[2]).toLowerCase();
-  const activated = asDate_(row[3]);
-  const months = Number(row[4] || 0);
+function getCompany_(companyRef) {
+  const ref = clean_(companyRef);
+  if (!ref) return null;
+  const data = sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES));
+  const entry = data.rows.find(function(item) {
+    const name = clean_(field_(item.object, ['Компани нэр']));
+    const id = clean_(field_(item.object, ['Company ID','CompanyID']));
+    return name.toLowerCase() === ref.toLowerCase() || id.toLowerCase() === ref.toLowerCase();
+  });
+  if (!entry) return null;
+  const row = entry.object;
+  const explicitStatus = clean_(field_(row, ['Төлөв'])).toLowerCase();
+  const activated = asDate_(field_(row, ['Идэвхжүүлсэн огноо']));
+  const months = Number(field_(row, ['Хугацаа(сар)']) || 0);
   let status = 'Free';
   let expiresAt = null;
   if (explicitStatus === 'inactive' || explicitStatus === 'идэвхгүй') {
@@ -403,16 +448,19 @@ function getCompany_(companyName) {
   } else if (activated && months > 0) {
     expiresAt = addMonths_(activated, months);
     status = new Date().getTime() <= expiresAt.getTime() ? 'Active' : 'Free';
+  } else if (explicitStatus === 'active' || explicitStatus === 'premium' || explicitStatus === 'идэвхтэй') {
+    status = 'Active';
   }
   return {
-    name: clean_(row[0]),
-    spreadsheetId: clean_(row[1]),
+    id: clean_(field_(row, ['Company ID','CompanyID'])),
+    name: clean_(field_(row, ['Компани нэр'])),
+    spreadsheetId: clean_(field_(row, ['Spreadsheet ID'])),
     status: status,
     activatedAt: activated,
     months: months,
     expiresAt: expiresAt,
-    phone: clean_(row[5]),
-    email: clean_(row[6])
+    phone: clean_(field_(row, ['Утас'])),
+    email: clean_(field_(row, ['Имэйл']))
   };
 }
 
@@ -576,10 +624,24 @@ function getVisits_(companySs, auth, limit) {
   });
 }
 
-function getUsers_(companyName) {
-  return values_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)).slice(1).filter(function(row) {
-    return clean_(row[4]).toLowerCase() === companyName.toLowerCase();
-  }).map(function(row) { return { username: clean_(row[0]), fullName: clean_(row[2]), role: normalizeRole_(row[3]) }; });
+function getUsers_(companyRef) {
+  const company = getCompany_(companyRef);
+  if (!company) return [];
+  return sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)).rows.filter(function(entry) {
+    const row = entry.object;
+    const active = clean_(field_(row, ['Идэвхтэй'])).toLowerCase();
+    const sameId = company.id && clean_(field_(row, ['Company ID'])) === company.id;
+    const sameName = clean_(field_(row, ['Компани нэр'])).toLowerCase() === company.name.toLowerCase();
+    return (sameId || sameName) && !['үгүй','inactive','false','0'].includes(active);
+  }).map(function(entry) {
+    const row = entry.object;
+    return {
+      id: clean_(field_(row, ['User ID','UserID'])),
+      username: clean_(field_(row, ['Username'])),
+      fullName: clean_(field_(row, ['Бүтэн нэр'])),
+      role: normalizeRole_(field_(row, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']))
+    };
+  });
 }
 
 function getCustomers_(companySs) {
@@ -802,9 +864,51 @@ function getActiveAds_() {
 
 function ensureMasterSheets_() {
   const ss = masterSs_();
-  ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл']);
-  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр'].concat(SECURITY_USER_HEADERS));
+  const companySheet = ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл','Company ID']);
+  const userSheet = ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр'].concat(SECURITY_USER_HEADERS).concat(['User ID','Company ID','Идэвхтэй']));
   ensureSheet_(ss, MASTER_SHEETS.ADS, MASTER_AD_HEADERS);
+  backfillMasterIds_(companySheet, userSheet);
+}
+
+function createMasterId_(prefix) {
+  return prefix + '-' + Utilities.getUuid().replace(/-/g, '').slice(0, 20).toUpperCase();
+}
+
+function backfillMasterIds_(companySheet, userSheet) {
+  const companyHeaders = getHeaders_(companySheet);
+  const companyIdIndex = companyHeaders.indexOf('Company ID');
+  const companyNameIndex = companyHeaders.indexOf('Компани нэр');
+  const companyIdsByName = {};
+  if (companySheet.getLastRow() >= 2 && companyIdIndex >= 0 && companyNameIndex >= 0) {
+    const rows = companySheet.getRange(2, 1, companySheet.getLastRow() - 1, companyHeaders.length).getValues();
+    let changed = false;
+    rows.forEach(function(row) {
+      const name = clean_(row[companyNameIndex]);
+      let id = clean_(row[companyIdIndex]);
+      if (!id) { id = createMasterId_('CMP'); row[companyIdIndex] = id; changed = true; }
+      if (name) companyIdsByName[name.toLowerCase()] = id;
+    });
+    if (changed) companySheet.getRange(2, 1, rows.length, companyHeaders.length).setValues(rows);
+  }
+
+  const userHeaders = getHeaders_(userSheet);
+  const userIdIndex = userHeaders.indexOf('User ID');
+  const userCompanyIdIndex = userHeaders.indexOf('Company ID');
+  const userCompanyNameIndex = userHeaders.indexOf('Компани нэр');
+  const activeIndex = userHeaders.indexOf('Идэвхтэй');
+  if (userSheet.getLastRow() >= 2 && userIdIndex >= 0 && userCompanyIdIndex >= 0 && userCompanyNameIndex >= 0) {
+    const rows = userSheet.getRange(2, 1, userSheet.getLastRow() - 1, userHeaders.length).getValues();
+    let changed = false;
+    rows.forEach(function(row) {
+      if (!clean_(row[userIdIndex])) { row[userIdIndex] = createMasterId_('USR'); changed = true; }
+      if (!clean_(row[userCompanyIdIndex])) {
+        const companyId = companyIdsByName[clean_(row[userCompanyNameIndex]).toLowerCase()] || '';
+        if (companyId) { row[userCompanyIdIndex] = companyId; changed = true; }
+      }
+      if (activeIndex >= 0 && !clean_(row[activeIndex])) { row[activeIndex] = 'Тийм'; changed = true; }
+    });
+    if (changed) userSheet.getRange(2, 1, rows.length, userHeaders.length).setValues(rows);
+  }
 }
 
 function ensureCompanySheets_(ss) {
@@ -877,12 +981,20 @@ function requireSession_(token) {
   const raw = cache.get('session:' + token);
   if (!raw) throw new Error('Session хугацаа дууссан. Дахин нэвтэрнэ үү.');
   const auth = JSON.parse(raw);
-  const user = findRowByValue_(values_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)), 0, auth.username);
-  if (!user || clean_(user.values[4]) !== auth.company) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
-  const current=securityUser_(auth.username);
-  if(Number(current.object.SessionVersion||0)!==Number(auth.sessionVersion||0))throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
-  if(auth.issuedAt && Date.now()-Date.parse(auth.issuedAt)>86400000)throw new Error('Session хугацаа дууссан.');
-  auth.role = normalizeRole_(user.values[3]); auth.fullName = clean_(user.values[2]);
+  const current = securityUser_(auth.username);
+  if (!current) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  const user = current.object;
+  const active = clean_(field_(user, ['Идэвхтэй'])).toLowerCase();
+  if (active === 'үгүй' || active === 'inactive' || active === 'false' || active === '0') throw new Error('Хэрэглэгчийн эрх идэвхгүй байна.');
+  const company = requireActiveCompany_(clean_(field_(user, ['Company ID'])) || clean_(field_(user, ['Компани нэр'])));
+  if (auth.companyId && company.id && auth.companyId !== company.id) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  if (Number(user.SessionVersion || 0) !== Number(auth.sessionVersion || 0)) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  if (auth.issuedAt && Date.now() - Date.parse(auth.issuedAt) > 86400000) throw new Error('Session хугацаа дууссан.');
+  auth.company = company.name;
+  auth.companyId = company.id;
+  auth.userId = clean_(field_(user, ['User ID','UserID']));
+  auth.role = normalizeRole_(field_(user, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
+  auth.fullName = clean_(field_(user, ['Бүтэн нэр']));
   cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
   return auth;
 }
