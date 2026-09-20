@@ -34,28 +34,30 @@ function opsCancelSale_(auth,p,ss,tx){
   if(sale.paid!==0||sale.returns.length||tx.rows(COMPANY_SHEETS.VISITS).some(e=>e.object.SaleID===sale.id))throw new Error('Төлөлт, буцаалт эсвэл хүргэлттэй захиалгыг шууд цуцлахгүй. Буцаалтын тооцоо хийнэ үү.');
   correction_(tx,auth,'Sale cancellation',sale.id,p.reason);
   sale.rows.forEach(e=>{
-    const o=e.object,qty=Number(o['Тоо']),name=o['Бараа'];
-    opsStock_(ss,tx,opsProduct_(ss,name),sale.warehouse,qty);
+    const o=e.object,qty=opsQty_(Number(o['Тоо'])),name=o['Бараа'],product=opsProduct_(ss,o.ProductID||name),productId=clean_(product.object.ProductID);
+    opsStock_(ss,tx,product,sale.warehouse,qty);
     JSON.parse(o.BatchAllocations||'[]').filter(a=>a.batchId).forEach(a=>{
       const batch=tx.rows('Цуврал').find(b=>b.object.BatchID===a.batchId);
       if(!batch)throw new Error('Цувралын бүртгэл дутуу. Няравтай тулгана уу.');
       tx.set('Цуврал',batch.rowNumber,{'Үлдэгдэл':Number(batch.object['Үлдэгдэл'])+Number(a.quantity)});
     });
     tx.set(COMPANY_SHEETS.SALES,e.rowNumber,{Status:'Cancelled'});
-    opsMove_(tx,auth,{'Бараа':name,'Тоо':qty,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Агуулах':sale.warehouse,SaleID:sale.id,'Client ID':p.clientId,'Шалтгаан':'Цуцлалт: '+clean_(p.reason)});
+    opsMove_(tx,auth,{'Бараа':name,ProductID:productId,'Тоо':qty,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Агуулах':sale.warehouse,SaleID:sale.id,'Client ID':p.clientId,'Шалтгаан':'Цуцлалт: '+clean_(p.reason)});
   });return {saleId:sale.id};
 }
 function opsStocktake_(auth,p,ss,tx){
   opsAssertRole_(auth,['manager','admin','warehouse']);
-  const product=opsProduct_(ss,p.product),warehouse=opsWarehouse_(ss,p.warehouse);
-  const rows=tx.rows(COMPANY_SHEETS.WAREHOUSE_STOCK).filter(e=>e.object['Бараа']===product.object['Барааны нэр']);
+  if(!clean_(p.reason))throw new Error('Тооллогын зөрүүний шалтгааныг оруулна уу.');
+  const product=opsProduct_(ss,p.productId||p.product),productId=clean_(product.object.ProductID),warehouse=opsWarehouse_(ss,p.warehouse);
+  const rows=tx.rows(COMPANY_SHEETS.WAREHOUSE_STOCK).filter(e=>(productId&&clean_(e.object.ProductID)===productId)||(!clean_(e.object.ProductID)&&e.object['Бараа']===product.object['Барааны нэр']));
   const entry=rows.find(e=>e.object['Агуулах']===warehouse);
-  const expected=entry?Number(entry.object['Үлдэгдэл']):(!rows.length&&warehouse===firstWarehouse_(ss)?Number(product.object['Одоогийн үлдэгдэл']):0);
-  if(Number(p.expected)!==expected)throw new Error('Тооллогын үеэр үлдэгдэл өөрчлөгдсөн. Шинэчлээд дахин тулгана уу.');
-  const counted=nonNegativeNumber_(p.counted,'Тоолсон үлдэгдэл'),delta=counted-expected;
-  if(!delta)throw new Error('Зөрүү алга. Үлдэгдэл таарч байна.');
+  const expected=opsQty_(entry?Number(entry.object['Үлдэгдэл']):(!rows.length&&warehouse===firstWarehouse_(ss)?Number(product.object['Одоогийн үлдэгдэл']):0));
+  const submittedExpected=opsQty_(nonNegativeNumber_(p.expected,'Бүртгэлийн үлдэгдэл'));
+  if(Math.abs(submittedExpected-expected)>0.000001)throw new Error('Тооллогын үеэр үлдэгдэл өөрчлөгдсөн. Шинэчлээд дахин тулгана уу.');
+  const counted=opsQty_(nonNegativeNumber_(p.counted,'Тоолсон үлдэгдэл')),delta=opsQty_(counted-expected);
+  if(Math.abs(delta)<=0.000001)throw new Error('Зөрүү алга. Үлдэгдэл таарч байна.');
   correction_(tx,auth,'Stocktake',product.object['Барааны нэр']+' / '+warehouse,p.reason);
-  return opsInventory_(auth,{product:p.product,quantity:Math.abs(delta),moveType:delta>0?'орлого':'зарлага',warehouse,reason:'Тооллого: '+clean_(p.reason),clientId:p.clientId,expiryDate:p.expiryDate},ss,tx);
+  return opsInventory_(auth,{product:productId||p.product,quantity:Math.abs(delta),moveType:delta>0?'орлого':'зарлага',warehouse,reason:'Тооллого: '+clean_(p.reason),clientId:p.clientId,expiryDate:p.expiryDate},ss,tx);
 }
 function dataOpeningSale_(ss,id,auth){
   opsAssertRole_(auth,['manager','admin','accountant']);
@@ -69,27 +71,29 @@ function dataImport_(auth,p,ss,tx){
   opsAssertRole_(auth,['manager','admin']);
   if(!['products','customers','opening'].includes(p.kind)||!Array.isArray(p.rows)||!p.rows.length||p.rows.length>50)throw new Error('Импортын төрөл, 1–50 мөрөө шалгана уу.');
   p.rows.forEach((r,index)=>{try{
-    Object.values(r).forEach(v=>{if(typeof v==='string'&&(/^\s*[=+@]/.test(v)||v.length>500))throw new Error('Томьёо эсвэл хэт урт текст оруулахгүй.');});
+    Object.values(r).forEach(v=>{if(typeof v==='string'&&(/^\s*[=+@-]/.test(v)||v.length>500))throw new Error('Томьёо эсвэл хэт урт текст оруулахгүй.');});
     const name=clean_(r.name||r.customer);if(!name)throw new Error('Нэр дутуу.');
     if(p.kind==='products'){
       if(tx.rows(COMPANY_SHEETS.PRODUCTS).some(e=>clean_(e.object['Барааны нэр']).toLowerCase()===name.toLowerCase()||(r.code&&String(e.object['Код'])===String(r.code))))throw new Error('Барааны нэр эсвэл код давхардсан.');
-      const price=nonNegativeNumber_(r.price,'Үнэ'),stock=nonNegativeNumber_(r.stock||0,'Үлдэгдэл'),warehouse=opsWarehouse_(ss,r.warehouse),pack=positiveNumber_(r.packSize||1,'Савлагаа');
-      tx.add(COMPANY_SHEETS.PRODUCTS,{'Барааны нэр':name,'Код':clean_(r.code),'Нэгж үнэ':price,'Одоогийн үлдэгдэл':stock,'Хэмжих нэгж':clean_(r.unit)||'ш','Бага үлдэгдлийн хязгаар':nonNegativeNumber_(r.threshold||0,'Бага үлдэгдэл'),'Идэвхтэй':'Тийм',PackName:clean_(r.packName),PackSize:pack});
-      tx.add(COMPANY_SHEETS.WAREHOUSE_STOCK,{'Агуулах':warehouse,'Бараа':name,'Үлдэгдэл':stock});
-      if(stock){opsMove_(tx,auth,{'Бараа':name,'Тоо':stock,'Агуулах':warehouse,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Шалтгаан':'Импорт: эхний үлдэгдэл','Client ID':p.clientId});if(r.expiryDate)tx.add('Цуврал',{BatchID:createBusinessId_('LOT'),'Бараа':name,'Агуулах':warehouse,'Үлдэгдэл':stock,'Дуусах огноо':opsDate_(r.expiryDate,true),CreatedAt:new Date().toISOString()});}
+      const price=nonNegativeNumber_(r.price,'Үнэ'),stock=opsQty_(nonNegativeNumber_(r.stock||0,'Үлдэгдэл')),warehouse=opsWarehouse_(ss,r.warehouse),pack=positiveNumber_(r.packSize||1,'Савлагаа'),productId=createBusinessId_('PRD');
+      tx.add(COMPANY_SHEETS.PRODUCTS,{'Барааны нэр':name,ProductID:productId,'Код':clean_(r.code),'Нэгж үнэ':price,'Одоогийн үлдэгдэл':stock,'Хэмжих нэгж':clean_(r.unit)||'ш','Бага үлдэгдлийн хязгаар':nonNegativeNumber_(r.threshold||0,'Бага үлдэгдэл'),'Идэвхтэй':'Тийм',PackName:clean_(r.packName),PackSize:pack});
+      tx.add(COMPANY_SHEETS.WAREHOUSE_STOCK,{'Агуулах':warehouse,'Бараа':name,ProductID:productId,'Үлдэгдэл':stock});
+      if(stock){opsMove_(tx,auth,{'Бараа':name,ProductID:productId,'Тоо':stock,'Агуулах':warehouse,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Шалтгаан':'Импорт: эхний үлдэгдэл','Client ID':p.clientId});if(r.expiryDate)tx.add('Цуврал',{BatchID:createBusinessId_('LOT'),'Бараа':name,ProductID:productId,'Агуулах':warehouse,'Үлдэгдэл':stock,'Дуусах огноо':opsDate_(r.expiryDate,true),CreatedAt:new Date().toISOString()});}
     }else if(p.kind==='customers'){
-      if(tx.rows(COMPANY_SHEETS.CUSTOMERS).some(e=>clean_(e.object['Харилцагчийн нэр']).toLowerCase()===name.toLowerCase()))throw new Error('Харилцагчийн нэр давхардсан.');
-      tx.add(COMPANY_SHEETS.CUSTOMERS,{'Харилцагчийн нэр':name,CustomerID:createBusinessId_('CUS'),'Утас':clean_(r.phone),'Хаяг':clean_(r.address),'Регистрийн дугаар':clean_(r.registrationNumber),'Холбоо барих хүн':clean_(r.contactPerson),'Идэвхтэй':'Тийм'});
+      const reg=clean_(r.registrationNumber);
+      if(tx.rows(COMPANY_SHEETS.CUSTOMERS).some(e=>clean_(e.object['Харилцагчийн нэр']).toLowerCase()===name.toLowerCase()||(reg&&clean_(e.object['Регистрийн дугаар']).toLowerCase()===reg.toLowerCase())))throw new Error('Харилцагчийн нэр эсвэл регистр давхардсан.');
+      tx.add(COMPANY_SHEETS.CUSTOMERS,{'Харилцагчийн нэр':name,CustomerID:createBusinessId_('CUS'),'Утас':clean_(r.phone),'Хаяг':clean_(r.address),'Регистрийн дугаар':reg,'Холбоо барих хүн':clean_(r.contactPerson),'Идэвхтэй':'Тийм'});
     }else{
-      if(!tx.rows(COMPANY_SHEETS.CUSTOMERS).some(e=>e.object['Харилцагчийн нэр']===name))throw new Error('Эхлээд харилцагчаа бүртгэнэ үү.');
+      const customer=tx.rows(COMPANY_SHEETS.CUSTOMERS).find(e=>clean_(e.object['Харилцагчийн нэр']).toLowerCase()===name.toLowerCase());
+      if(!customer)throw new Error('Эхлээд харилцагчаа бүртгэнэ үү.');
       const reference=clean_(r.reference);if(!reference)throw new Error('Тулгах эх баримтын дугаар шаардлагатай.');
       if(tx.rows('Эхний авлага').some(e=>e.object.Reference===reference))throw new Error('Эх баримтын дугаар давхардсан.');
-      tx.add('Эхний авлага',{OpeningID:createBusinessId_('OPEN'),'Харилцагч':name,'Дүн':positiveNumber_(r.amount,'Авлага'),'Огноо':opsDate_(r.date,true),DueDate:opsDate_(r.dueDate,true),Reference:reference,CreatedBy:auth.username,Status:'Approved'});
+      tx.add('Эхний авлага',{OpeningID:createBusinessId_('OPEN'),'Харилцагч':name,CustomerID:clean_(customer.object.CustomerID),'Дүн':opsMoney_(positiveNumber_(r.amount,'Авлага')),'Огноо':opsDate_(r.date,true),DueDate:opsDate_(r.dueDate,true),Reference:reference,CreatedBy:auth.username,Status:'Approved'});
     }
   }catch(error){throw new Error((index+2)+'-р мөр: '+error.message);}});
   correction_(tx,auth,'Import '+p.kind,p.clientId,'Импорт '+p.rows.length+' мөр');return {imported:p.rows.length};
 }
-function dataPreviewImport_(auth,p){return withOperationsRead_(auth,()=>{const ss=openCompanySs_(requireActiveCompany_(auth.company)),tx=opsPlan_(ss);const result=dataImport_(auth,p,ss,tx);if(JSON.stringify(tx.changes()).length>45000)throw new Error('Файл том байна. Мөрөө хуваана уу.');return Object.assign({success:true,preview:true},result);});}
+function dataPreviewImport_(auth,p){return withOperationsRead_(auth,()=>{const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),tx=opsPlan_(ss);const result=dataImport_(auth,p,ss,tx);if(JSON.stringify(tx.changes()).length>OPS_PLAN_MAX_CHARS)throw new Error('Файл том байна. Мөрөө хуваана уу.');return Object.assign({success:true,preview:true},result);});}
 function dataQueueAction_(auth,p){
   const id=clean_(p.requestId);if(!id||id.length>120)throw new Error('Бүртгэлийн дугаар буруу байна.');
   const ss=openCompanySs_(requireActiveCompany_(auth.company)),lock=LockService.getScriptLock();lock.waitLock(30000);
