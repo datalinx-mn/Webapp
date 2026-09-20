@@ -68,20 +68,22 @@ function handleSaveProduct_(auth, payload) {
     if (originalName && !target) throw new Error('Засах бараа олдсонгүй. Жагсаалтаа шинэчилнэ үү.');
     if (target && Number(target.stock) !== stock) throw new Error('Үлдэгдлийг Бараа нэмэх / гаргах хэсгээс өөрчилнө үү.');
     if (target && target.name !== name && productHasHistory_(companySs,target.name)) throw new Error('Хөдөлгөөний түүхтэй барааны нэрийг солих боломжгүй. Шинэ бараа нэмнэ үү.');
-    var fields = {'Барааны нэр':name,'Нэгж үнэ':price,'Одоогийн үлдэгдэл':stock,'Бага үлдэгдлийн хязгаар':threshold,'Код':code,'Хэмжих нэгж':unit,'Идэвхтэй':true,PackName:packName,PackSize:packSize};
+    var productId = target && target.id ? target.id : createBusinessId_('PRD');
+    var fields = {'Барааны нэр':name,'Нэгж үнэ':price,'Одоогийн үлдэгдэл':stock,'Бага үлдэгдлийн хязгаар':threshold,'Код':code,'Хэмжих нэгж':unit,'Идэвхтэй':'Тийм',ProductID:productId,PackName:packName,PackSize:packSize};
     if (target) {
       setObjectFields_(productSheet,target.rowNumber,fields);
       if (target.name !== name) renameProductReferences_(companySs,target.name,name);
     } else {
       appendObjectRow_(productSheet,fields);
-      appendObjectRow_(companySs.getSheetByName('Агуулахын үлдэгдэл'),{'Агуулах':firstWarehouse_(companySs),'Бараа':name,'Үлдэгдэл':stock});
+      appendObjectRow_(companySs.getSheetByName('Агуулахын үлдэгдэл'),{'Агуулах':firstWarehouse_(companySs),'Бараа':name,'Үлдэгдэл':stock,ProductID:productId});
     }
 
-    upsertProductNorm_(companySs, originalName || name, name, threshold);
+    upsertProductNorm_(companySs, originalName || name, name, threshold, productId);
 
     return {
       success: true,
       product: {
+        id: productId,
         name: name,
         code: code,
         unit: unit,
@@ -127,12 +129,8 @@ function handleDeleteProduct_(auth, payload) {
       throw new Error('Үлдэгдэлтэй барааг устгах боломжгүй. Эхлээд үлдэгдлийг 0 болгоно уу.');
     }
 
-    if (productHasHistory_(companySs,target.name)) throw new Error('Түүхтэй барааг устгах боломжгүй.');
-    productSheet.deleteRow(target.rowNumber);
-    deleteProductReferenceRows_(companySs.getSheetByName('Норм'), name);
-    deleteProductReferenceRows_(companySs.getSheetByName('Агуулахын үлдэгдэл'), name);
-
-    return { success: true, products: getProductsForManager_(companySs) };
+    setObjectFields_(productSheet, target.rowNumber, {'Идэвхтэй':'Үгүй'});
+    return { success: true, deactivated: true, products: getProductsForManager_(companySs) };
   } finally {
     lock.releaseLock();
   }
@@ -147,37 +145,20 @@ function assertProductManager_(auth) {
 
 function getProductSheet_(companySs) { return ensureSheet_(companySs,'Бараа',SHEET_HEADERS.PRODUCTS.concat(['PackName','PackSize'])); }
 function readProductRows_(sheet) {
-  return {rows:sheetObjects_(sheet).rows.map(e => ({rowNumber:e.rowNumber,name:e.object['Барааны нэр'],price:Number(e.object['Нэгж үнэ']||0),stock:Number(e.object['Одоогийн үлдэгдэл']||0),threshold:Number(e.object['Бага үлдэгдлийн хязгаар']||0),code:e.object['Код'],unit:e.object['Хэмжих нэгж'],active:e.object['Идэвхтэй']}))};
+  return {rows:sheetObjects_(sheet).rows.map(e => ({rowNumber:e.rowNumber,id:clean_(e.object.ProductID),name:e.object['Барааны нэр'],price:Number(e.object['Нэгж үнэ']||0),stock:Number(e.object['Одоогийн үлдэгдэл']||0),threshold:Number(e.object['Бага үлдэгдлийн хязгаар']||0),code:e.object['Код'],unit:e.object['Хэмжих нэгж'],active:e.object['Идэвхтэй']}))};
 }
 
 function getProductsForManager_(companySs) { return getProducts_(companySs); }
 
-function upsertProductNorm_(companySs, lookupName, newName, threshold) {
-  var sheet = companySs.getSheetByName('Норм');
-  if (!sheet) {
-    sheet = companySs.insertSheet('Норм');
-    sheet.getRange(1, 1, 1, 2).setValues([['Бараа', 'Бага үлдэгдлийн хязгаар']]);
-    sheet.setFrozenRows(1);
-  }
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    sheet.appendRow([newName, threshold]);
-    return;
-  }
-
-  var values = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
-  var target = -1;
-  values.some(function(row, index) {
-    if (clean_(row[0]).toLowerCase() === clean_(lookupName).toLowerCase()) {
-      target = index + 2;
-      return true;
-    }
-    return false;
+function upsertProductNorm_(companySs, lookupName, newName, threshold, productId) {
+  var sheet = ensureSheet_(companySs, 'Норм', ['Бараа','Бага үлдэгдлийн хязгаар','ProductID']);
+  var target = sheetObjects_(sheet).rows.find(function(entry) {
+    return clean_(entry.object.ProductID) === clean_(productId) ||
+      clean_(entry.object['Бараа']).toLowerCase() === clean_(lookupName).toLowerCase();
   });
-
-  if (target > -1) sheet.getRange(target, 1, 1, 2).setValues([[newName, threshold]]);
-  else sheet.appendRow([newName, threshold]);
+  var fields = {'Бараа':newName,'Бага үлдэгдлийн хязгаар':threshold,ProductID:productId};
+  if (target) setObjectFields_(sheet,target.rowNumber,fields);
+  else appendObjectRow_(sheet,fields);
 }
 
 function renameProductReferences_(companySs, oldName, newName) {
