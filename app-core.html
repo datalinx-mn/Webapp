@@ -1274,6 +1274,10 @@
             <summary><span>Бараа удирдах<small>Шинэ бараа нэмэх, үнэ болон үлдэгдэл засах</small></span></summary>
             <div class="simple-details-body">
               <div class="product-management-grid">
+              <div class="ops-actions" style="grid-column:1/-1;margin-bottom:8px">
+                <button id="productBulkImportBtn" class="btn btn-secondary" type="button">Excel / Sheets жагсаалт оруулах</button>
+                <small class="field-hint">Олон бараатай бол нэг бүрчлэн бичих шаардлагагүй.</small>
+              </div>
               <form id="productForm" class="form-grid" novalidate>
                 <input id="productOriginalName" type="hidden">
                 <div class="field">
@@ -1999,6 +2003,7 @@
       $('#registerForm').addEventListener('submit', handleRegister);
       $('#quickProductForm').addEventListener('submit', handleQuickProductSave);
       $('#quickProductClose').addEventListener('click', () => $('#quickProductDialog').close());
+      $('#productBulkImportBtn').addEventListener('click', () => { if(window.openDataImport) window.openDataImport(); else toast('Импортын хэсгийг ачаалж байна. Дахин оролдоно уу.','error'); });
       $('#saleForm').addEventListener('submit', handleSale);
       $('#inventoryForm').addEventListener('submit', handleInventoryMove);
       $('#visitForm').addEventListener('submit', handleVisit);
