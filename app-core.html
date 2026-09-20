@@ -790,7 +790,7 @@
     }
 
 
-    /* Free-with-ads access model */
+    /* Legacy ad-slot styles kept for public compatibility; logged-in plans are ad-free. */
     .ad-slot { margin: 0 0 14px; }
     .sponsor-ad {
       min-height: 84px;
@@ -2441,7 +2441,7 @@
       const steps = [
         {
           page: 'sales', selector: '#companyTitle', title: 'Тавтай морил',
-          text: 'Энэ бол зөвхөн танай компанийн тусдаа орчин. Дээд хэсгээс компанийн нэр, нэвтэрсэн хэрэглэгч болон Free/Premium эрхийн төлвийг харна.'
+          text: 'Энэ бол зөвхөн танай компанийн тусдаа орчин. Дээд хэсгээс компанийн нэр, нэвтэрсэн хэрэглэгч болон туршилт/Business/Pro эрхийн төлвийг харна.'
         },
         {
           page: 'sales', selector: '#quickStartCard', title: '3 алхмаар эхлэх',
@@ -2481,7 +2481,7 @@
         },
         {
           page: 'settings', selector: '#subscriptionBanner', title: 'Эрхийн төлөв',
-          text: 'Тохиргоо хэсгээс компанийн Free/Premium/Inactive төлөв болон Premium эрхийн холбоо барих мэдээллийг харна.'
+          text: 'Тохиргоо хэсгээс компанийн туршилт, Business, Pro эсвэл дууссан төлөв болон багц ахиулах мэдээллийг харна.'
         }
       ];
       if (isManager()) {
@@ -2873,10 +2873,10 @@
       const value=Number(currentPlan()?.[key]); return Number.isFinite(value)&&value>0?value:fallback;
     }
     function planUpgradeMessage() {
-      const name=currentPlan()?.name||'Free';
+      const name=currentPlan()?.name||'Туршилтын хугацаа дууссан';
       return name+' багцад энэ боломж ороогүй. Багцаа ахиулна уу.';
     }
-    function isPremium() { return currentPlan()?.id !== 'Free' && state.session?.companyStatus !== 'Inactive'; }
+    function isPremium() { return ['Trial','Business','Pro'].includes(currentPlan()?.id) && state.session?.companyStatus !== 'Inactive'; }
     function isManager() { return ['manager','admin'].includes(state.session?.user?.role); }
 
     function renderAll() {
@@ -2889,7 +2889,7 @@
       const plan = currentPlan();
       const topStatus = $('#topStatus');
       topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ТУРШИЛТ ДУУССАН' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
-      topStatus.className = `status-pill ${status === 'Inactive' ? 'inactive' : plan.id !== 'Free' ? 'premium' : ''}`;
+      topStatus.className = `status-pill ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
       $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
       renderSelects();
       renderSales();
@@ -3934,7 +3934,11 @@
       $('#dashboardPremiumWrap').classList.remove('locked');
       $('#dashboardLock').classList.add('hidden');
       $('#routeCard').classList.toggle('hidden', !active || !hasEntitlement('delivery'));
+      const expired=currentPlan().id==='Expired';
       const visitForm=$('#visitForm'); if(visitForm) visitForm.classList.toggle('hidden', !hasEntitlement('delivery'));
+      const saleForm=$('#saleForm'); if(saleForm) saleForm.classList.toggle('hidden', expired);
+      const inventoryForm=$('#inventoryForm'); if(inventoryForm) inventoryForm.classList.toggle('hidden', expired);
+      const productManagement=$('#productManagementCard'); if(productManagement) productManagement.classList.toggle('hidden', expired || !isManager());
     }
 
     function renderSettings() {
