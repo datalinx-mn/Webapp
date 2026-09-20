@@ -265,8 +265,8 @@ function opsAddSale_(auth,p,ss,tx) {
   const paid=(p.paidAmount===undefined||p.paidAmount==='')?(paymentType==='Бэлэн'?total:0):opsMoney_(nonNegativeNumber_(p.paidAmount,'Төлсөн дүн'));
   if(paid>total)throw new Error('Төлсөн дүн нийт дүнгээс их байна.');
   let initialPaymentMethod=paid>0?clean_(p.initialPaymentMethod):'';
-  if(paid>0&&!initialPaymentMethod&&paymentType==='Бэлэн')initialPaymentMethod='Бэлэн';
-  if(paid>0&&!['Бэлэн','Банк'].includes(initialPaymentMethod))throw new Error('Одоо төлсөн дүнгийн аргыг Бэлэн эсвэл Банк гэж сонгоно уу.');
+  if(paid>0&&!initialPaymentMethod)initialPaymentMethod=paymentType==='Бэлэн'?'Бэлэн':'Тодорхойгүй';
+  if(paid>0&&!['Бэлэн','Банк','Тодорхойгүй'].includes(initialPaymentMethod))throw new Error('Одоо төлсөн дүнгийн арга буруу байна.');
   const due=paid<total?(p.dueDate?opsDate_(p.dueDate,true):opsDay_(defaultDueDate_(ss,new Date()))):'';
   const customer=tx.rows(COMPANY_SHEETS.CUSTOMERS).find(e=>clean_(e.object['Харилцагчийн нэр']).toLowerCase()===clean_(p.customer).toLowerCase());
   const customerId=customer?customer.object.CustomerID:createBusinessId_('CUS');
@@ -426,7 +426,7 @@ function opsCashMovementForDay_(ss,date) {
     const method=clean_(o.InitialPaymentMethod);
     if(method==='Бэлэн')initialCashSales+=paid;
     else if(!method && clean_(o['Төлбөрийн төрөл'])==='Бэлэн')initialCashSales+=paid;
-    else if(!method)legacyAmbiguousCount++;
+    else if(!method || method==='Тодорхойгүй')legacyAmbiguousCount++;
   });
   let directCashPayments=0,cashRefundsAndReversals=0;
   opsRows_(ss,COMPANY_SHEETS.PAYMENTS).forEach(e=>{
