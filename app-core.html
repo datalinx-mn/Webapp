@@ -2683,7 +2683,7 @@
       state.inventoryMoves = state.serverInventoryMoves.map(item => ({ ...item, syncStatus: 'synced' }));
 
       const queue = getQueue()
-        .filter(item => sameCompany(item.company, state.session?.company?.name || state.session?.user?.company) && item.username === state.session?.user?.username && !item.failed)
+        .filter(item => queueBelongsToCurrent_(item) && item.username === state.session?.user?.username && !item.failed)
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
       queue.forEach(item => {
@@ -2828,7 +2828,18 @@
       }
     }
 
-    function isPremium() { return state.session?.companyStatus !== 'Inactive'; }
+    function currentPlan() {
+      return state.session?.plan || state.session?.entitlements || {id:'Free',name:'Free',monthlyPriceMnt:0,ads:true,maxUsers:2,maxWarehouses:1,features:{}};
+    }
+    function hasEntitlement(feature) { return Boolean(currentPlan()?.features?.[feature]); }
+    function planLimit(key, fallback = 0) {
+      const value=Number(currentPlan()?.[key]); return Number.isFinite(value)&&value>0?value:fallback;
+    }
+    function planUpgradeMessage() {
+      const name=currentPlan()?.name||'Free';
+      return name+' багцад энэ боломж ороогүй. Багцаа ахиулна уу.';
+    }
+    function isPremium() { return currentPlan()?.id !== 'Free' && state.session?.companyStatus !== 'Inactive'; }
     function isManager() { return ['manager','admin'].includes(state.session?.user?.role); }
 
     function renderAll() {
@@ -3836,12 +3847,14 @@
     function applyTierUi() {
       const active = state.session?.companyStatus !== 'Inactive';
       $('#saleLocationField').classList.toggle('hidden', !active || state.locations.length <= 1);
-      $('#transferOption').classList.toggle('hidden', !active || state.warehouses.length <= 1);
-      if ((!active || state.warehouses.length <= 1) && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
+      const canTransfer=active && planLimit('maxWarehouses',1)>1 && state.warehouses.length>1;
+      $('#transferOption').classList.toggle('hidden', !canTransfer);
+      if (!canTransfer && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
       updateInventoryFields();
       $('#dashboardPremiumWrap').classList.remove('locked');
       $('#dashboardLock').classList.add('hidden');
-      $('#routeCard').classList.toggle('hidden', !active);
+      $('#routeCard').classList.toggle('hidden', !active || !hasEntitlement('delivery'));
+      const visitForm=$('#visitForm'); if(visitForm) visitForm.classList.toggle('hidden', !hasEntitlement('delivery'));
     }
 
     function renderSettings() {
@@ -3852,8 +3865,11 @@
         $('#subscriptionTitle').textContent = 'Эрх идэвхгүй';
         $('#subscriptionText').textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
       } else {
-        $('#subscriptionTitle').textContent = 'Үнэгүй · зарын дэмжлэгтэй';
-        $('#subscriptionText').textContent = 'Борлуулалт, агуулах, түгээлт, хяналтын самбар, олон байршил болон хэрэглэгчийн удирдлагын үндсэн боломжууд бүгд нээлттэй.';
+        const plan=currentPlan();
+        $('#subscriptionTitle').textContent = plan.id==='Free' ? 'Free · ₮0 / сар' : plan.name+' · '+money(plan.monthlyPriceMnt)+' / сар';
+        $('#subscriptionText').textContent = plan.id==='Free'
+          ? 'Үндсэн борлуулалт, бараа, авлага · '+plan.maxUsers+' хэрэглэгч · '+plan.maxWarehouses+' агуулах · зарын дэмжлэгтэй.'
+          : 'Заргүй · '+plan.maxUsers+' хэрэглэгч хүртэл · '+plan.maxWarehouses+' агуулах хүртэл.';
       }
       const user = state.session.user;
       $('#profileInfo').innerHTML = [
