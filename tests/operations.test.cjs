@@ -110,55 +110,53 @@ test('MASTER backfill creates stable IDs and bootstrap does not expose spreadshe
   assert.equal(Object.prototype.hasOwnProperty.call(payload.company,'spreadsheetId'),false);
 });
 
-test('plan catalog keeps core Free features while blocking paid operations',()=>{
-  const f=fixture();f.ctx.setCompanyPlan('Alpha','Free',0);
+test('Trial gives one month of full Business-level access',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Trial',1);
   const company=f.ctx.getCompany_('Alpha');
-  assert.equal(company.planId,'Free');assert.equal(company.entitlements.ads,true);assert.equal(company.entitlements.maxUsers,2);assert.equal(company.entitlements.maxWarehouses,1);
-  const sale=f.sale();assert.ok(sale.saleId);
-  assert.throws(()=>f.run({action:'saveDelivery',saleId:sale.saleId,driver:'driver',date:'2026-09-20'}),/багц/);
-  assert.throws(()=>f.run({action:'saveSupplier',name:'Supplier'}),/багц/);
-  assert.throws(()=>f.ctx.dataPreviewImport_(f.users.owner,{kind:'customers',rows:[{name:'X'}],clientId:'preview'}),/багц/);
-  assert.throws(()=>f.ctx.dataIntegrityCheck_(f.users.owner),/багц/);
-  assert.throws(()=>f.ctx.handleGetPrintPreview_(f.users.owner,{documentType:'INVOICE',saleId:sale.saleId}),/багц/);
-  assert.throws(()=>f.ctx.backupAction_(f.users.owner,{action:'backupStatus'}),/багц/);
+  assert.equal(company.planId,'Trial');assert.equal(company.entitlements.ads,false);
+  assert.equal(company.entitlements.monthlyPriceMnt,0);assert.equal(company.entitlements.maxUsers,5);assert.equal(company.entitlements.maxWarehouses,2);
+  assert.equal(company.entitlements.features.delivery,true);assert.equal(company.entitlements.features.pdf,true);
+  assert.equal(company.entitlements.features.csvImport,true);assert.equal(company.entitlements.features.suppliers,true);
+  assert.equal(company.entitlements.features.profitability,false);
 });
-test('Business is ad-free and unlocks operations but not Pro controls',()=>{
-  const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const c=f.ctx.getCompany_('Alpha');
-  assert.equal(c.planId,'Business');assert.equal(c.entitlements.ads,false);assert.equal(c.entitlements.monthlyPriceMnt,24900);
-  assert.equal(c.entitlements.features.delivery,true);assert.equal(c.entitlements.features.pdf,true);assert.equal(c.entitlements.features.suppliers,true);
-  assert.equal(c.entitlements.features.profitability,false);assert.equal(c.entitlements.features.integrityAudit,false);
-  assert.equal(c.entitlements.maxUsers,5);assert.equal(c.entitlements.maxWarehouses,2);
+test('Business remains paid ad-free operations plan',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const company=f.ctx.getCompany_('Alpha');
+  assert.equal(company.planId,'Business');assert.equal(company.entitlements.ads,false);assert.equal(company.entitlements.monthlyPriceMnt,24900);
+  assert.equal(company.entitlements.maxUsers,5);assert.equal(company.entitlements.maxWarehouses,2);
 });
 test('Pro unlocks profitability and integrity controls',()=>{
-  const f=fixture();f.ctx.setCompanyPlan('Alpha','Pro',1);const c=f.ctx.getCompany_('Alpha');
-  assert.equal(c.entitlements.monthlyPriceMnt,59900);assert.equal(c.entitlements.features.profitability,true);assert.equal(c.entitlements.features.integrityAudit,true);
-  assert.equal(c.entitlements.maxUsers,20);assert.equal(c.entitlements.maxWarehouses,10);
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Pro',1);const company=f.ctx.getCompany_('Alpha');
+  assert.equal(company.entitlements.monthlyPriceMnt,59900);assert.equal(company.entitlements.features.profitability,true);
+  assert.equal(company.entitlements.features.integrityAudit,true);assert.equal(company.entitlements.maxUsers,20);assert.equal(company.entitlements.maxWarehouses,10);
 });
-test('plan expiry falls back to Free without deleting company data',()=>{
+test('expired trial becomes read-only without deleting company data',()=>{
   const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
-  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Business','Plan End':'2020-01-01','Төлөв':'Active'});
-  const c=f.ctx.getCompany_('Alpha');assert.equal(c.planId,'Free');assert.equal(c.status,'Free');assert.equal(f.stock(),100);
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Trial','Plan Start':'2020-01-01','Plan End':'2020-02-01','Billing Cycle':'trial','Төлөв':'Active'});
+  const company=f.ctx.getCompany_('Alpha');assert.equal(company.planId,'Expired');assert.equal(company.status,'Expired');assert.equal(f.stock(),100);
+  const dashboard=f.ctx.loadModule_(f.users.owner,'dashboard');assert.equal(dashboard.success,true);
+  assert.throws(()=>f.sale(),/багц|дууссан/);
+  assert.throws(()=>f.run({action:'addInventoryMove',product:'Талх',moveType:'орлого',quantity:1,warehouse:'Үндсэн агуулах'}),/багц|дууссан/);
 });
-
-test('seat limits survive downgrade and prioritize company managers',()=>{
-  const f=fixture();f.ctx.setCompanyPlan('Alpha','Free',0);const company=f.ctx.getCompany_('Alpha');
-  const status=f.ctx.planSeatStatus_(company);
-  assert.equal(status.used,5);assert.equal(status.max,2);assert.equal(status.over,3);
-  assert.equal(f.ctx.planSeatAllowed_(company,'owner'),true);
-  assert.equal(f.ctx.planSeatAllowed_(company,'rep'),true);
-  assert.equal(f.ctx.planSeatAllowed_(company,'driver'),false);
-  assert.throws(()=>f.ctx.secureLogin_({username:'driver',password:'pw'}),/2 идэвхтэй хэрэглэгч/);
+test('expired plan keeps only the manager seat active until renewal',()=>{
+  const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Trial','Plan End':'2020-02-01','Төлөв':'Active'});
+  const company=f.ctx.getCompany_('Alpha'),status=f.ctx.planSeatStatus_(company);
+  assert.equal(status.used,5);assert.equal(status.max,1);assert.equal(status.over,4);
+  assert.equal(f.ctx.planSeatAllowed_(company,'owner'),true);assert.equal(f.ctx.planSeatAllowed_(company,'rep'),false);
 });
-test('Business seat allowance admits five active company users',()=>{
-  const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const company=f.ctx.getCompany_('Alpha');
-  for(const username of ['owner','rep','driver','warehouse','accountant'])assert.equal(f.ctx.planSeatAllowed_(company,username),true);
+test('legacy Free row migrates once into a one-month Trial',()=>{
+  const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Free','Plan Start':'','Plan End':'','Billing Cycle':'free','Төлөв':'Free'});
+  f.ctx.ensureMasterSheets_();
+  const migrated=f.ctx.getCompany_('Alpha');
+  assert.equal(migrated.configuredPlanId,'Trial');assert.equal(migrated.status,'Active');assert.ok(migrated.expiresAt);
 });
-
-test('Free keeps basic dashboard while paid delivery module stays locked',()=>{
-  const f=fixture();f.ctx.setCompanyPlan('Alpha','Free',0);
-  const dashboard=f.ctx.loadModule_(f.users.owner,'dashboard');
-  assert.equal(dashboard.success,true);assert.ok(dashboard.dashboard);
-  assert.throws(()=>f.ctx.loadModule_(f.users.owner,'distribution'),/багц/);
+test('quick product creation records initial stock as an auditable inventory movement',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Trial',1);
+  const result=f.ctx.handleSaveProduct_(f.users.owner,{name:'Шинэ бараа',code:'12345',unit:'ш',price:2500,stock:12,threshold:0,clientId:'quick-product-1'});
+  assert.equal(result.success,true);assert.equal(result.product.stock,12);
+  const moves=f.ctx.opsRows_(f.books.A,'Агуулахын хөдөлгөөн').filter(e=>e.object['Бараа']==='Шинэ бараа');
+  assert.equal(moves.length,1);assert.equal(Number(moves[0].object['Тоо']),12);assert.equal(moves[0].object['Client ID'],'quick-product-1');
 });
 module.exports={fixture,test};
 console.log(`${tests.length} scenarios passed`);
