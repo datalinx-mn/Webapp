@@ -2757,7 +2757,7 @@
       if (!state.session?.token || !navigator.onLine) return;
       if (page === 'inventory' && !state.loaded.inventory) return loadModule('inventory');
       if (page === 'distribution' && !state.loaded.distribution) return loadModule('distribution');
-      if (page === 'dashboard' && isPremium() && !state.loaded.dashboard) return loadModule('dashboard');
+      if (page === 'dashboard' && hasEntitlement('basicDashboard') && !state.loaded.dashboard) return loadModule('dashboard');
       if (page === 'settings' && isManager() && !state.loaded.settings) return loadModule('settings');
     }
 
