@@ -13,7 +13,8 @@ const OPS_SCHEMA = {
   'Эхний авлага': ['OpeningID','Харилцагч','CustomerID','Дүн','Огноо','DueDate','CreatedBy','Reference','Status'],
   'Засварын журнал': ['CorrectionID','Type','ReferenceID','Reason','CreatedBy','CreatedAt'],
   'Мөнгө тушаалт': ['RemittanceID','Driver','Дүн','Огноо','CreatedBy','Тэмдэглэл'],
-  'Касс хаалт': ['CloseID','Date','OpeningCash','InitialCashSales','DirectCashPayments','DriverRemittances','CashRefundsAndReversals','SystemMovement','ExpectedCash','CountedCash','Difference','Reason','CreatedBy','CreatedAt','LegacyAmbiguousCount'],
+  'Касс хаалт': ['CloseID','Date','OpeningCash','InitialCashSales','DirectCashPayments','DriverRemittances','CashRefundsAndReversals','SupplierCashPayments','OtherCashExpenses','SystemMovement','ExpectedCash','CountedCash','Difference','Reason','CreatedBy','CreatedAt','LegacyAmbiguousCount'],
+  'Зардал': ['ExpenseID','Date','Category','Description','Amount','Method','Reference','Status','ReversalOf','CreatedBy','CreatedAt'],
   'Нийлүүлэгч': ['SupplierID','Name','RegistrationNumber','Phone','Email','Address','PaymentTermDays','Active','CreatedBy','CreatedAt'],
   'Худалдан авалт': ['PurchaseID','SupplierID','SupplierName','InvoiceNumber','Date','Warehouse','Status','Total','Notes','CreatedBy','CreatedAt'],
   'Худалдан авалтын мөр': ['PurchaseID','ProductID','Product','Quantity','UnitCost','Total','ExpiryDate','BatchCode','InputUnit','InputQuantity','InputUnitCost'],
@@ -179,7 +180,7 @@ function opsFeatureForAction_(action) {
     addSale:'sales',addInventoryMove:'inventory',addPayment:'receivables',returnSale:'returns',receiveReturn:'returns',
     refundPayment:'returns',approveReturn:'returns',reversePayment:'receivables',cancelSale:'sales',stocktake:'inventory',
     saveDelivery:'delivery',remitCash:'delivery',closeCash:'cashClose',saveSupplier:'suppliers',receivePurchase:'suppliers',
-    addSupplierPayment:'suppliers',importData:'csvImport'
+    addSupplierPayment:'suppliers',addExpense:'cashClose',reverseExpense:'cashClose',importData:'csvImport'
   })[action]||'';
 }
 function opsPlanCompany_(auth){return requireActiveCompany_(auth.companyId||auth.company);}
@@ -216,7 +217,7 @@ function handleOperation_(auth,p) {
       const legacy=opsRows_(ss,COMPANY_SHEETS.INVENTORY_MOVES).find(e=>e.object['Client ID']===requestId);
       if(legacy)return {success:true,duplicate:true,stock:Number(opsProduct_(ss,p.product).object['Одоогийн үлдэгдэл']),date:iso_(legacy.object['Огноо'])};
     }
-    const routes={addSale:opsAddSale_, addInventoryMove:opsInventory_, addPayment:opsPayment_, returnSale:opsReturn_, receiveReturn:opsReceiveReturn_, refundPayment:opsRefund_, saveDelivery:opsDelivery_, remitCash:opsRemit_,approveReturn:opsApproveReturn_,reversePayment:opsReversePayment_,cancelSale:opsCancelSale_,importData:dataImport_,stocktake:opsStocktake_,closeCash:opsCloseCash_,saveSupplier:opsSaveSupplier_,receivePurchase:opsReceivePurchase_,addSupplierPayment:opsSupplierPayment_};
+    const routes={addSale:opsAddSale_, addInventoryMove:opsInventory_, addPayment:opsPayment_, returnSale:opsReturn_, receiveReturn:opsReceiveReturn_, refundPayment:opsRefund_, saveDelivery:opsDelivery_, remitCash:opsRemit_,approveReturn:opsApproveReturn_,reversePayment:opsReversePayment_,cancelSale:opsCancelSale_,importData:dataImport_,stocktake:opsStocktake_,closeCash:opsCloseCash_,saveSupplier:opsSaveSupplier_,receivePurchase:opsReceivePurchase_,addSupplierPayment:opsSupplierPayment_,addExpense:opsAddExpense_,reverseExpense:opsReverseExpense_};
     if(!routes[p.action])throw new Error('Үйлдэл олдсонгүй.');
     const result=Object.assign({success:true},routes[p.action](auth,p,ss,tx));
     const serialized=JSON.stringify(tx.changes());
@@ -543,6 +544,27 @@ function opsReceivableAging_(sales,today) {
   });
   return buckets;
 }
+function opsAddExpense_(auth,p,ss,tx) {
+  opsAssertRole_(auth,['manager','admin','accountant']);
+  const date=opsDate_(p.date||opsDay_(),true),category=clean_(p.category),description=clean_(p.description);
+  if(!category)throw new Error('Зардлын ангиллыг сонгоно уу.');
+  if(!description)throw new Error('Зардлын тайлбарыг бичнэ үү.');
+  const amount=opsMoney_(positiveNumber_(p.amount,'Зардлын дүн'));
+  const method=clean_(p.method)||'Бэлэн';if(!['Бэлэн','Банк'].includes(method))throw new Error('Төлбөрийн аргаа сонгоно уу.');
+  const expenseId=createBusinessId_('EXP');
+  tx.add('Зардал',{ExpenseID:expenseId,Date:date,Category:category,Description:description,Amount:amount,Method:method,Reference:clean_(p.reference),Status:'Approved',ReversalOf:'',CreatedBy:auth.username,CreatedAt:new Date().toISOString()});
+  return {expenseId,date,amount,method};
+}
+function opsReverseExpense_(auth,p,ss,tx) {
+  opsAssertRole_(auth,['manager','admin','accountant']);
+  const id=clean_(p.expenseId),reason=clean_(p.reason);if(!id)throw new Error('Цуцлах зардлыг сонгоно уу.');if(!reason)throw new Error('Цуцлах шалтгааныг бичнэ үү.');
+  const original=tx.rows('Зардал').find(e=>e.object.ExpenseID===id);if(!original)throw new Error('Зардал олдсонгүй.');
+  if(clean_(original.object.ReversalOf)||Number(original.object.Amount||0)<=0)throw new Error('Цуцлалтын мөрийг дахин цуцлах боломжгүй.');
+  if(tx.rows('Зардал').some(e=>clean_(e.object.ReversalOf)===id))throw new Error('Энэ зардал өмнө цуцлагдсан байна.');
+  const o=original.object,reversalId=createBusinessId_('EXP');
+  tx.add('Зардал',{ExpenseID:reversalId,Date:opsDay_(),Category:o.Category,Description:'Цуцлалт: '+reason,Amount:opsMoney_(-Number(o.Amount||0)),Method:o.Method,Reference:o.ExpenseID,Status:'Reversal',ReversalOf:id,CreatedBy:auth.username,CreatedAt:new Date().toISOString()});
+  return {expenseId:id,reversalId,amount:opsMoney_(-Number(o.Amount||0))};
+}
 function opsCashMovementForDay_(ss,date) {
   const sales=opsRows_(ss,COMPANY_SHEETS.SALES);
   const firstBySale=new Map();
@@ -565,10 +587,12 @@ function opsCashMovementForDay_(ss,date) {
     if(amount>=0)directCashPayments+=amount; else cashRefundsAndReversals+=amount;
   });
   const driverRemittances=opsRows_(ss,'Мөнгө тушаалт').filter(e=>opsDay_(e.object['Огноо'])===date).reduce((s,e)=>s+Number(e.object['Дүн']||0),0);
+  const supplierCashPayments=opsRows_(ss,'Нийлүүлэгчийн төлбөр').filter(e=>opsDay_(e.object.Date)===date&&clean_(e.object.Method)==='Бэлэн').reduce((s,e)=>s+Number(e.object.Amount||0),0);
+  const otherCashExpenses=opsRows_(ss,'Зардал').filter(e=>opsDay_(e.object.Date)===date&&clean_(e.object.Method)==='Бэлэн').reduce((s,e)=>s+Number(e.object.Amount||0),0);
   initialCashSales=opsMoney_(initialCashSales);directCashPayments=opsMoney_(directCashPayments);
   cashRefundsAndReversals=opsMoney_(cashRefundsAndReversals);
-  const remitted=opsMoney_(driverRemittances);
-  return {date,initialCashSales,directCashPayments,driverRemittances:remitted,cashRefundsAndReversals,systemMovement:opsMoney_(initialCashSales+directCashPayments+remitted+cashRefundsAndReversals),legacyAmbiguousCount};
+  const remitted=opsMoney_(driverRemittances),supplierOut=opsMoney_(supplierCashPayments),expenseOut=opsMoney_(otherCashExpenses);
+  return {date,initialCashSales,directCashPayments,driverRemittances:remitted,cashRefundsAndReversals,supplierCashPayments:supplierOut,otherCashExpenses:expenseOut,systemMovement:opsMoney_(initialCashSales+directCashPayments+remitted+cashRefundsAndReversals-supplierOut-expenseOut),legacyAmbiguousCount};
 }
 function opsCloseCash_(auth,p,ss,tx) {
   opsAssertRole_(auth,['manager','admin','accountant']);
@@ -580,7 +604,7 @@ function opsCloseCash_(auth,p,ss,tx) {
   const reason=clean_(p.reason);
   if(Math.abs(difference)>=0.01&&!reason)throw new Error('Кассын зөрүүний шалтгааныг заавал бичнэ үү.');
   const closeId=createBusinessId_('CLOSE');
-  tx.add('Касс хаалт',{CloseID:closeId,Date:date,OpeningCash:opening,InitialCashSales:movement.initialCashSales,DirectCashPayments:movement.directCashPayments,DriverRemittances:movement.driverRemittances,CashRefundsAndReversals:movement.cashRefundsAndReversals,SystemMovement:movement.systemMovement,ExpectedCash:expected,CountedCash:counted,Difference:difference,Reason:reason,CreatedBy:auth.username,CreatedAt:new Date().toISOString(),LegacyAmbiguousCount:movement.legacyAmbiguousCount});
+  tx.add('Касс хаалт',{CloseID:closeId,Date:date,OpeningCash:opening,InitialCashSales:movement.initialCashSales,DirectCashPayments:movement.directCashPayments,DriverRemittances:movement.driverRemittances,CashRefundsAndReversals:movement.cashRefundsAndReversals,SupplierCashPayments:movement.supplierCashPayments,OtherCashExpenses:movement.otherCashExpenses,SystemMovement:movement.systemMovement,ExpectedCash:expected,CountedCash:counted,Difference:difference,Reason:reason,CreatedBy:auth.username,CreatedAt:new Date().toISOString(),LegacyAmbiguousCount:movement.legacyAmbiguousCount});
   return {closeId,date,openingCash:opening,expectedCash:expected,countedCash:counted,difference,legacyAmbiguousCount:movement.legacyAmbiguousCount};
 }
 function loadOperations_(auth,p) {
@@ -604,6 +628,7 @@ function loadOperations_(auth,p) {
     const finance=isManagerRole_(auth.role)||auth.role==='accountant';
     const cashMovement=finance&&plan.features.cashClose?opsCashMovementForDay_(ss,today):null;
     const cashCloses=finance&&plan.features.cashClose?opsRows_(ss,'Касс хаалт').map(e=>e.object).sort((a,b)=>String(b.Date).localeCompare(String(a.Date))).slice(0,14):[];
+    const expenses=finance&&plan.features.cashClose?opsRows_(ss,'Зардал').map(e=>e.object).sort((a,b)=>String(b.Date||b.CreatedAt).localeCompare(String(a.Date||a.CreatedAt))).slice(0,30):[];
     const salesOnly=active.filter(s=>s.recordType!=='opening');
     const revenueForCost=opsMoney_(salesOnly.reduce((sum,s)=>sum+Number(s.net||0),0));
     const knownRevenue=opsMoney_(salesOnly.reduce((sum,s)=>sum+Number(s.net||0)*Number(s.costCoveragePct||0)/100,0));
@@ -617,7 +642,7 @@ function loadOperations_(auth,p) {
     return {success:true,operations:{version:1,asOf:new Date().toISOString(),today,
       sales:active.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,100),
       pendingCredits:(isManagerRole_(auth.role)||auth.role==='accountant')?opsRows_(ss,'Буцаалт').filter(e=>e.object.CreditStatus==='Pending').map(e=>e.object):[],
-      receivables:auth.role==='warehouse'?[]:active.filter(s=>s.remaining>0||s.refundDue>0).map(s=>{const copy=Object.assign({},s);delete copy.items;delete copy.payments;delete copy.returns;return copy;}),receivableAging:auth.role==='warehouse'||!plan.features.advancedReports?null:opsReceivableAging_(active,today),pendingReturns:canManageInventory_(auth)?opsRows_(ss,'Буцаалт').filter(e=>e.object.Restock==='Үгүй').map(e=>e.object):[],deliveries,cash,cashMovement,cashCloses,drivers:isDriverRole_(auth.role)?drivers.filter(u=>u.username===auth.username):drivers,batches,
+      expenses,receivables:auth.role==='warehouse'?[]:active.filter(s=>s.remaining>0||s.refundDue>0).map(s=>{const copy=Object.assign({},s);delete copy.items;delete copy.payments;delete copy.returns;return copy;}),receivableAging:auth.role==='warehouse'||!plan.features.advancedReports?null:opsReceivableAging_(active,today),pendingReturns:canManageInventory_(auth)?opsRows_(ss,'Буцаалт').filter(e=>e.object.Restock==='Үгүй').map(e=>e.object):[],deliveries,cash,cashMovement,cashCloses,drivers:isDriverRole_(auth.role)?drivers.filter(u=>u.username===auth.username):drivers,batches,
       todayTotal:opsMoney_(active.filter(s=>s.recordType!=='opening'&&opsDay_(s.date)===today).reduce((s,x)=>s+x.net,0)),todayCount:active.filter(s=>s.recordType!=='opening'&&opsDay_(s.date)===today).length,
       lowStock:getProducts_(ss).filter(p=>p.stock<=p.threshold),
       profitability:plan.features.profitability?{revenue:revenueForCost,grossProfitKnown,costCoveragePct,grossProfit:costCoveragePct>=99.999?grossProfitKnown:null}:null,
