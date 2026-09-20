@@ -202,6 +202,7 @@ function loadModule_(auth, moduleName) {
     return { success: true, inventoryMoves: getRecentInventoryMoves_(companySs, 100) };
   }
   if (moduleName === 'distribution') {
+    assertEntitlement_(auth,'delivery');
     return { success: true, visits: getVisits_(companySs, auth, 50) };
   }
   if (moduleName === 'dashboard') {
@@ -209,7 +210,7 @@ function loadModule_(auth, moduleName) {
     return { success: true, dashboard: buildDashboard_(companySs) };
   }
   if (moduleName === 'settings') {
-    return { success: true, users: canManageUsers_(auth) ? getUsers_(auth.company) : [] };
+    return { success: true, users: canManageUsers_(auth) ? getUsers_(company.id) : [], seatStatus: canManageUsers_(auth) ? planSeatStatus_(company) : null, plan: publicPlan_(company) };
   }
   throw new Error('Тодорхойгүй module.');
 }
@@ -699,6 +700,27 @@ function getVisits_(companySs, auth, limit) {
   });
 }
 
+function planSeatAllowed_(company, username) {
+  if (!company || !username) return false;
+  const maxUsers = Math.max(1, Number(company.entitlements && company.entitlements.maxUsers || 1));
+  const rows = sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)).rows.filter(function(entry) {
+    const row=entry.object,active=clean_(field_(row,['Идэвхтэй'])).toLowerCase();
+    const sameId=company.id && clean_(field_(row,['Company ID']))===company.id;
+    const sameName=clean_(field_(row,['Компани нэр'])).toLowerCase()===company.name.toLowerCase();
+    return (sameId||sameName) && !['үгүй','inactive','false','0'].includes(active);
+  }).sort(function(a,b){
+    const roleA=normalizeRole_(field_(a.object,['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
+    const roleB=normalizeRole_(field_(b.object,['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
+    const priority=function(role){ return role==='admin'?0:role==='manager'?1:2; };
+    return priority(roleA)-priority(roleB) || a.rowNumber-b.rowNumber;
+  });
+  return rows.slice(0,maxUsers).some(function(entry){ return clean_(entry.object.Username).toLowerCase()===clean_(username).toLowerCase(); });
+}
+function planSeatStatus_(company) {
+  const users=getUsers_(company.id);
+  return {used:users.length,max:company.entitlements.maxUsers,over:Math.max(0,users.length-company.entitlements.maxUsers)};
+}
+
 function getUsers_(companyRef) {
   const company = getCompany_(companyRef);
   if (!company) return [];
@@ -1151,6 +1173,7 @@ function requireSession_(token) {
   const active = clean_(field_(user, ['Идэвхтэй'])).toLowerCase();
   if (active === 'үгүй' || active === 'inactive' || active === 'false' || active === '0') throw new Error('Хэрэглэгчийн эрх идэвхгүй байна.');
   const company = requireActiveCompany_(clean_(field_(user, ['Company ID'])) || clean_(field_(user, ['Компани нэр'])));
+  if (!planSeatAllowed_(company, auth.username)) throw new Error(company.entitlements.name+' багц '+company.entitlements.maxUsers+' идэвхтэй хэрэглэгч хүртэл. Менежер илүүдэл хэрэглэгчийг идэвхгүй болгох эсвэл багцаа ахиулна уу: '+UPGRADE_URL);
   if (auth.companyId && company.id && auth.companyId !== company.id) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
   if (Number(user.SessionVersion || 0) !== Number(auth.sessionVersion || 0)) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
   if (auth.issuedAt && Date.now() - Date.parse(auth.issuedAt) > 86400000) throw new Error('Session хугацаа дууссан.');
