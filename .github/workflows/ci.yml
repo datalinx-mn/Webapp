@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - feat/master-register-hardening
 
 permissions:
@@ -38,3 +39,17 @@ jobs:
           test ! -e dist/Code.gs
           test ! -e dist/OperationsService.gs
           test ! -e dist/SecurityService.gs
+      - name: Upload frontend release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: datalinx-frontend-dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Apps Script release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: datalinx-apps-script
+          path: release/Code.gs
+          if-no-files-found: error
+          retention-days: 14
