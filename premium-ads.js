@@ -8,9 +8,9 @@ const GOOGLE_ADSENSE_SCRIPT_ID = 'datalinx-google-adsense-script';
 
 const dataLinxGoogleAds = { scriptPromise: null };
 
-function isFreePlan() { return state.session?.companyStatus !== 'Inactive' && (state.session?.plan?.ads ?? state.session?.entitlements?.ads ?? state.session?.companyStatus === 'Free') === true; }
+function isFreePlan() { return state.session?.companyStatus !== 'Inactive' && (state.session?.plan?.ads ?? state.session?.entitlements?.ads ?? false) === true; }
 function isAdFreePlan() { return state.session?.companyStatus !== 'Inactive' && !isFreePlan(); }
-function monetizationPlan(){ return state.session?.plan || state.session?.entitlements || {id:'Free',name:'Free',monthlyPriceMnt:0,ads:true,maxUsers:2,maxWarehouses:1,features:{}}; }
+function monetizationPlan(){ return state.session?.plan || state.session?.entitlements || {id:'Expired',name:'Туршилтын хугацаа дууссан',monthlyPriceMnt:0,ads:false,maxUsers:1,maxWarehouses:1,features:{}}; }
 function currentPageName() { return document.querySelector('.page.active')?.id?.replace(/^page-/, '') || 'sales'; }
 function isGoogleAdsConfigured() {
   const pageLanguage = String(document.documentElement.lang || '').toLowerCase().split('-')[0];
@@ -45,7 +45,7 @@ function upgradeSettingsDesign() {
   const settingsAd = document.querySelector('[data-ad-placement="settings"]');
   if (settingsAd && settingsGrid) premiumCard.insertAdjacentElement('afterend', settingsAd);
   const privacy = document.querySelector('#page-settings .ad-privacy-note .card-subtitle');
-  if (privacy) privacy.textContent = 'Free багцад жижиг, саад болдоггүй зар/ивээн тэтгэсэн мэдээлэл харагдаж болно. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Business/Pro багцад Google AdSense-ийн гуравдагч талын script ачаалагдахгүй, sponsor content болон sponsor metric илгээгдэхгүй.';
+  if (privacy) privacy.textContent = 'Нэвтэрсэн аппын Trial, Business, Pro багцууд заргүй. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Нэвтэрсэн апп дотор Google AdSense-ийн гуравдагч талын script ачаалагдахгүй, sponsor content болон sponsor metric илгээгдэхгүй.';
   const subtitle = document.querySelector('#page-settings .page-head p');
   if (subtitle) subtitle.textContent = 'Эрхийн төлөв, зар, хэрэглэгч болон системийн тохиргоо.';
 }
@@ -56,8 +56,8 @@ function updatePlanUi() {
   const plan = monetizationPlan();
   const top = document.getElementById('topStatus');
   if (top) {
-    top.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Free' ? 'FREE · ЗАРТАЙ' : plan.id.toUpperCase() + ' · ЗАРГҮЙ';
-    top.className = `status-pill ${status === 'Inactive' ? 'inactive' : plan.id !== 'Free' ? 'premium' : ''}`;
+    top.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ТУРШИЛТ ДУУССАН' : plan.id.toUpperCase() + ' · ЗАРГҮЙ';
+    top.className = `status-pill ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
   }
   const badge = document.getElementById('settingsPlanBadge');
   const title = document.getElementById('subscriptionTitle');
@@ -65,18 +65,20 @@ function updatePlanUi() {
   const premiumCard = document.getElementById('premiumNoAdsCard');
   const upgrade = document.getElementById('upgradeNoAdsBtn');
   if (!badge || !title || !text || !premiumCard || !upgrade) return;
-  badge.className = `plan-badge ${status === 'Inactive' ? 'inactive' : plan.id !== 'Free' ? 'premium' : ''}`;
-  premiumCard.classList.toggle('hidden', plan.id === 'Free' || status === 'Inactive');
+  badge.className = `plan-badge ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
+  premiumCard.classList.toggle('hidden', status === 'Inactive' || plan.id === 'Expired');
   upgrade.classList.toggle('hidden', plan.id === 'Pro' || status === 'Inactive');
-  upgrade.textContent = plan.id === 'Business' ? 'Pro руу ахиулах' : 'Business / Pro харах';
+  upgrade.textContent = plan.id === 'Business' ? 'Pro руу ахиулах' : plan.id === 'Expired' ? 'Business / Pro сонгох' : 'Багц харах';
   if (status === 'Inactive') {
     badge.textContent = 'ИДЭВХГҮЙ'; title.textContent = 'Эрх идэвхгүй'; text.textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
+  } else if (plan.id === 'Expired') {
+    badge.textContent = 'ДУУССАН'; title.textContent = '1 сарын үнэгүй хугацаа дууссан'; text.textContent = 'Өгөгдөл хадгалагдсан. Шинэ гүйлгээ үргэлжлүүлэхийн тулд Business эсвэл Pro багц сонгоно уу.';
+  } else if (plan.id === 'Trial') {
+    badge.textContent = '1 САР ҮНЭГҮЙ'; title.textContent = 'Business туршилт · 0₮'; text.textContent = `Business-ийн бүх боломж · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · заргүй.`;
   } else if (plan.id === 'Pro') {
     badge.textContent = 'PRO'; title.textContent = 'Pro · 59,900₮ / сар'; text.textContent = `Заргүй · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · ашиг, integrity audit, advanced control.`;
-  } else if (plan.id === 'Business') {
-    badge.textContent = 'BUSINESS'; title.textContent = 'Business · 24,900₮ / сар'; text.textContent = `Заргүй · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · хүргэлт, PDF, backup, CSV, нийлүүлэгч/худалдан авалт.`;
   } else {
-    badge.textContent = 'FREE'; title.textContent = 'Free · 0₮ / сар'; text.textContent = `Үндсэн борлуулалт, бараа, авлага · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · зарын дэмжлэгтэй.`;
+    badge.textContent = 'BUSINESS'; title.textContent = 'Business · 24,900₮ / сар'; text.textContent = `Заргүй · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · хүргэлт, PDF, backup, CSV, нийлүүлэгч/худалдан авалт.`;
   }
 }
 function safeSponsorUrl(value) {
