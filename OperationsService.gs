@@ -385,14 +385,16 @@ function opsDelivery_(auth,p,ss,tx) {
 function opsRemit_(auth,p,ss,tx) {
   opsAssertRole_(auth,['manager','admin','accountant']);
   const driver=clean_(p.driver),amount=positiveNumber_(p.amount,'Хүлээн авсан мөнгө');
+  if(!driver || !getUsers_(auth.companyId||auth.company).some(u=>u.username===driver&&['driver','manager','admin'].includes(u.role)))throw new Error('Компанийн бүртгэлтэй жолоочийг сонгоно уу.');
   const balance=opsDriverCash_(ss,driver);
+  if(balance.remaining<=0)throw new Error('Жолоочид тушаах бэлэн мөнгөний үлдэгдэл алга.');
   if(amount>balance.remaining+0.001)throw new Error('Тушаах мөнгөний үлдэгдлээс их байна.');
-  tx.add('Мөнгө тушаалт',{RemittanceID:createBusinessId_('CASH'),Driver:driver,'Дүн':amount,'Огноо':new Date().toISOString(),CreatedBy:auth.username,'Тэмдэглэл':clean_(p.notes)});
+  tx.add('Мөнгө тушаалт',{RemittanceID:createBusinessId_('CASH'),Driver:driver,'Дүн':opsMoney_(amount),'Огноо':new Date().toISOString(),CreatedBy:auth.username,'Тэмдэглэл':clean_(p.notes)});
   return {remaining:opsMoney_(balance.remaining-amount)};
 }
 function opsDriverCash_(ss,driver) {
-  const collected=opsRows_(ss,COMPANY_SHEETS.PAYMENTS).filter(e=>e.object.Collector===driver && e.object['Төлбөрийн арга']==='Бэлэн' && e.object['Баталгаажуулсан']==='Тийм').reduce((s,e)=>s+Number(e.object['Дүн']),0);
-  const remitted=opsRows_(ss,'Мөнгө тушаалт').filter(e=>e.object.Driver===driver).reduce((s,e)=>s+Number(e.object['Дүн']),0);
+  const collected=opsMoney_(opsRows_(ss,COMPANY_SHEETS.PAYMENTS).filter(e=>e.object.Collector===driver && e.object['Төлбөрийн арга']==='Бэлэн' && e.object['Баталгаажуулсан']==='Тийм').reduce((s,e)=>s+Number(e.object['Дүн']),0));
+  const remitted=opsMoney_(opsRows_(ss,'Мөнгө тушаалт').filter(e=>e.object.Driver===driver).reduce((s,e)=>s+Number(e.object['Дүн']),0));
   return {driver,collected,remitted,remaining:opsMoney_(collected-remitted)};
 }
 function loadOperations_(auth,p) {
@@ -433,11 +435,12 @@ function opsReceiveReturn_(auth,p,ss,tx) {
     tx.set('Буцаалт',entry.rowNumber,Object.assign(received,{Restock:'Хорогдол'}));
     return {};
   }
-  const r=entry.object,qty=Number(r['Тоо']),product=opsProduct_(ss,r['Бараа']);
+  const r=entry.object,qty=opsQty_(Number(r['Тоо'])),product=opsProduct_(ss,r.ProductID||r['Бараа']);
+  const productId=clean_(product.object.ProductID);
   opsStock_(ss,tx,product,r.Warehouse,qty);
-  if(r.Expiry)tx.add('Цуврал',{BatchID:createBusinessId_('RETLOT'),'Бараа':r['Бараа'],'Агуулах':r.Warehouse,'Дуусах огноо':r.Expiry,'Үлдэгдэл':qty,CreatedAt:new Date().toISOString()});
-  tx.set('Буцаалт',entry.rowNumber,Object.assign(received,{Restock:'Тийм'}));
-  opsMove_(tx,auth,{'Бараа':r['Бараа'],'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Тоо':qty,'Агуулах':r.Warehouse,SaleID:r.SaleID,'Client ID':p.clientId,'Шалтгаан':'Буцаалт хүлээн авсан '+r.ReturnID});
+  if(r.Expiry)tx.add('Цуврал',{BatchID:createBusinessId_('RETLOT'),'Бараа':r['Бараа'],ProductID:productId,'Агуулах':r.Warehouse,'Дуусах огноо':r.Expiry,'Үлдэгдэл':qty,CreatedAt:new Date().toISOString()});
+  tx.set('Буцаалт',entry.rowNumber,Object.assign(received,{Restock:'Тийм',ProductID:productId}));
+  opsMove_(tx,auth,{'Бараа':r['Бараа'],ProductID:productId,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Тоо':qty,'Агуулах':r.Warehouse,SaleID:r.SaleID,'Client ID':p.clientId,'Шалтгаан':'Буцаалт хүлээн авсан '+r.ReturnID});
   return {};
 }
 
