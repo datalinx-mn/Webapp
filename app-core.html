@@ -2819,7 +2819,7 @@
           }
           if (module === 'settings') {
             state.users = Array.isArray(data.users) ? data.users : [];
-            state.seatStatus = data.seatStatus || {used:state.users.length,max:planLimit('maxUsers',2),over:Math.max(0,state.users.length-planLimit('maxUsers',2))};
+            state.seatStatus = data.seatStatus || {used:state.users.length,max:planLimit('maxUsers',1),over:Math.max(0,state.users.length-planLimit('maxUsers',2))};
             if(data.plan) state.session.plan=data.plan;
             state.loaded.settings = true;
           }
@@ -3963,7 +3963,7 @@
         ['Username', user.username || ''],
         ['Роль', roleLabel(user.role)],
         ['Компани', user.company || ''],
-        ['Багц', currentPlan().name || 'Free'],
+        ['Багц', currentPlan().name || 'Туршилтын хугацаа дууссан'],
         ['Хэрэглэгчийн эрх', (state.seatStatus ? state.seatStatus.used : state.users.length) + ' / ' + planLimit('maxUsers',2)],
         ['Sync хүлээж буй', String(pendingQueueCount())]
       ].map(([label, value]) => `<div class="list-item"><div class="list-main"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div></div>`).join('');
