@@ -152,7 +152,7 @@ function buildInitialPayload_(auth) {
 }
 
 function loadModule_(auth, moduleName) {
-  const company = requireActiveCompany_(auth.company);
+  const company = requireActiveCompany_(auth.companyId || auth.company);
   const companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
   if (moduleName === 'inventory') {
@@ -172,7 +172,7 @@ function loadModule_(auth, moduleName) {
 }
 
 function loadOlderHistory_(auth, params) {
-  const company = requireActiveCompany_(auth.company);
+  const company = requireActiveCompany_(auth.companyId || auth.company);
   const companySs = openCompanySs_(company);
   const sheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
   const lastRow = sheet.getLastRow();
@@ -247,7 +247,7 @@ function handleAddVisit_(auth, p) {
   opsAssertRole_(auth, ['manager','admin','rep','sales','driver']);
   if (Number(p.collectedPayment || 0) || clean_(p.returnedProducts)) throw new Error('Төлбөр, буцаалтыг Өнөөдөр хэсгийн хүргэлт эсвэл Мөнгө хэсгээс бүртгэнэ үү.');
   if (clean_(p.saleId)) throw new Error('Борлуулалттай хүргэлтийг Өнөөдөр → Хүргэлт хэсгээс бүртгэнэ үү.');
-  const company = requireActiveCompany_(auth.company);
+  const company = requireActiveCompany_(auth.companyId || auth.company);
   const companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
   const customerName = clean_(p.customer);
