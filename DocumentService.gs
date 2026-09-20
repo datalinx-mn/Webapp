@@ -7,6 +7,7 @@ const DOCUMENT_TYPES = {
 };
 
 function handleGetPrintPreview_(auth, payload) {
+  assertEntitlement_(auth,'pdf');
   const type = normalizeDocumentType_(payload.documentType);
   const referenceId = getReferenceIdFromPayload_(type, payload);
   const printable = getPrintableDataByType_(type, referenceId, auth, true);
@@ -24,6 +25,7 @@ function handleGetPrintPreview_(auth, payload) {
 }
 
 function handleGeneratePdf_(auth, payload) {
+  assertEntitlement_(auth,'pdf');
   const type = normalizeDocumentType_(payload.documentType);
   const referenceId = getReferenceIdFromPayload_(type, payload);
   const forceNewVersion = Boolean(payload.forceNewVersion);
@@ -33,6 +35,7 @@ function handleGeneratePdf_(auth, payload) {
 }
 
 function handleGetDocumentHistory_(auth, payload) {
+  assertEntitlement_(auth,'pdf');
   const type = normalizeDocumentType_(payload.documentType);
   const referenceId = getReferenceIdFromPayload_(type, payload);
   const company = requireActiveCompany_(auth.companyId || auth.company);
