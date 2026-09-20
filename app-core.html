@@ -3449,19 +3449,19 @@
     async function deleteProduct(name) {
       const product = state.products.find(item => item.name === name);
       if (!product) return toast('Барааны мэдээлэл олдсонгүй.', 'error');
-      if (numberValue(product.stock) !== 0) return toast('Үлдэгдэлтэй барааг устгах боломжгүй. Эхлээд үлдэгдлийг 0 болгоно уу.', 'error');
-      if (!confirm(`“${name}” барааг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
+      if (numberValue(product.stock) !== 0) return toast('Үлдэгдэлтэй барааг идэвхгүй болгох боломжгүй. Эхлээд үлдэгдлийг 0 болгоно уу.', 'error');
+      if (!confirm(`“${name}” барааг идэвхгүй болгох уу? Өмнөх борлуулалт, хөдөлгөөний түүх хэвээр үлдэнэ.`)) return;
       try {
-        if (!navigator.onLine) throw new Error('Бараа устгахад интернет холболт шаардлагатай.');
-        showLoading('Бараа устгаж байна...');
+        if (!navigator.onLine) throw new Error('Барааг идэвхгүй болгоход интернет холболт шаардлагатай.');
+        showLoading('Барааг идэвхгүй болгож байна...');
         const data = await postAction({ action: 'deleteProduct', name });
-        if (!data.success) throw new Error(data.message || 'Бараа устгаж чадсангүй.');
+        if (!data.success) throw new Error(data.message || 'Барааг идэвхгүй болгож чадсангүй.');
         state.serverProducts = Array.isArray(data.products) ? data.products : state.serverProducts.filter(item => item.name !== name);
         rebuildOptimisticState();
         if ($('#productOriginalName').value === name) resetProductForm();
         renderAll();
         saveCache();
-        toast('Бараа устгагдлаа.', 'success');
+        toast('Бараа идэвхгүй боллоо.', 'success');
       } catch (error) {
         toast(error.message, 'error');
       } finally {
