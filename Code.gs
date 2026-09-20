@@ -29,14 +29,14 @@ const COMPANY_SHEETS = {
 };
 
 const SHEET_HEADERS = {
-  PRODUCTS: ['Барааны нэр','Нэгж үнэ','Одоогийн үлдэгдэл','Бага үлдэгдлийн хязгаар','Код','Хэмжих нэгж','Идэвхтэй'],
-  SALES: ['Огноо','Рэп нэр','Бараа','Тоо','Үнэ','Нийт дүн','Харилцагч','Төлбөрийн төрөл','Байршил','Client ID','SaleID','Status','Warehouse','DeliveryType','DeliveryDate','Notes','InvoiceNumber','InvoicePdfUrl','InvoiceGeneratedAt','WarehouseIssueNumber','WarehouseIssuePdfUrl','WarehouseIssueGeneratedAt','CustomerID','Discount','VAT','PaidAmount','DueDate','DeliveryID','CreatedBy'],
-  INVENTORY_MOVES: ['Огноо','Бараа','Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)','Тоо','Шалтгаан','Агуулах','Гарах агуулах','Хүлээн авах агуулах','Client ID','SaleID','DistributionID','Confirmed','Нэгж үнэ','Нийт дүн','Рэп нэр'],
-  NORMS: ['Бараа','Бага үлдэгдлийн хязгаар'],
-  DISTRIBUTION_ITEMS: ['DistributionID','SaleID','Бараа','Код','Нэгж','Захиалсан','Хүргэсэн','Буцаасан','Нэгжийн үнэ','Нийт дүн'],
+  PRODUCTS: ['Барааны нэр','Нэгж үнэ','Одоогийн үлдэгдэл','Бага үлдэгдлийн хязгаар','Код','Хэмжих нэгж','Идэвхтэй','ProductID'],
+  SALES: ['Огноо','Рэп нэр','Бараа','Тоо','Үнэ','Нийт дүн','Харилцагч','Төлбөрийн төрөл','Байршил','Client ID','SaleID','Status','Warehouse','DeliveryType','DeliveryDate','Notes','InvoiceNumber','InvoicePdfUrl','InvoiceGeneratedAt','WarehouseIssueNumber','WarehouseIssuePdfUrl','WarehouseIssueGeneratedAt','CustomerID','Discount','VAT','PaidAmount','DueDate','DeliveryID','CreatedBy','ProductID','InputUnit','InputQuantity','InputUnitPrice'],
+  INVENTORY_MOVES: ['Огноо','Бараа','Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)','Тоо','Шалтгаан','Агуулах','Гарах агуулах','Хүлээн авах агуулах','Client ID','SaleID','DistributionID','Confirmed','Нэгж үнэ','Нийт дүн','Рэп нэр','ProductID'],
+  NORMS: ['Бараа','Бага үлдэгдлийн хязгаар','ProductID'],
+  DISTRIBUTION_ITEMS: ['DistributionID','SaleID','Бараа','Код','Нэгж','Захиалсан','Хүргэсэн','Буцаасан','Нэгжийн үнэ','Нийт дүн','ProductID'],
   VISITS: ['Огноо','Рэп нэр','Харилцагч','Өргөрөг','Уртраг','Зургийн холбоос','Тэмдэглэл','Client ID','DistributionID','SaleID','InvoiceNumber','PlannedDeliveryDate','DeliveredAt','Route','Vehicle','Driver','SalesEmployee','Warehouse','CustomerPhone','CustomerAddress','LocationText','ContactPerson','Status','DeliveryNotes','FailureReason','ReturnedProducts','CollectedPayment','PaymentMethod','RemainingReceivable','DistributionReceiptNumber','DistributionReceiptPdfUrl','DistributionReceiptGeneratedAt','ReceivedBy','CustomerSignatureUrl','ProofImageUrl'],
   WAREHOUSES: ['Агуулахын нэр','Хариуцсан нярав','Хаяг','Утас'],
-  WAREHOUSE_STOCK: ['Агуулах','Бараа','Үлдэгдэл'],
+  WAREHOUSE_STOCK: ['Агуулах','Бараа','Үлдэгдэл','ProductID'],
   LOCATIONS: ['Байршлын нэр'],
   CUSTOMERS: ['Харилцагчийн нэр','CustomerID','Регистрийн дугаар','Утас','Хаяг','Холбоо барих хүн','Төлбөрийн нөхцөл','Идэвхтэй'],
   SETTINGS: ['Түлхүүр','Утга','Тайлбар'],
@@ -484,9 +484,13 @@ function getProducts_(companySs) {
     const name = clean_(field_(entry.object, ['Бараа']));
     if (name) norms[name.toLowerCase()] = Number(field_(entry.object, ['Бага үлдэгдлийн хязгаар']) || 0);
   });
-  return productData.rows.filter(function(entry) { return clean_(field_(entry.object, ['Барааны нэр'])); }).map(function(entry) {
+  return productData.rows.filter(function(entry) {
+    const active = clean_(field_(entry.object, ['Идэвхтэй'])).toLowerCase();
+    return clean_(field_(entry.object, ['Барааны нэр'])) && !['false','0','үгүй','inactive'].includes(active);
+  }).map(function(entry) {
     const name = clean_(field_(entry.object, ['Барааны нэр']));
     return {
+      id: clean_(field_(entry.object, ['ProductID'])),
       name: name,
       code: clean_(field_(entry.object, ['Код'])),
       unit: clean_(field_(entry.object, ['Хэмжих нэгж'])) || 'ш',
@@ -927,6 +931,40 @@ function ensureCompanySheets_(ss) {
   ensureSheet_(ss, COMPANY_SHEETS.DOCUMENT_NUMBERS, SHEET_HEADERS.DOCUMENT_NUMBERS);
   ensureSheet_(ss, COMPANY_SHEETS.DOCUMENTS, SHEET_HEADERS.DOCUMENTS);
   ensureOperationsSheets_(ss);
+  backfillCompanyEntityIds_(ss);
+}
+
+function backfillCompanyEntityIds_(ss) {
+  const productSheet = ss.getSheetByName(COMPANY_SHEETS.PRODUCTS);
+  const productRows = sheetObjects_(productSheet).rows;
+  const productIds = {};
+  productRows.forEach(function(entry) {
+    const name = clean_(field_(entry.object, ['Барааны нэр']));
+    if (!name) return;
+    let id = clean_(field_(entry.object, ['ProductID']));
+    if (!id) {
+      id = createBusinessId_('PRD');
+      setObjectFields_(productSheet, entry.rowNumber, { ProductID: id });
+    }
+    productIds[name.toLowerCase()] = id;
+  });
+
+  const customerSheet = ss.getSheetByName(COMPANY_SHEETS.CUSTOMERS);
+  sheetObjects_(customerSheet).rows.forEach(function(entry) {
+    const name = clean_(field_(entry.object, ['Харилцагчийн нэр']));
+    if (!name || clean_(field_(entry.object, ['CustomerID']))) return;
+    setObjectFields_(customerSheet, entry.rowNumber, { CustomerID: createBusinessId_('CUS') });
+  });
+
+  [COMPANY_SHEETS.NORMS, COMPANY_SHEETS.WAREHOUSE_STOCK].forEach(function(sheetName) {
+    const sheet = ss.getSheetByName(sheetName);
+    sheetObjects_(sheet).rows.forEach(function(entry) {
+      if (clean_(field_(entry.object, ['ProductID']))) return;
+      const name = clean_(field_(entry.object, ['Бараа']));
+      const id = productIds[name.toLowerCase()];
+      if (id) setObjectFields_(sheet, entry.rowNumber, { ProductID: id });
+    });
+  });
 }
 
 function seedCompanySettings_(ss, companyInfo) {
