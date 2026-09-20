@@ -15,7 +15,7 @@
 function handleSaveProduct_(auth, payload) {
   assertProductManager_(auth);
 
-  var company = requireActiveCompany_(auth.company || auth.companyName);
+  var company = requireActiveCompany_(auth.companyId || auth.company || auth.companyName);
   var companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
 
@@ -104,7 +104,7 @@ function handleDeleteProduct_(auth, payload) {
   var name = clean_(payload.name);
   if (!name) throw new Error('Устгах барааг сонгоно уу.');
 
-  var company = requireActiveCompany_(auth.company || auth.companyName);
+  var company = requireActiveCompany_(auth.companyId || auth.company || auth.companyName);
   var companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
 
