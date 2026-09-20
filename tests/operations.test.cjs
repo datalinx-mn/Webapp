@@ -26,7 +26,7 @@ function fixture(){
  });
  for(const f of ['Bcrypt.gs','SecurityService.gs','ReliabilityService.gs','BackupService.gs','SponsorshipService.gs','Code.gs','OperationsService.gs','DocumentService.gs','ProductService.gs','PdfService.gs'])vm.runInContext(fs.readFileSync(f,'utf8'),ctx,{filename:f});
  ctx.ensureMasterSheets_();
- master.getSheetByName('Компани').appendRow(['Alpha','A','Free','',0,'12345678','']);master.getSheetByName('Компани').appendRow(['Beta','B','Free','',0,'12345678','']);
+ ctx.appendObjectRow_(master.getSheetByName('Компани'),{'Компани нэр':'Alpha','Spreadsheet ID':'A','Төлөв':'Active','Утас':'12345678',Plan:'Pro','Billing Cycle':'monthly'});ctx.appendObjectRow_(master.getSheetByName('Компани'),{'Компани нэр':'Beta','Spreadsheet ID':'B','Төлөв':'Active','Утас':'12345678',Plan:'Pro','Billing Cycle':'monthly'});
  for(const u of [['owner','Manager','manager','Alpha'],['rep','Seller','rep','Alpha'],['driver','Driver','driver','Alpha'],['warehouse','Keeper','warehouse','Alpha'],['accountant','Finance','accountant','Alpha'],['other','Other','manager','Beta']])master.getSheetByName('Хэрэглэгч').appendRow([u[0],'pw',u[1],u[2],u[3]]);
  for(const ss of [books.A,books.B]){ctx.ensureCompanySheets_(ss);ctx.appendObjectRow_(ss.getSheetByName('Агуулах'),{'Агуулахын нэр':'Main'});ctx.appendObjectRow_(ss.getSheetByName('Агуулах'),{'Агуулахын нэр':'Other'});ctx.appendObjectRow_(ss.getSheetByName('Байршил'),{'Байршлын нэр':'Main'});ctx.appendObjectRow_(ss.getSheetByName('Бараа'),{'Барааны нэр':'Bread','Нэгж үнэ':100,'Одоогийн үлдэгдэл':100,'Хэмжих нэгж':'ш','Идэвхтэй':true,PackSize:12,PackName:'Box'});ctx.appendObjectRow_(ss.getSheetByName('Бараа'),{'Барааны нэр':'Cake','Нэгж үнэ':200,'Одоогийн үлдэгдэл':50,'Хэмжих нэгж':'ш','Идэвхтэй':true});}
  const users={owner:{username:'owner',fullName:'Manager',role:'manager',company:'Alpha'},rep:{username:'rep',fullName:'Seller',role:'rep',company:'Alpha'},driver:{username:'driver',fullName:'Driver',role:'driver',company:'Alpha'},warehouse:{username:'warehouse',fullName:'Keeper',role:'warehouse',company:'Alpha'},accountant:{username:'accountant',fullName:'Finance',role:'accountant',company:'Alpha'},other:{username:'other',fullName:'Other',role:'manager',company:'Beta'}};
@@ -108,6 +108,36 @@ test('MASTER backfill creates stable IDs and bootstrap does not expose spreadshe
   const payload=f.ctx.buildInitialPayload_(f.users.owner);
   assert.equal(payload.company.id,company.id);
   assert.equal(Object.prototype.hasOwnProperty.call(payload.company,'spreadsheetId'),false);
+});
+
+test('plan catalog keeps core Free features while blocking paid operations',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Free',0);
+  const company=f.ctx.getCompany_('Alpha');
+  assert.equal(company.planId,'Free');assert.equal(company.entitlements.ads,true);assert.equal(company.entitlements.maxUsers,2);assert.equal(company.entitlements.maxWarehouses,1);
+  const sale=f.sale();assert.ok(sale.saleId);
+  assert.throws(()=>f.run({action:'saveDelivery',saleId:sale.saleId,driver:'driver',date:'2026-09-20'}),/багц/);
+  assert.throws(()=>f.run({action:'saveSupplier',name:'Supplier'}),/багц/);
+  assert.throws(()=>f.ctx.dataPreviewImport_(f.users.owner,{kind:'customers',rows:[{name:'X'}],clientId:'preview'}),/багц/);
+  assert.throws(()=>f.ctx.dataIntegrityCheck_(f.users.owner),/багц/);
+  assert.throws(()=>f.ctx.handleGetPrintPreview_(f.users.owner,{documentType:'INVOICE',saleId:sale.saleId}),/багц/);
+  assert.throws(()=>f.ctx.backupAction_(f.users.owner,{action:'backupStatus'}),/багц/);
+});
+test('Business is ad-free and unlocks operations but not Pro controls',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const c=f.ctx.getCompany_('Alpha');
+  assert.equal(c.planId,'Business');assert.equal(c.entitlements.ads,false);assert.equal(c.entitlements.monthlyPriceMnt,24900);
+  assert.equal(c.entitlements.features.delivery,true);assert.equal(c.entitlements.features.pdf,true);assert.equal(c.entitlements.features.suppliers,true);
+  assert.equal(c.entitlements.features.profitability,false);assert.equal(c.entitlements.features.integrityAudit,false);
+  assert.equal(c.entitlements.maxUsers,5);assert.equal(c.entitlements.maxWarehouses,2);
+});
+test('Pro unlocks profitability and integrity controls',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Pro',1);const c=f.ctx.getCompany_('Alpha');
+  assert.equal(c.entitlements.monthlyPriceMnt,59900);assert.equal(c.entitlements.features.profitability,true);assert.equal(c.entitlements.features.integrityAudit,true);
+  assert.equal(c.entitlements.maxUsers,20);assert.equal(c.entitlements.maxWarehouses,10);
+});
+test('plan expiry falls back to Free without deleting company data',()=>{
+  const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Business','Plan End':'2020-01-01','Төлөв':'Active'});
+  const c=f.ctx.getCompany_('Alpha');assert.equal(c.planId,'Free');assert.equal(c.status,'Free');assert.equal(f.stock(),100);
 });
 module.exports={fixture,test};
 console.log(`${tests.length} scenarios passed`);
