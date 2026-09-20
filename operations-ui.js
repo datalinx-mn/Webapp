@@ -93,7 +93,7 @@ function opsPurchaseLineMarkup(index,item={}) {
   const selected=item.product||products[0]?.name||'';
   const product=products.find(p=>p.name===selected)||products[0];
   const productOptions=products.map(p=>opsOption(p.name,p.name,p.name===selected)).join('');
-  const unitOptions=opsOption('base',product?.unit||'Үндсэн нэгж',item.inputUnit!=='pack')+(product?.packSize>1?opsOption('pack',`${product.packName||'Хайрцаг'} (${product.packSize} ${product.unit})`,item.inputUnit==='pack'):'');
+  const unitOptions=opsOption('base','Үндсэн нэгж',item.inputUnit!=='pack')+opsOption('pack','Савлагаа',item.inputUnit==='pack');
   return `<fieldset class="ops-purchase-line"><legend>Бараа ${index+1}</legend><div class="form-grid two">${opsSelect('Бараа',`purchaseProduct-${index}`,productOptions)}${opsField('Тоо',`purchaseQty-${index}`,'number',item.quantity||'',`required min="0.000001" step="any"`)}${opsSelect('Оруулах нэгж',`purchaseUnit-${index}`,unitOptions)}${opsField('Өртөг (сонгосон нэгжээр)',`purchaseCost-${index}`,'number',item.unitCost||'',`required min="0" step="0.01"`)}${opsField('Дуусах огноо',`purchaseExpiry-${index}`,'date',item.expiryDate||'')}${opsField('Цуврал / batch',`purchaseBatch-${index}`,'text',item.batchCode||'')}</div>${operations.purchaseDraft.length>1?opsButton('Энэ мөрийг хасах','purchase-remove',String(index)):''}</fieldset>`;
 }
 function opsRenderPurchaseLines() {
@@ -152,6 +152,36 @@ async function handleOperationsClick(event) {
     if(action==='delivery-print'){const v=operations.data.deliveries.find(v=>v.distributionId===id);state.selectedDistribution=v;state.selectedSale=null;return openDocumentPreview('DISTRIBUTION');}
     if(action==='receive-return')return opsModal('Буцаасан барааг шалгах','<p>Дахин борлуулах боломжтой барааг агуулахын үлдэгдэлд нэмнэ. Хорогдлыг тусад нь тэмдэглэнэ.</p>'+opsSelect('Шалгалтын дүн','disposition',opsOption('restock','Агуулахад авах')+opsOption('writeoff','Гэмтсэн / хорогдол'))+opsField('Тэмдэглэл','notes'),'receiveReturn',{returnId:id});
     if(action==='remit'){const c=operations.data.cash.find(c=>c.driver===id);return opsModal('Бэлэн мөнгө хүлээн авах',`<p>Тушаах үлдэгдэл: ${money(c.remaining)}</p>${opsField('Бодитоор хүлээн авсан дүн','amount','number','',`required min="0.01" max="${c.remaining}" step="0.01"`)}${opsField('Тэмдэглэл','notes')}`,'remitCash',{driver:id});}
+    if(action==='supplier-add'){
+      if(!opsFinance())throw new Error('Нийлүүлэгч бүртгэх эрх хүрэлцэхгүй байна.');
+      return opsModal('Нийлүүлэгч нэмэх',opsField('Нэр','name','text','', 'required maxlength="120"')+opsField('Регистр','registrationNumber')+opsField('Утас','phone','tel')+opsField('Имэйл','email','email')+opsField('Хаяг','address')+opsField('Төлбөрийн ердийн хугацаа (хоног)','paymentTermDays','number','0','min="0" step="1"'),'saveSupplier');
+    }
+    if(action==='purchase'){
+      if(!(opsStockRole()||opsFinance()))throw new Error('Татан авалт хүлээн авах эрх хүрэлцэхгүй байна.');
+      if(!operations.data.suppliers?.length)throw new Error(opsFinance()?'Эхлээд нийлүүлэгч нэмнэ үү.':'Менежер эсвэл нягтлан эхлээд нийлүүлэгч бүртгэнэ.');
+      if(!state.products.length)throw new Error('Эхлээд бараа бүртгэнэ үү.');
+      operations.purchaseDraft=[{}];
+      const supplierOptions=operations.data.suppliers.map(s=>opsOption(s.SupplierID,s.Name)).join('');
+      const warehouses=(state.warehouses||[]).map(w=>typeof w==='string'?w:(w.name||w['Агуулахын нэр']||'')).filter(Boolean);
+      const warehouseOptions=warehouses.map(w=>opsOption(w,w)).join('');
+      const paymentFields=opsFinance()?opsField('Одоо төлсөн дүн','paidAmount','number','0','min="0" step="0.01"')+opsSelect('Төлбөрийн арга','paymentMethod',opsOption('Банк','Банканд орсон')+opsOption('Бэлэн','Бэлэн')):'';
+      opsModal('Татан авалт хүлээн авах',opsSelect('Нийлүүлэгч','supplierId',supplierOptions)+opsField('Нэхэмжлэх / баримтын №','invoiceNumber')+opsField('Огноо','date','date',operations.data.today,'required')+opsSelect('Агуулах','warehouse',warehouseOptions)+'<div id="ops-purchase-lines"></div><div class="ops-actions">'+opsButton('Барааны мөр нэмэх','purchase-add-line')+'</div>'+paymentFields+opsField('Тэмдэглэл','notes'),'receivePurchase');
+      opsRenderPurchaseLines();return;
+    }
+    if(action==='purchase-add-line'){
+      if(operations.purchaseDraft.length>=40)throw new Error('Нэг татан авалтад 40 хүртэл барааны мөр оруулна.');
+      operations.purchaseDraft.push({});opsRenderPurchaseLines();return;
+    }
+    if(action==='purchase-remove'){
+      const index=Number(id);if(operations.purchaseDraft.length<=1)return;
+      operations.purchaseDraft.splice(index,1);opsRenderPurchaseLines();return;
+    }
+    if(action==='supplier-payment'){
+      if(!opsFinance())throw new Error('Нийлүүлэгчийн төлбөр бүртгэх эрх хүрэлцэхгүй байна.');
+      const purchase=(operations.data.supplierPayables||[]).find(x=>x.id===id)||(operations.data.purchases||[]).find(x=>x.id===id);
+      if(!purchase||purchase.payable<=0)throw new Error('Төлөх өглөг олдсонгүй.');
+      return opsModal('Нийлүүлэгчийн төлбөр',`<p>${opsEsc(purchase.supplier)} · ${opsEsc(purchase.invoiceNumber||purchase.id)} · Үлдэгдэл <strong>${money(purchase.payable)}</strong></p>${opsField('Төлөх дүн','amount','number',purchase.payable,`required min="0.01" max="${purchase.payable}" step="0.01"`)}${opsSelect('Төлбөрийн арга','method',opsOption('Банк','Банканд орсон')+opsOption('Бэлэн','Бэлэн'))}${opsField('Тэмдэглэл','notes')}`,'addSupplierPayment',{purchaseId:purchase.id});
+    }
     if(action==='cash-close'){
       if(!opsFinance())throw new Error('Касс хаах эрх хүрэлцэхгүй байна.');
       if((operations.data.cashCloses||[]).some(x=>x.Date===operations.data.today))throw new Error('Өнөөдрийн касс хаалт өмнө бүртгэгдсэн байна.');
@@ -197,9 +227,18 @@ async function submitOperationForm(event) {
     const payload={...operations.formValues,...values,action:operations.formAction,clientId:operations.requestId};
     if(payload.action==='returnSale')payload.restock=values.restock==='on';
     if(payload.action==='saveDelivery'&&payload.distributionId)payload.items=operations.modalSale.items.map((i,index)=>({delivered:Number(values['delivered-'+index]),returned:Number(values['returned-'+index])}));
+    if(payload.action==='receivePurchase'){
+      payload.items=operations.purchaseDraft.map((item,index)=>{
+        const productName=values['purchaseProduct-'+index],product=state.products.find(p=>p.name===productName);
+        if(!product)throw new Error('Татан авалтын бараа олдсонгүй.');
+        return {product:productName,productId:product.id||'',inputQuantity:Number(values['purchaseQty-'+index]),inputUnit:values['purchaseUnit-'+index]||'base',inputUnitCost:Number(values['purchaseCost-'+index]),expiryDate:values['purchaseExpiry-'+index]||'',batchCode:values['purchaseBatch-'+index]||''};
+      });
+    }
     const result=await postAction(payload);
     if(!result.success)throw new Error(result.message||'Хадгалж чадсангүй.');
     opsEl('ops-dialog').close();toast('Системд хадгаллаа.','success');
+    if(result.costWarnings?.length)toast(result.costWarnings.join(' '),'error');
+    operations.purchaseDraft=[];
     await refreshData(false);await loadOperations(true);
   } catch(error){opsEl('ops-form-error').textContent=error.message;}
   finally {operations.busy=false;setButtonLoading(opsEl('ops-save'),false);}
