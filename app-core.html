@@ -1748,6 +1748,7 @@
       locations: [],
       visits: [],
       users: [],
+      seatStatus: null,
       ads: [],
       saleCart: [],
       dashboard: null,
@@ -2378,7 +2379,7 @@
       state.serverTransactions = [];
       state.serverInventoryMoves = [];
       state.ads = [];
-      state.visits=[];state.users=[];state.customers=[];state.dashboard=null;
+      state.visits=[];state.users=[];state.seatStatus=null;state.customers=[];state.dashboard=null;
       state.selectedSale=null;state.selectedDistribution=null;
       state.saleCart = [];
       $('#appScreen').classList.add('hidden');
@@ -2662,6 +2663,7 @@
       if (Array.isArray(data.inventoryMoves)) state.serverInventoryMoves = data.inventoryMoves;
       if (Array.isArray(data.visits)) state.visits = data.visits;
       if (Array.isArray(data.users)) state.users = data.users;
+      if (data.seatStatus) state.seatStatus = data.seatStatus;
       if (Array.isArray(data.ads)) state.ads = data.ads;
       if (data.dashboard) state.dashboard = data.dashboard;
       if (Object.prototype.hasOwnProperty.call(data, 'historyCursor')) state.historyCursor = data.historyCursor || '';
@@ -2784,6 +2786,8 @@
           }
           if (module === 'settings') {
             state.users = Array.isArray(data.users) ? data.users : [];
+            state.seatStatus = data.seatStatus || {used:state.users.length,max:planLimit('maxUsers',2),over:Math.max(0,state.users.length-planLimit('maxUsers',2))};
+            if(data.plan) state.session.plan=data.plan;
             state.loaded.settings = true;
           }
           rebuildOptimisticState();
@@ -3881,6 +3885,8 @@
         ['Username', user.username || ''],
         ['Роль', roleLabel(user.role)],
         ['Компани', user.company || ''],
+        ['Багц', currentPlan().name || 'Free'],
+        ['Хэрэглэгчийн эрх', (state.seatStatus ? state.seatStatus.used : state.users.length) + ' / ' + planLimit('maxUsers',2)],
         ['Sync хүлээж буй', String(pendingQueueCount())]
       ].map(([label, value]) => `<div class="list-item"><div class="list-main"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div></div>`).join('');
       renderUserTable();
@@ -3914,6 +3920,9 @@
       setButtonLoading(btn, true, 'Хадгалж байна...');
       try {
         if (!navigator.onLine) throw new Error('Хэрэглэгч удирдахад интернет шаардлагатай.');
+        const creating=!($('#userUsername').dataset.original || '');
+        const used=state.seatStatus?.used ?? state.users.length;
+        if(creating && used>=planLimit('maxUsers',2)) throw new Error(currentPlan().name+' багц '+planLimit('maxUsers',2)+' хэрэглэгч хүртэл. Багцаа ахиулна уу.');
         const payload = {
           action: 'saveUser',
           originalUsername: $('#userUsername').dataset.original || '',
@@ -4173,6 +4182,7 @@
         inventoryMoves: state.serverInventoryMoves,
         visits: state.visits,
         users: state.users,
+        seatStatus: state.seatStatus,
         ads: state.ads,
         dashboard: state.dashboard,
         historyCursor: state.historyCursor,
