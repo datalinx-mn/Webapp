@@ -49,7 +49,7 @@ function opsCancelSale_(auth,p,ss,tx){
 function opsStocktake_(auth,p,ss,tx){
   opsAssertRole_(auth,['manager','admin','warehouse']);
   if(!clean_(p.reason))throw new Error('Тооллогын зөрүүний шалтгааныг оруулна уу.');
-  const product=opsProduct_(ss,p.productId||p.product),productId=clean_(product.object.ProductID),warehouse=opsWarehouse_(ss,p.warehouse);
+  const product=opsProduct_(ss,p.productId||p.product),productId=clean_(product.object.ProductID),warehouse=opsAssertWarehousePlan_(auth,ss,opsWarehouse_(ss,p.warehouse));
   const rows=tx.rows(COMPANY_SHEETS.WAREHOUSE_STOCK).filter(e=>(productId&&clean_(e.object.ProductID)===productId)||(!clean_(e.object.ProductID)&&e.object['Бараа']===product.object['Барааны нэр']));
   const entry=rows.find(e=>e.object['Агуулах']===warehouse);
   const expected=opsQty_(entry?Number(entry.object['Үлдэгдэл']):(!rows.length&&warehouse===firstWarehouse_(ss)?Number(product.object['Одоогийн үлдэгдэл']):0));
@@ -69,7 +69,7 @@ function dataOpeningSale_(ss,id,auth){
 }
 // Imports add new records only: existing stock and customer balances are never overwritten.
 function dataImport_(auth,p,ss,tx){
-  opsAssertRole_(auth,['manager','admin']);
+  opsAssertRole_(auth,['manager','admin']);assertEntitlement_(auth,'csvImport');
   if(!['products','customers','opening'].includes(p.kind)||!Array.isArray(p.rows)||!p.rows.length||p.rows.length>50)throw new Error('Импортын төрөл, 1–50 мөрөө шалгана уу.');
   p.rows.forEach((r,index)=>{try{
     Object.values(r).forEach(v=>{if(typeof v==='string'&&(/^\s*[=+@-]/.test(v)||v.length>500))throw new Error('Томьёо эсвэл хэт урт текст оруулахгүй.');});
@@ -94,9 +94,9 @@ function dataImport_(auth,p,ss,tx){
   }catch(error){throw new Error((index+2)+'-р мөр: '+error.message);}});
   correction_(tx,auth,'Import '+p.kind,p.clientId,'Импорт '+p.rows.length+' мөр');return {imported:p.rows.length};
 }
-function dataPreviewImport_(auth,p){return withOperationsRead_(auth,()=>{const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),tx=opsPlan_(ss);const result=dataImport_(auth,p,ss,tx);if(JSON.stringify(tx.changes()).length>OPS_PLAN_MAX_CHARS)throw new Error('Файл том байна. Мөрөө хуваана уу.');return Object.assign({success:true,preview:true},result);});}
+function dataPreviewImport_(auth,p){assertEntitlement_(auth,'csvImport');return withOperationsRead_(auth,()=>{const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),tx=opsPlan_(ss);const result=dataImport_(auth,p,ss,tx);if(JSON.stringify(tx.changes()).length>OPS_PLAN_MAX_CHARS)throw new Error('Файл том байна. Мөрөө хуваана уу.');return Object.assign({success:true,preview:true},result);});}
 function dataIntegrityCheck_(auth){
-  opsAssertRole_(auth,['manager','admin']);
+  opsAssertRole_(auth,['manager','admin']);assertEntitlement_(auth,'integrityAudit');
   return withOperationsRead_(auth,()=>{
     const ss=openCompanySs_(requireActiveCompany_(auth.companyId||auth.company)),issues=[];
     const add=(severity,code,message)=>issues.push({severity,code,message});
