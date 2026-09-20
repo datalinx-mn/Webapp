@@ -14,6 +14,7 @@
 
 function handleSaveProduct_(auth, payload) {
   assertProductManager_(auth);
+  assertEntitlement_(auth,'inventory');
 
   var company = requireActiveCompany_(auth.companyId || auth.company || auth.companyName);
   var companySs = openCompanySs_(company);
@@ -80,7 +81,16 @@ function handleSaveProduct_(auth, payload) {
       if (target.name !== name) renameProductReferences_(companySs,target.name,name);
     } else {
       appendObjectRow_(productSheet,fields);
-      appendObjectRow_(companySs.getSheetByName('Агуулахын үлдэгдэл'),{'Агуулах':firstWarehouse_(companySs),'Бараа':name,'Үлдэгдэл':stock,ProductID:productId});
+      var initialWarehouse=firstWarehouse_(companySs);
+      appendObjectRow_(companySs.getSheetByName('Агуулахын үлдэгдэл'),{'Агуулах':initialWarehouse,'Бараа':name,'Үлдэгдэл':stock,ProductID:productId});
+      if (stock > 0) {
+        appendObjectRow_(companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES),{
+          'Огноо':new Date().toISOString(),'Бараа':name,ProductID:productId,
+          'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'орлого','Тоо':stock,
+          'Шалтгаан':'Бараа бүртгэх үеийн эхний үлдэгдэл','Агуулах':initialWarehouse,
+          'Client ID':clean_(payload.clientId)||createBusinessId_('INIT'),'Рэп нэр':auth.fullName||auth.username
+        });
+      }
     }
 
     upsertProductNorm_(companySs, originalName || name, name, threshold, productId);
@@ -107,6 +117,7 @@ function handleSaveProduct_(auth, payload) {
 
 function handleDeleteProduct_(auth, payload) {
   assertProductManager_(auth);
+  assertEntitlement_(auth,'inventory');
 
   var name = clean_(payload.name);
   if (!name) throw new Error('Устгах барааг сонгоно уу.');
