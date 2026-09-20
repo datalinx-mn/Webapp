@@ -60,5 +60,54 @@ test('product edit preserves reordered headers and refuses stock or history chan
 test('product edit recovers pending stock changes before validating stale input',()=>{const f=fixture();f.books.A.getSheetByName('Гүйлгээ').failWrites=1;assert.throws(()=>f.sale(),/interruption/);assert.throws(()=>f.ctx.handleSaveProduct_(f.users.owner,{originalName:'Bread',name:'Bread',price:100,stock:100,threshold:0}),/Үлдэгдлийг/);assert.equal(f.ctx.opsRows_(f.books.A,'Үйлдлийн журнал')[0].object.Status,'Done');assert.equal(f.stock(),90);});
 test('daily and monthly reports agree after payments and returns',()=>{const f=fixture(),r=f.sale();f.run({action:'addPayment',saleId:r.saleId,amount:200});f.run({action:'returnSale',saleId:r.saleId,lineId:f.ledger(r.saleId).items[0].lineId,quantity:2,reason:'Return'});const daily=f.ctx.loadOperations_(f.users.owner,{}).operations,monthly=f.ctx.withOperationsRead_(f.users.owner,()=>f.ctx.buildDashboard_(f.books.A));assert.equal(monthly.currentTotal,daily.todayTotal);assert.equal(monthly.creditTotal,600);assert.equal(monthly.byProduct[0].quantity,8);});
 test('delivery PDF requires assigned username even with a matching display name',()=>{const f=fixture(),r=f.sale(),d=f.run({action:'saveDelivery',saleId:r.saleId,driver:'driver',date:'2026-09-11',address:'UB'});assert.throws(()=>f.ctx.getPrintableDistributionData(d.distributionId,{...f.users.driver,username:'another-driver'},true),/эрх/);assert.equal(f.books.A.getSheetByName('DOCUMENT_NUMBERS').getLastRow(),1);});
+
+test('initial payment method separates bank from cash and daily cash close reconciles once',()=>{
+  const f=fixture();
+  f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Банк'});
+  f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Бэлэн'});
+  const today=f.ctx.opsDay_();
+  const movement=f.ctx.opsCashMovementForDay_(f.books.A,today);
+  assert.equal(movement.initialCashSales,1000);
+  assert.equal(movement.systemMovement,1000);
+  const close=f.run({action:'closeCash',date:today,openingCash:500,countedCash:1500,reason:''},'accountant');
+  assert.equal(close.expectedCash,1500);
+  assert.equal(close.difference,0);
+  assert.throws(()=>f.run({action:'closeCash',date:today,openingCash:500,countedCash:1500},'accountant'),/өмнө/);
+});
+test('cash close requires explanation for a real variance',()=>{
+  const f=fixture();f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Бэлэн'});
+  assert.throws(()=>f.run({action:'closeCash',date:f.ctx.opsDay_(),openingCash:0,countedCash:900},'accountant'),/шалтгаан/);
+  const close=f.run({action:'closeCash',date:f.ctx.opsDay_(),openingCash:0,countedCash:900,reason:'100 төгрөгийн зөрүү шалгаж байна'},'accountant');
+  assert.equal(close.difference,-100);
+});
+test('pack sales retain both entered pack values and base-unit audit values',()=>{
+  const f=fixture(),r=f.sale({items:[{product:'Bread',quantity:2,inputUnit:'pack',unitPrice:1200}]});
+  const row=f.ctx.opsRows_(f.books.A,'Гүйлгээ').find(e=>e.object.SaleID===r.saleId).object;
+  assert.ok(row.ProductID);
+  assert.equal(row.InputUnit,'pack');
+  assert.equal(Number(row.InputQuantity),2);
+  assert.equal(Number(row.InputUnitPrice),1200);
+  assert.equal(Number(row['Тоо']),24);
+  assert.equal(Number(row['Үнэ']),100);
+});
+test('integrity audit catches warehouse total mismatches',()=>{
+  const f=fixture();f.sale();
+  const row=f.ctx.opsRows_(f.books.A,'Агуулахын үлдэгдэл').find(e=>e.object['Бараа']==='Bread');
+  f.ctx.setObjectFields_(f.books.A.getSheetByName('Агуулахын үлдэгдэл'),row.rowNumber,{'Үлдэгдэл':89});
+  const r=f.ctx.dataIntegrityCheck_(f.users.owner);
+  assert.equal(r.ok,false);
+  assert.ok(r.issues.some(i=>i.code==='STOCK_TOTAL_MISMATCH'));
+});
+test('MASTER backfill creates stable IDs and bootstrap does not expose spreadsheet ID',()=>{
+  const f=fixture(),audit=f.ctx.auditMasterRegistry();
+  assert.equal(audit.ok,true);
+  const company=f.ctx.getCompany_('Alpha');
+  assert.ok(company.id);
+  const user=f.ctx.securityUser_('owner').object;
+  assert.ok(user['User ID']);assert.equal(user['Company ID'],company.id);
+  const payload=f.ctx.buildInitialPayload_(f.users.owner);
+  assert.equal(payload.company.id,company.id);
+  assert.equal(Object.prototype.hasOwnProperty.call(payload.company,'spreadsheetId'),false);
+});
 module.exports={fixture,test};
 console.log(`${tests.length} scenarios passed`);
