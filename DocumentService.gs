@@ -35,7 +35,7 @@ function handleGeneratePdf_(auth, payload) {
 function handleGetDocumentHistory_(auth, payload) {
   const type = normalizeDocumentType_(payload.documentType);
   const referenceId = getReferenceIdFromPayload_(type, payload);
-  const company = requireActiveCompany_(auth.company);
+  const company = requireActiveCompany_(auth.companyId || auth.company);
   const data = getPrintableDataByType_(type, referenceId, auth, false);
   validateDocumentPermission_(auth, type, data);
   return {
@@ -62,7 +62,7 @@ function generateDistributionReceiptPdf(distributionId, auth, options) {
 function getPrintableSalesData(saleId, auth, documentType, reserveNumber, skipPermission) {
   const type = normalizeDocumentType_(documentType || 'INVOICE');
   if (type === 'DISTRIBUTION') throw new Error('Борлуулалтын өгөгдлөөр түгээлтийн баримт шууд үүсгэхгүй.');
-  const company = auth ? requireActiveCompany_(auth.company) : null;
+  const company = auth ? requireActiveCompany_(auth.companyId || auth.company) : null;
   if (!company) throw new Error('Компанийн мэдээлэл шаардлагатай.');
   const ss = openCompanySs_(company);
   ensureCompanySheets_(ss);
@@ -179,7 +179,7 @@ function getPrintableSalesData(saleId, auth, documentType, reserveNumber, skipPe
 }
 
 function getPrintableDistributionData(distributionId, auth, reserveNumber) {
-  const company = auth ? requireActiveCompany_(auth.company) : null;
+  const company = auth ? requireActiveCompany_(auth.companyId || auth.company) : null;
   if (!company) throw new Error('Компанийн мэдээлэл шаардлагатай.');
   const ss = openCompanySs_(company);
   ensureCompanySheets_(ss);
