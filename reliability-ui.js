@@ -1,4 +1,24 @@
 'use strict';
+function parsePastedProducts(text){
+  const lines=String(text||'').trim().split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!lines.length||lines.length>50)throw new Error('1–50 мөр paste хийнэ үү.');
+  const cells=lines.map(line=>line.split('\t').map(v=>v.trim()));
+  const aliases={name:['name','бараа','барааны нэр'],code:['code','barcode','баркод','код'],price:['price','үнэ','зарах үнэ'],stock:['stock','үлдэгдэл','эхний үлдэгдэл'],unit:['unit','нэгж','хэмжих нэгж']};
+  const normalize=v=>String(v||'').toLowerCase().trim();
+  const first=cells[0].map(normalize);
+  const findKey=label=>Object.entries(aliases).find(([,values])=>values.includes(label))?.[0]||'';
+  const mapped=first.map(findKey),hasHeader=mapped.includes('name')&&(mapped.includes('price')||mapped.includes('stock'));
+  const headers=hasHeader?mapped:['name','code','price','stock','unit'].slice(0,Math.max(...cells.map(r=>r.length)));
+  const data=hasHeader?cells.slice(1):cells;
+  if(!data.length)throw new Error('Барааны мөр алга.');
+  return data.map((row,index)=>{
+    const out={};headers.forEach((h,i)=>{if(h)out[h]=row[i]??'';});
+    if(!out.name)throw new Error((index+1)+'-р мөрийн барааны нэр дутуу.');
+    out.price=out.price||0;out.stock=out.stock||0;out.unit=out.unit||'ш';
+    return out;
+  });
+}
+
 function parseImportCsv(text){
   const rows=[];let row=[],cell='',quoted=false,closed=false;
   text=String(text).replace(/^\uFEFF/,'');
@@ -116,11 +136,14 @@ function parseImportCsv(text){
       }
       if(action==='import'){
         let parsed=null,kind='',checked='';
-        return modal('CSV файлаар эхний мэдээлэл оруулах','<p>Шинэ мөр нэмнэ. Нэг удаад 50 хүртэл мөр. Эхлээд загвар татаж бөглөөд, файлыг шалгана.</p><p><a href="./templates/products.csv" download>Барааны загвар</a> · <a href="./templates/customers.csv" download>Харилцагчийн загвар</a> · <a href="./templates/opening.csv" download>Эхний авлагын загвар</a></p>'+select('Төрөл','kind',[['products','Бараа ба эхний үлдэгдэл'],['customers','Харилцагч'],['opening','Эхний авлага']])+field('CSV файл','file','file','','required accept=".csv,text/csv"')+'<div id="import-preview"></div>',async v=>{
-          const file=el('reliability-form').elements.file.files[0];if(!file||file.size>150000)throw new Error('150 KB хүртэл CSV файл сонгоно уу.');
-          const text=await file.text(),signature=v.kind+'|'+text;
+        return modal('Эхний мэдээллээ хурдан оруулах','<p>Нэг удаад 50 хүртэл мөр. CSV файл оруулах эсвэл Excel / Google Sheets-ээс шууд copy-paste хийж болно.</p><p><a href="./templates/products.csv" download>Барааны CSV загвар</a> · <a href="./templates/customers.csv" download>Харилцагчийн загвар</a> · <a href="./templates/opening.csv" download>Эхний авлагын загвар</a></p>'+select('Төрөл','kind',[['products','Бараа ба эхний үлдэгдэл'],['customers','Харилцагч'],['opening','Эхний авлага']])+field('CSV файл (заавал биш)','file','file','','accept=".csv,text/csv"')+'<label class="field">Excel / Sheets-ээс paste <textarea id="import-paste" rows="7" placeholder="name[TAB]code[TAB]price[TAB]stock[TAB]unit&#10;Талх[TAB]123456[TAB]2500[TAB]20[TAB]ш"></textarea><small>Paste нь зөвхөн Бараа төрөлд. Толгой мөртэй эсвэл нэр · код · үнэ · үлдэгдэл · нэгж дарааллаар байж болно.</small></label><div id="import-preview"></div>',async v=>{
+          const file=el('reliability-form').elements.file.files[0],pasted=el('import-paste').value.trim();
+          if(!file&&!pasted)throw new Error('CSV файл сонгох эсвэл Excel / Sheets-ээс мөрөө paste хийнэ үү.');
+          if(file&&file.size>150000)throw new Error('150 KB хүртэл CSV файл сонгоно уу.');
+          if(pasted&&v.kind!=='products')throw new Error('Copy-paste хурдан оруулалт одоогоор Бараа төрөлд ажиллана.');
+          const text=file?await file.text():pasted,signature=v.kind+'|'+(file?'csv|':'paste|')+text;
           if(checked===signature&&parsed)return operation('importData',{kind,rows:parsed});
-          parsed=parseImportCsv(text);kind=v.kind;
+          parsed=file?parseImportCsv(text):parsePastedProducts(text);kind=v.kind;
           const allowed={products:['name','code','price','cost','stock','unit','warehouse','threshold','packName','packSize','expiryDate'],customers:['name','phone','address','registrationNumber','contactPerson'],opening:['customer','amount','date','dueDate','reference']};
           if(Object.keys(parsed[0]).some(k=>!allowed[kind].includes(k)))throw new Error('Загварын баганын нэрийг өөрчлөхгүй.');
           await api({action:'previewImport',kind,rows:parsed,clientId:requestId});checked=signature;
