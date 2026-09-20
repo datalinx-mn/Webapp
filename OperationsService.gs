@@ -484,7 +484,7 @@ function opsDelivery_(auth,p,ss,tx) {
   if(!old && tx.rows(COMPANY_SHEETS.VISITS).some(e=>e.object.SaleID===sale.id))throw new Error('Энэ борлуулалтын хүргэлт үүссэн. Одоо байгаа хүргэлтээ нээнэ үү.');
   if(!old && sale.returned>0)throw new Error('Буцаалттай борлуулалтад шинэ хүргэлт оноохгүй. Шинэ захиалга үүсгэнэ үү.');
   const driver=old?old.object.DriverUsername:clean_(p.driver);
-  const user=getUsers_(auth.company).find(u=>u.username===driver && ['driver','manager','admin'].includes(u.role));
+  const user=getUsers_(auth.companyId||auth.company).find(u=>u.seatAllowed&&u.username===driver && ['driver','manager','admin'].includes(u.role));
   if(!user)throw new Error('Компанийн бүртгэлтэй жолоочийг сонгоно уу.');
   const status=clean_(p.status)||'Түгээлтэд гарсан';
   if(!['Түгээлтэд гарсан','Хэсэгчлэн хүргэсэн','Хүргэгдсэн','Хүргэлт амжилтгүй'].includes(status))throw new Error('Хүргэлтийн төлөв буруу байна.');
@@ -513,7 +513,7 @@ function opsDelivery_(auth,p,ss,tx) {
 function opsRemit_(auth,p,ss,tx) {
   opsAssertRole_(auth,['manager','admin','accountant']);
   const driver=clean_(p.driver),amount=positiveNumber_(p.amount,'Хүлээн авсан мөнгө');
-  if(!driver || !getUsers_(auth.companyId||auth.company).some(u=>u.username===driver&&['driver','manager','admin'].includes(u.role)))throw new Error('Компанийн бүртгэлтэй жолоочийг сонгоно уу.');
+  if(!driver || !getUsers_(auth.companyId||auth.company).some(u=>u.seatAllowed&&u.username===driver&&['driver','manager','admin'].includes(u.role)))throw new Error('Багцын суудалд багтсан, компанийн идэвхтэй жолоочийг сонгоно уу.');
   const balance=opsDriverCash_(ss,driver);
   if(balance.remaining<=0)throw new Error('Жолоочид тушаах бэлэн мөнгөний үлдэгдэл алга.');
   if(amount>balance.remaining+0.001)throw new Error('Тушаах мөнгөний үлдэгдлээс их байна.');
@@ -593,7 +593,7 @@ function loadOperations_(auth,p) {
     const today=opsDay_();
     const deliveryEnabled=Boolean(plan.features.delivery);
     const deliveries=deliveryEnabled?opsRows_(ss,COMPANY_SHEETS.VISITS).filter(e=>isManagerRole_(auth.role)||auth.role==='accountant'||opsOwnDelivery_(auth,e.object)||(isSalesRole_(auth.role)&&samePerson_(e.object.SalesEmployee,auth))).map(e=>Object.assign(mapDistributionObject_(e.object),{driverUsername:e.object.DriverUsername||'',date:e.object.PlannedDeliveryDate?opsDay_(e.object.PlannedDeliveryDate):'',items:getDistributionItems_(ss,e.object.DistributionID)})):[];
-    const drivers=deliveryEnabled?getUsers_(auth.companyId||auth.company).filter(u=>['driver','manager','admin'].includes(u.role)).map(u=>({username:u.username,fullName:u.fullName})):[];
+    const drivers=deliveryEnabled?getUsers_(auth.companyId||auth.company).filter(u=>u.seatAllowed&&['driver','manager','admin'].includes(u.role)).map(u=>({username:u.username,fullName:u.fullName})):[];
     const cash=deliveryEnabled?drivers.filter(u=>isManagerRole_(auth.role)||auth.role==='accountant'||u.username===auth.username).map(u=>Object.assign(opsDriverCash_(ss,u.username),{name:u.fullName})):[];
     const batches=canManageInventory_(auth)?opsRows_(ss,'Цуврал').filter(e=>Number(e.object['Үлдэгдэл'])>0).map(e=>e.object):[];
     const finance=isManagerRole_(auth.role)||auth.role==='accountant';
