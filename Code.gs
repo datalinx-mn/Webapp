@@ -144,13 +144,13 @@ function doPost(e) {
     if(action==='logout')return json_(securityLogout_(auth,payload));
     if(action==='changePassword')return json_(securityChangePassword_(auth,payload));
     if(action==='issueRecovery')return json_(securityIssueRecovery_(auth,payload));
-    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash','approveReturn','reversePayment','cancelSale','importData','stocktake'].includes(action)) return json_(handleOperation_(auth, payload));
+    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash','approveReturn','reversePayment','cancelSale','importData','stocktake','closeCash','saveSupplier','receivePurchase','addSupplierPayment'].includes(action)) return json_(handleOperation_(auth, payload));
     recoverOperations_(auth);
     if (action === 'saveProduct') return json_(handleSaveProduct_(auth, payload));
     if (action === 'deleteProduct') return json_(handleDeleteProduct_(auth, payload));
 
 
-    if (action === 'addVisit') return json_(handleAddVisit_(auth, payload));
+    if (action === 'addVisit') { assertEntitlement_(auth,'delivery'); return json_(handleAddVisit_(auth, payload)); }
     if (action === 'saveUser') return json_(handleSaveUser_(auth, payload));
     if (action === 'deleteUser') return json_(handleDeleteUser_(auth, payload));
     if (action === 'getPrintPreview') return json_(handleGetPrintPreview_(auth, payload));
