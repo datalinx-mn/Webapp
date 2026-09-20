@@ -100,6 +100,7 @@ function doPost(e) {
     if(action==='backupStatus'||action==='createBackup'||action==='testRestore')return json_(backupAction_(auth,payload));
     if(action==='inspectRequest'||action==='cancelRequest')return json_(dataQueueAction_(auth,payload));
     if(action==='previewImport')return json_(dataPreviewImport_(auth,payload));
+    if(action==='integrityCheck')return json_(dataIntegrityCheck_(auth));
     if(action==='logout')return json_(securityLogout_(auth,payload));
     if(action==='changePassword')return json_(securityChangePassword_(auth,payload));
     if(action==='issueRecovery')return json_(securityIssueRecovery_(auth,payload));
