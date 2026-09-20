@@ -283,6 +283,11 @@ function opsWeightedCostIn_(tx, product, qty, unitCost) {
   tx.set(COMPANY_SHEETS.PRODUCTS,product.rowNumber,{AverageCost:average,CostKnown:'Тийм'});
   return {known:true,averageCost:average};
 }
+function opsSaleLineCost_(ss,lineId) {
+  const entry=opsRows_(ss,COMPANY_SHEETS.SALES).find(e=>(e.object.LineID||'ROW-'+e.rowNumber)===lineId);
+  if(!entry||!['тийм','true','1','yes'].includes(clean_(entry.object.CostKnownAtSale).toLowerCase()))return null;
+  return nonNegativeNumber_(entry.object.UnitCostAtSale||0,'Борлуулалтын өртөг');
+}
 function opsSupplier_(ss,ref) {
   const value=clean_(ref);if(!value)throw new Error('Нийлүүлэгч сонгоно уу.');
   const entry=opsRows_(ss,'Нийлүүлэгч').find(e=>clean_(e.object.SupplierID)===value||clean_(e.object.Name).toLowerCase()===value.toLowerCase());
@@ -436,7 +441,9 @@ function opsReturn_(auth,p,ss,tx) {
   const approved=isManagerRole_(auth.role)||auth.role==='accountant';
   tx.add('Буцаалт',{CreditStatus:approved?'Approved':'Pending',ApprovedBy:approved?auth.username:'',ApprovedAt:approved?new Date().toISOString():'',Warehouse:sale.warehouse,Expiry:originalDates[0]||'',ReturnID:createBusinessId_('RET'),SaleID:sale.id,LineID:item.lineId,'Бараа':item.product,ProductID:item.productId,'Тоо':qty,'Дүн':credit,'Шалтгаан':clean_(p.reason),Restock:restock?'Тийм':'Үгүй','Огноо':new Date().toISOString(),CreatedBy:auth.username});
   if(restock) {
-    opsStock_(ss,tx,opsProduct_(ss,item.product),sale.warehouse,qty);
+    const restockProduct=opsProduct_(ss,item.productId||item.product),returnCost=item.costKnown&&item.unitCostAtSale!==null?item.unitCostAtSale:null;
+    if(returnCost!==null)opsWeightedCostIn_(tx,restockProduct,qty,returnCost);
+    opsStock_(ss,tx,restockProduct,sale.warehouse,qty);
     // Returned goods receive their original expiry conservatively; no expiry is invented.
     const row=sale.rows.find(e=>(e.object.LineID||'ROW-'+e.rowNumber)===item.lineId);
     const allocations=JSON.parse(row.object.BatchAllocations||'[]');
@@ -612,7 +619,8 @@ function opsReceiveReturn_(auth,p,ss,tx) {
     return {};
   }
   const r=entry.object,qty=opsQty_(Number(r['Тоо'])),product=opsProduct_(ss,r.ProductID||r['Бараа']);
-  const productId=clean_(product.object.ProductID);
+  const productId=clean_(product.object.ProductID),returnCost=opsSaleLineCost_(ss,r.LineID);
+  if(returnCost!==null)opsWeightedCostIn_(tx,product,qty,returnCost);
   opsStock_(ss,tx,product,r.Warehouse,qty);
   if(r.Expiry)tx.add('Цуврал',{BatchID:createBusinessId_('RETLOT'),'Бараа':r['Бараа'],ProductID:productId,'Агуулах':r.Warehouse,'Дуусах огноо':r.Expiry,'Үлдэгдэл':qty,CreatedAt:new Date().toISOString()});
   tx.set('Буцаалт',entry.rowNumber,Object.assign(received,{Restock:'Тийм',ProductID:productId}));
