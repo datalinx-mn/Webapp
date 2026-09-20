@@ -119,7 +119,7 @@ async function handleOperationsClick(event) {
     if(action==='refresh'){await loadOperations(true);return;}
     if(action==='claim-legacy-queue'){
       if(!opsManager())throw new Error('Менежер шалгаж хариуцна.');
-      const q=getQueue(),item=q.find(x=>x.id===id&&!x.username&&sameCompany(x.company,state.session.user.company));
+      const q=getQueue(),item=q.find(x=>x.id===id&&!x.username&&queueBelongsToCurrent_(x));
       if(!item)throw new Error('Хуучин бүртгэл олдсонгүй.');
       if(!confirm('Энэ хуучин бүртгэлийг өөрийн нэрээр илгээх үү? Өмнө хадгалагдсан эсэхийг шалгасан байна уу?'))return;
       item.username=state.session.user.username;saveQueue(q);opsRenderQueue();await syncOfflineQueue(id);return;
@@ -178,8 +178,8 @@ function opsInventoryUnits() {
   opsEl('ops-inv-unit').innerHTML=opsOption('base',p?.unit||'Үндсэн нэгж')+(p?.packSize>1?opsOption('pack',`${p.packName||'Хайрцаг'} (${p.packSize} ${p.unit})`):'');
 }
 function opsRenderQueue() {
-  const items=getQueue().filter(i=>sameCompany(i.company,state.session?.user?.company)&&i.username===state.session?.user?.username);
-  const legacy=opsManager()?getQueue().filter(i=>sameCompany(i.company,state.session.user.company)&&!i.username):[];
+  const items=getQueue().filter(i=>queueBelongsToCurrent_(i)&&i.username===state.session?.user?.username);
+  const legacy=opsManager()?getQueue().filter(i=>queueBelongsToCurrent_(i)&&!i.username):[];
   opsEl('ops-queue').innerHTML=`<section class="card"><h3>Утсанд хадгалсан бүртгэл</h3>${items.map(i=>`<div class="ops-row"><div><strong>${i.action==='addSale'?'Борлуулалт':'Барааны хөдөлгөөн'}</strong><small>${opsEsc(i.error||'Илгээхийг хүлээж байна')}</small></div>${i.failed?opsButton('Дахин илгээх','retry-queue',i.id):''}</div>`).join('')||emptyHtml('Илгээхийг хүлээж буй бүртгэл алга.')}${legacy.length?'<h3>Хуучин хувилбараас үлдсэн бүртгэл</h3><p>Үүсгэсэн ажилтан тодорхойгүй. Менежер шалгаад хариуцаж илгээнэ.</p>'+legacy.map(i=>`<div class="ops-row"><div><strong>${opsEsc(i.payload?.customer||i.payload?.product||'Бүртгэл')}</strong><small>${opsEsc(formatDate(i.createdAt))} · ${opsEsc(i.action)} · ${opsEsc(JSON.stringify(i.payload?.items||{quantity:i.payload?.quantity,moveType:i.payload?.moveType}))}</small></div>${opsButton('Хариуцаж илгээх','claim-legacy-queue',i.id)}</div>`).join(''):''}</section>`;
 }
 window.refreshReliabilityOperations=()=>loadOperations(true);
