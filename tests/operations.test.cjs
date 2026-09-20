@@ -153,5 +153,12 @@ test('Business seat allowance admits five active company users',()=>{
   const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const company=f.ctx.getCompany_('Alpha');
   for(const username of ['owner','rep','driver','warehouse','accountant'])assert.equal(f.ctx.planSeatAllowed_(company,username),true);
 });
+
+test('Free keeps basic dashboard while paid delivery module stays locked',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Free',0);
+  const dashboard=f.ctx.loadModule_(f.users.owner,'dashboard');
+  assert.equal(dashboard.success,true);assert.ok(dashboard.dashboard);
+  assert.throws(()=>f.ctx.loadModule_(f.users.owner,'distribution'),/багц/);
+});
 module.exports={fixture,test};
 console.log(`${tests.length} scenarios passed`);
