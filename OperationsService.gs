@@ -73,12 +73,31 @@ function opsSale_(ss, id, auth) {
   // are explicitly incremental, preventing both lost deposits and double counting.
   const oldPayments = payments.filter(p => !p.source).reduce((s,p) => s + p.amount, 0);
   const paid = opsMoney_(Math.max(rowPaid, oldPayments) + payments.filter(p => p.source).reduce((s,p) => s + p.amount, 0));
-  const returned = opsMoney_(returns.filter(opsCreditApproved_).reduce((s,r) => s + Number(r['Дүн'] || 0), 0));
+  const approvedReturns=returns.filter(opsCreditApproved_);
+  const returned = opsMoney_(approvedReturns.reduce((s,r) => s + Number(r['Дүн'] || 0), 0));
   const net = opsMoney_(Math.max(0, total - returned));
+  const grossRevenueExVat=opsMoney_(rows.reduce((s,e)=>s+Number(e.object['Нийт дүн']||0)-Number(e.object.VAT||0),0));
+  let knownRevenueExVat=0,grossCogsKnown=0,grossProfitKnown=0,returnedCogsKnown=0,returnedProfitKnown=0;
+  rows.forEach(e=>{
+    const o=e.object,known=['тийм','true','1','yes'].includes(clean_(o.CostKnownAtSale).toLowerCase());
+    if(!known)return;
+    const lineRevenue=opsMoney_(Number(o['Нийт дүн']||0)-Number(o.VAT||0));
+    knownRevenueExVat+=lineRevenue;grossCogsKnown+=Number(o.COGS||0);grossProfitKnown+=Number(o.GrossProfit||0);
+    const lineId=o.LineID||'ROW-'+e.rowNumber,lineTotal=Number(o['Нийт дүн']||0),lineVat=Number(o.VAT||0),unitCost=Number(o.UnitCostAtSale||0);
+    approvedReturns.filter(r=>r.LineID===lineId).forEach(r=>{
+      const credit=Number(r['Дүн']||0),ratio=lineTotal>0?Math.max(0,(lineTotal-lineVat)/lineTotal):1;
+      const returnRevenueExVat=opsMoney_(credit*ratio),returnCogs=opsMoney_(Number(r['Тоо']||0)*unitCost);
+      returnedCogsKnown+=returnCogs;returnedProfitKnown+=returnRevenueExVat-returnCogs;
+    });
+  });
+  knownRevenueExVat=opsMoney_(knownRevenueExVat);grossCogsKnown=opsMoney_(grossCogsKnown);grossProfitKnown=opsMoney_(grossProfitKnown);
+  const netCogsKnown=opsMoney_(grossCogsKnown-returnedCogsKnown),netGrossProfitKnown=opsMoney_(grossProfitKnown-returnedProfitKnown);
+  const costCoveragePct=grossRevenueExVat>0?Math.round((knownRevenueExVat/grossRevenueExVat)*10000)/100:100;
   return { id, rows, customer: first['Харилцагч'], warehouse: first.Warehouse || firstWarehouse_(ss),
     date: iso_(first['Огноо']), dueDate: first.DueDate ? opsDay_(first.DueDate) : '', status: first.Status || 'Approved',
     total, returned, net, paid, remaining: opsMoney_(Math.max(0, net-paid)), refundDue: opsMoney_(Math.max(0,paid-net)), payments, returns,
-    items: rows.map(e => ({ lineId: e.object.LineID || 'ROW-' + e.rowNumber, productId:clean_(e.object.ProductID), product:e.object['Бараа'], quantity:Number(e.object['Тоо']), unitPrice:Number(e.object['Үнэ']), inputUnit:clean_(e.object.InputUnit)||'base', inputQuantity:Number(e.object.InputQuantity||e.object['Тоо']), inputUnitPrice:Number(e.object.InputUnitPrice||e.object['Үнэ']), total:Number(e.object['Нийт дүн']), returned:returns.filter(r => r.CreditStatus!=='Rejected' && r.LineID === (e.object.LineID || 'ROW-' + e.rowNumber)).reduce((s,r)=>s+Number(r['Тоо']),0) })) };
+    cogsKnown:netCogsKnown,grossProfitKnown:netGrossProfitKnown,grossProfit:costCoveragePct>=99.999?netGrossProfitKnown:null,costCoveragePct,
+    items: rows.map(e => ({ lineId: e.object.LineID || 'ROW-' + e.rowNumber, productId:clean_(e.object.ProductID), product:e.object['Бараа'], quantity:Number(e.object['Тоо']), unitPrice:Number(e.object['Үнэ']), inputUnit:clean_(e.object.InputUnit)||'base', inputQuantity:Number(e.object.InputQuantity||e.object['Тоо']), inputUnitPrice:Number(e.object.InputUnitPrice||e.object['Үнэ']), total:Number(e.object['Нийт дүн']), costKnown:['тийм','true','1','yes'].includes(clean_(e.object.CostKnownAtSale).toLowerCase()), unitCostAtSale:clean_(e.object.UnitCostAtSale)===''?null:Number(e.object.UnitCostAtSale), returned:returns.filter(r => r.CreditStatus!=='Rejected' && r.LineID === (e.object.LineID || 'ROW-' + e.rowNumber)).reduce((s,r)=>s+Number(r['Тоо']),0) })) };
 }
 function opsPublicSale_(sale) { const copy = Object.assign({}, sale); delete copy.rows; return copy; }
 function opsActiveSale_(sale) {
@@ -256,7 +275,9 @@ function opsAddSale_(auth,p,ss,tx) {
     const quantity=opsUnit_(product,inputQuantity,inputUnit);
     const factor=inputUnit==='pack'?positiveNumber_(product.object.PackSize,'Савлагааны тоо'):1;
     const inputUnitPrice=nonNegativeNumber_(i.inputUnitPrice!==undefined&&i.inputUnitPrice!==''?i.inputUnitPrice:i.unitPrice,'Үнэ');
-    return {productId:clean_(product.object.ProductID),product:product.object['Барааны нэр'],quantity,inputUnit,inputQuantity:opsQty_(inputQuantity),inputUnitPrice,unitPrice:inputUnitPrice/factor,record:product};
+    const costKnown=['тийм','true','1','yes'].includes(clean_(product.object.CostKnown).toLowerCase());
+    const averageCost=costKnown?nonNegativeNumber_(product.object.AverageCost||0,'Өртөг'):0;
+    return {productId:clean_(product.object.ProductID),product:product.object['Барааны нэр'],quantity,inputUnit,inputQuantity:opsQty_(inputQuantity),inputUnitPrice,unitPrice:inputUnitPrice/factor,costKnown,averageCost,record:product};
   });
   const gross=opsMoney_(items.reduce((s,i)=>s+i.quantity*i.unitPrice,0));
   const discount=nonNegativeNumber_(p.discount||0,'Хөнгөлөлт'),vat=nonNegativeNumber_(p.vat||0,'НӨАТ');
@@ -279,7 +300,10 @@ function opsAddSale_(auth,p,ss,tx) {
     usedDiscount+=ld; usedVat+=lv;
     const allocations=opsBatchesOut_(ss,tx,item.product,warehouse,item.quantity,false);
     remainingStocks[item.product]=opsStock_(ss,tx,item.record,warehouse,-item.quantity);
-    tx.add(COMPANY_SHEETS.SALES,{'Огноо':now,'Рэп нэр':auth.fullName||auth.username,'Бараа':item.product,ProductID:item.productId,'Тоо':item.quantity,'Үнэ':item.unitPrice,'Нийт дүн':opsMoney_(item.quantity*item.unitPrice-ld+lv),'Харилцагч':clean_(p.customer),'Төлбөрийн төрөл':paymentType,'Байршил':clean_(p.location)||firstLocation_(ss),'Client ID':p.clientId,SaleID:id,LineID:id+'-'+index,Status:'Approved',Warehouse:warehouse,CustomerID:customerId,Discount:ld,VAT:lv,PaidAmount:index===0?paid:0,InitialPaymentMethod:index===0?initialPaymentMethod:'',DueDate:due,CreatedBy:auth.username,BatchAllocations:JSON.stringify(allocations),InputUnit:item.inputUnit,InputQuantity:item.inputQuantity,InputUnitPrice:item.inputUnitPrice});
+    const lineRevenueExVat=opsMoney_(item.quantity*item.unitPrice-ld);
+    const cogs=item.costKnown?opsMoney_(item.quantity*item.averageCost):'';
+    const grossProfit=item.costKnown?opsMoney_(lineRevenueExVat-cogs):'';
+    tx.add(COMPANY_SHEETS.SALES,{'Огноо':now,'Рэп нэр':auth.fullName||auth.username,'Бараа':item.product,ProductID:item.productId,'Тоо':item.quantity,'Үнэ':item.unitPrice,'Нийт дүн':opsMoney_(item.quantity*item.unitPrice-ld+lv),'Харилцагч':clean_(p.customer),'Төлбөрийн төрөл':paymentType,'Байршил':clean_(p.location)||firstLocation_(ss),'Client ID':p.clientId,SaleID:id,LineID:id+'-'+index,Status:'Approved',Warehouse:warehouse,CustomerID:customerId,Discount:ld,VAT:lv,PaidAmount:index===0?paid:0,InitialPaymentMethod:index===0?initialPaymentMethod:'',DueDate:due,CreatedBy:auth.username,BatchAllocations:JSON.stringify(allocations),InputUnit:item.inputUnit,InputQuantity:item.inputQuantity,InputUnitPrice:item.inputUnitPrice,UnitCostAtSale:item.costKnown?item.averageCost:'',COGS:cogs,GrossProfit:grossProfit,CostKnownAtSale:item.costKnown?'Тийм':'Үгүй'});
     opsMove_(tx,auth,{'Бараа':item.product,ProductID:item.productId,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'зарлага','Тоо':item.quantity,'Агуулах':warehouse,'SaleID':id,'Client ID':p.clientId,'Шалтгаан':'Борлуулалт '+id,'Нэгж үнэ':item.unitPrice,'Нийт дүн':opsMoney_(item.quantity*item.unitPrice)});
   });
   return {saleId:id,date:now,total,remainingStocks,transaction:{saleId:id,date:now,customer:clean_(p.customer),product:items.length===1?items[0].product:items.length+' төрлийн бараа',quantity:items.reduce((s,i)=>s+i.quantity,0),total,paymentType,paidAmount:paid,initialPaymentMethod,dueDate:due,warehouse}};
