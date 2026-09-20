@@ -78,6 +78,7 @@ function parseImportCsv(text){
     let credits=el('reliability-credits');if(!credits&&el('ops-money')){credits=document.createElement('section');credits.id='reliability-credits';credits.className='card';el('ops-money').appendChild(credits);}
     if(credits){credits.hidden=!finance();credits.innerHTML='<h3>Авлагаас хасах зөвшөөрөл</h3>'+((currentData?.pendingCredits||[]).map(r=>`<div class="ops-row"><div><strong>${esc(r['Бараа'])} · ${money(r['Дүн'])}</strong><small>${esc(r['Шалтгаан'])}</small></div>${button('Шийдвэрлэх','approve-return',r.ReturnID)}</div>`).join('')||'<p>Хүлээгдэж буй зөвшөөрөл алга.</p>');}
   };
+  window.openDataImport=function(){showPage('settings');window.setTimeout(()=>document.querySelector('[data-reliable="import"]')?.click(),80);};
   const originalRender=renderAll;renderAll=function(){originalRender();window.renderReliability();};
   const originalPayload=applyPayload;applyPayload=function(data,reset){state.reliabilityVersion=Number(data.reliabilityVersion||0);originalPayload(data,reset);window.renderReliability();};
   const originalDetail=openSaleDetail;openSaleDetail=function(id){originalDetail(id);if(state.reliabilityVersion&&finance()){el('saleDetailBody').insertAdjacentHTML('beforeend',`<div class="ops-actions">${button('Төлөлт засах','payments',id)}${manager()?button('Захиалга цуцлах','cancel-sale',id):''}</div>`);}};
