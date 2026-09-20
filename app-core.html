@@ -1231,10 +1231,10 @@
               </div>
               <div class="form-grid two">
                 <div class="field">
-                  <label for="salePayment">Төлбөрийн төрөл</label>
+                  <label for="salePayment">Төлбөрийн нөхцөл</label>
                   <select id="salePayment" required>
-                    <option value="Бэлэн">Бэлэн</option>
-                    <option value="Зээл">Зээл</option>
+                    <option value="Бэлэн">Шууд төлсөн</option>
+                    <option value="Зээл">Зээл / дараа төлөх</option>
                   </select>
                 </div>
                 <div id="saleLocationField" class="field hidden">
@@ -2909,9 +2909,16 @@
     function addCurrentSaleItemToCart() {
       try {
         const line = readCurrentSaleLine(true);
-        const existing = state.saleCart.find(item => item.product === line.product && numberValue(item.unitPrice) === line.unitPrice);
-        if (existing) existing.quantity = numberValue(existing.quantity) + line.quantity;
-        else state.saleCart.push(line);
+        const existing = state.saleCart.find(item =>
+          item.product === line.product &&
+          numberValue(item.unitPrice) === line.unitPrice &&
+          String(item.inputUnit || 'base') === String(line.inputUnit || 'base') &&
+          numberValue(item.inputUnitPrice ?? item.unitPrice) === numberValue(line.inputUnitPrice ?? line.unitPrice)
+        );
+        if (existing) {
+          existing.quantity = numberValue(existing.quantity) + line.quantity;
+          existing.inputQuantity = numberValue(existing.inputQuantity ?? existing.quantity) + numberValue(line.inputQuantity ?? line.quantity);
+        } else state.saleCart.push(line);
         $('#saleProduct').value = '';
         $('#saleProduct').dataset.selectedValue = '';
         $('#saleQty').value = '';
