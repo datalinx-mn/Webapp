@@ -50,7 +50,7 @@ function parseImportCsv(text){
   const originalPayload=applyPayload;applyPayload=function(data,reset){state.reliabilityVersion=Number(data.reliabilityVersion||0);originalPayload(data,reset);window.renderReliability();};
   const originalDetail=openSaleDetail;openSaleDetail=function(id){originalDetail(id);if(state.reliabilityVersion&&finance()){el('saleDetailBody').insertAdjacentHTML('beforeend',`<div class="ops-actions">${button('Төлөлт засах','payments',id)}${manager()?button('Захиалга цуцлах','cancel-sale',id):''}</div>`);}};
   const originalLogout=logout;logout=function(){dialog.close();currentData=null;state.reliabilityVersion=0;originalLogout();};
-  function ownQueue(){return getQueue().filter(q=>q.username===state.session?.user?.username&&sameCompany(q.company,state.session?.user?.company));}
+  function ownQueue(){return getQueue().filter(q=>q.username===state.session?.user?.username&&queueBelongsToCurrent_(q));}
   function exportQueue(){const safe=ownQueue().map(q=>{const copy=JSON.parse(JSON.stringify(q));delete copy.payload.token;return copy;});const blob=new Blob([JSON.stringify(safe,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='datalinx-pending-records.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function cancelQueue(item,reason,replacement){
     if(state.syncing)throw new Error('Илгээж байна. Дууссаны дараа дахин оролдоно уу.');
@@ -59,7 +59,7 @@ function parseImportCsv(text){
       const result=await api({action:'cancelRequest',requestId:item.id,reason});
       if(result.status==='Done'){removeQueueItem(item.id);done('Сервер дээр хадгалагдсан байна. Мэдээллийг шинэчиллээ.');await refreshData(false);return;}
       if(result.status!=='Cancelled')throw new Error('Цуцлалтыг баталгаажуулж чадсангүй.');
-      const archiveKey='datalinx-queue-archive:'+state.session.user.company+':'+state.session.user.username;
+      const archiveKey='datalinx-queue-archive:'+(currentCompanyId_()||currentCompanyName_())+':'+state.session.user.username;
       let archive=[];try{archive=JSON.parse(localStorage.getItem(archiveKey)||'[]');}catch{}
       archive.push({...item,cancelledAt:new Date().toISOString(),reason});localStorage.setItem(archiveKey,JSON.stringify(archive));
       const queue=getQueue(),index=queue.findIndex(q=>q.id===item.id);
