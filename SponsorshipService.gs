@@ -1,7 +1,7 @@
 'use strict';
 // First-party aggregate counts only. No company, user, sales, GPS, or customer fields are stored.
 function recordSponsorEvent_(auth,p){
-  const company=requireActiveCompany_(auth.company);
+  const company=requireActiveCompany_(auth.companyId || auth.company);
   if(company.status!=='Free')return {success:true,ignored:true};
   if(!['impression','click'].includes(p.event)||!['today','money','sales','inventory','distribution','dashboard','settings','more'].includes(p.placement))throw new Error('Зарын үйл явдал буруу байна.');
   const ad=getActiveAds_().find(a=>a.id===p.adId&&['all',p.placement].includes(a.placement));
