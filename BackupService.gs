@@ -42,7 +42,7 @@ function backupStatus_(auth){
   };
 }
 function backupAction_(auth,p){
-  opsAssertRole_(auth,['manager','admin']);
+  opsAssertRole_(auth,['manager','admin']);assertEntitlement_(auth,'backup');
   if(p.action==='backupStatus')return backupStatus_(auth);
   const company=requireActiveCompany_(auth.companyId||auth.company);
   if(p.action==='createBackup'){
@@ -67,7 +67,7 @@ function setupDailyBackups(){
 function runScheduledBackups(){
   ensureMasterSheets_();
   const start=Date.now(),log=sheetObjects_(backupLog_()).rows;
-  const companies=sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES)).rows.map(e=>getCompany_(clean_(e.object['Company ID'])||clean_(e.object['Компани нэр']))).filter(c=>c&&c.spreadsheetId&&c.status!=='Inactive');
+  const companies=sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES)).rows.map(e=>getCompany_(clean_(e.object['Company ID'])||clean_(e.object['Компани нэр']))).filter(c=>c&&c.spreadsheetId&&c.status!=='Inactive'&&companyHasFeature_(c,'backup'));
   const due=companies.map(company=>({
     company,
     last:log.filter(e=>backupMatchesCompany_(e.object,company)&&e.object.Status==='Verified').reduce((n,e)=>Math.max(n,Date.parse(e.object.CreatedAt)||0),0)
