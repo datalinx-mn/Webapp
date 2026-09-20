@@ -732,11 +732,13 @@ function getUsers_(companyRef) {
     return (sameId || sameName) && !['үгүй','inactive','false','0'].includes(active);
   }).map(function(entry) {
     const row = entry.object;
+    const username=clean_(field_(row, ['Username']));
     return {
       id: clean_(field_(row, ['User ID','UserID'])),
-      username: clean_(field_(row, ['Username'])),
+      username: username,
       fullName: clean_(field_(row, ['Бүтэн нэр'])),
-      role: normalizeRole_(field_(row, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']))
+      role: normalizeRole_(field_(row, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)'])),
+      seatAllowed: planSeatAllowed_(company,username)
     };
   });
 }
