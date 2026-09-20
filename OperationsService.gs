@@ -578,12 +578,23 @@ function loadOperations_(auth,p) {
     const finance=isManagerRole_(auth.role)||auth.role==='accountant';
     const cashMovement=finance?opsCashMovementForDay_(ss,today):null;
     const cashCloses=finance?opsRows_(ss,'Касс хаалт').map(e=>e.object).sort((a,b)=>String(b.Date).localeCompare(String(a.Date))).slice(0,14):[];
+    const salesOnly=active.filter(s=>s.recordType!=='opening');
+    const revenueForCost=opsMoney_(salesOnly.reduce((sum,s)=>sum+Number(s.net||0),0));
+    const knownRevenue=opsMoney_(salesOnly.reduce((sum,s)=>sum+Number(s.net||0)*Number(s.costCoveragePct||0)/100,0));
+    const grossProfitKnown=opsMoney_(salesOnly.reduce((sum,s)=>sum+Number(s.grossProfitKnown||0),0));
+    const costCoveragePct=revenueForCost>0?Math.round(knownRevenue/revenueForCost*10000)/100:100;
+    const supplierAccess=finance||auth.role==='warehouse';
+    const suppliers=supplierAccess?opsRows_(ss,'Нийлүүлэгч').filter(e=>!['үгүй','false','0','inactive'].includes(clean_(e.object.Active).toLowerCase())).map(e=>e.object):[];
+    const purchases=supplierAccess?opsRows_(ss,'Худалдан авалт').map(e=>opsPurchaseSummary_(ss,e)).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,100):[];
+    const supplierPayables=finance?purchases.filter(x=>x.payable>0):[];
     return {success:true,operations:{version:1,asOf:new Date().toISOString(),today,
       sales:active.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,100),
       pendingCredits:(isManagerRole_(auth.role)||auth.role==='accountant')?opsRows_(ss,'Буцаалт').filter(e=>e.object.CreditStatus==='Pending').map(e=>e.object):[],
       receivables:auth.role==='warehouse'?[]:active.filter(s=>s.remaining>0||s.refundDue>0).map(s=>{const copy=Object.assign({},s);delete copy.items;delete copy.payments;delete copy.returns;return copy;}),receivableAging:auth.role==='warehouse'?null:opsReceivableAging_(active,today),pendingReturns:canManageInventory_(auth)?opsRows_(ss,'Буцаалт').filter(e=>e.object.Restock==='Үгүй').map(e=>e.object):[],deliveries,cash,cashMovement,cashCloses,drivers:isDriverRole_(auth.role)?drivers.filter(u=>u.username===auth.username):drivers,batches,
       todayTotal:opsMoney_(active.filter(s=>s.recordType!=='opening'&&opsDay_(s.date)===today).reduce((s,x)=>s+x.net,0)),todayCount:active.filter(s=>s.recordType!=='opening'&&opsDay_(s.date)===today).length,
       lowStock:getProducts_(ss).filter(p=>p.stock<=p.threshold),
+      profitability:{revenue:revenueForCost,grossProfitKnown,costCoveragePct,grossProfit:costCoveragePct>=99.999?grossProfitKnown:null},
+      suppliers,purchases,supplierPayables,supplierPayableTotal:opsMoney_(supplierPayables.reduce((sum,x)=>sum+x.payable,0)),
       legacyDeliveryPayments:deliveries.filter(d=>!d.driverUsername && d.collectedPayment>0).length}};
   } finally {opsReadCache_=null;lock.releaseLock();}
 }
