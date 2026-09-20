@@ -1166,7 +1166,7 @@
             <div class="quick-start-steps">
               <div id="quickStepProduct" class="quick-step">
                 <span class="quick-step-index">1</span>
-                <div><strong>Бараа бүртгэх</strong><small>Нэр, үнэ, үлдэгдэл эсвэл баркод оруулна.</small></div>
+                <div><strong>Бараа оруулах</strong><small>Цөөн бол Quick Add, олон бол Excel/Sheets paste.</small></div>
                 <button id="quickProductBtn" class="btn btn-secondary" type="button">Бараа нэмэх</button>
               </div>
               <div id="quickStepCustomer" class="quick-step">
@@ -2029,11 +2029,8 @@
     }
 
     function bindQuickStart() {
-      $('#quickProductBtn')?.addEventListener('click', async () => {
-        showPage('inventory');
-        const details = $('#productManagementCard');
-        if (details) details.open = true;
-        window.setTimeout(() => $('#productName')?.focus(), 220);
+      $('#quickProductBtn')?.addEventListener('click', () => {
+        openQuickProduct('');
       });
       $('#quickCustomerBtn')?.addEventListener('click', () => {
         showPage('sales', false);
@@ -2422,8 +2419,8 @@
     }
 
     function getWalkthroughStorageKey() {
-      const company = state.session?.company?.name || state.session?.user?.company || 'company';
-      const username = state.session?.user?.username || 'user';
+      const company = state.session?.company?.id || state.session?.user?.companyId || state.session?.company?.name || state.session?.user?.company || 'company';
+      const username = state.session?.user?.id || state.session?.user?.username || 'user';
       return `${WALKTHROUGH_KEY_PREFIX}:${company}:${username}`.toLowerCase();
     }
 
@@ -2438,69 +2435,46 @@
     }
 
     function buildWalkthroughSteps() {
-      const steps = [
+      const role=state.session?.user?.role||'';
+      const manager=['manager','admin'].includes(role);
+      const steps=[
         {
-          page: 'sales', selector: '#companyTitle', title: 'Тавтай морил',
-          text: 'Энэ бол зөвхөн танай компанийн тусдаа орчин. Дээд хэсгээс компанийн нэр, нэвтэрсэн хэрэглэгч болон туршилт/Business/Pro эрхийн төлвийг харна.'
+          page:'sales',selector:'#companyTitle',title:'Тавтай морил',
+          text:'Танай компанийн DataLinx орчин бэлэн боллоо. Эхний 1 сар Business-ийн бүх боломж үнэгүй, заргүй ажиллана.'
         },
         {
-          page: 'sales', selector: '#quickStartCard', title: '3 алхмаар эхлэх',
-          text: 'Менежер эхлээд бараагаа бүртгэж, борлуулалтын үеэр харилцагчаа нэмж, дараа нь эхний борлуулалтаа хадгална. Хийсэн алхам бүр автоматаар тэмдэглэгдэнэ.'
+          page:'sales',selector:'#quickStartCard',title:'3 алхмаар эхэлнэ',
+          text:manager
+            ? '1) Бараагаа Quick Add эсвэл Excel/Sheets paste-аар оруулна. 2) Харилцагчийн нэрийг борлуулалт дээр шууд нэмнэ. 3) Эхний борлуулалтаа хадгална.'
+            : 'Бараа, харилцагч, тоо хэмжээ, төлбөрөө сонгоод борлуулалтаа хадгална.'
         },
         {
-          page: 'sales', selector: '#saleForm', title: 'Борлуулалт бүртгэх',
-          text: 'Бараа, тоо хэмжээ, үнэ, харилцагч болон төлбөрийн төрлийг сонгоод хадгална. Борлуулалт хадгалагдахад барааны үлдэгдэл автоматаар хасагдана.'
-        },
-        {
-          page: 'sales', selector: '#saleCustomer', title: 'Харилцагч сонгох',
-          text: 'Эхлээд бүртгэлтэй харилцагчаа хайж сонгоно. Жагсаалтад байхгүй бол нэрийг бичээд шинэ харилцагчаар шууд нэмнэ.'
-        },
-        {
-          page: 'sales', selector: '#saleProduct', title: 'Бараа сонгох',
-          text: 'Дараа нь бараагаа хайж сонгоно. Барааны бүртгэлд байгаа нэгж үнэ автоматаар санал болж, боломжит үлдэгдэл харагдана. Үнийг тухайн борлуулалтад засаж болно.'
-        },
-        {
-          page: 'sales', selector: '#recentSalesList', title: 'Гүйлгээний түүх',
-          text: 'Шинэ гүйлгээ энд шууд харагдана. Анхны ачаалал хурдан байлгахын тулд сүүлийн 60 хоногийг харуулж, илүү хуучин мэдээллийг “Хуучин түүх ачаалах” товчоор нээнэ.'
-        },
-        {
-          page: 'inventory', selector: '#productStockList', title: 'Агуулахын үлдэгдэл',
-          text: 'Бүх барааны одоогийн үлдэгдлийг эндээс хянана. Бага үлдэгдлийн хязгаар болон олон агуулахын боломж бүх компанид нээлттэй.'
-        },
-        {
-          page: 'inventory', selector: '#inventoryForm', title: 'Орлого, зарлага бүртгэх',
-          text: 'Бараа орлогод авах, зарлагадах эсвэл агуулах хооронд шилжүүлэх хөдөлгөөнийг шалтгаантай нь бүртгэнэ.'
-        },
-        {
-          page: 'distribution', selector: '#visitForm', title: 'Түгээлтийн айлчлал',
-          text: 'Харилцагч дээр очсон айлчлалаа нэр, GPS байршил, зураг болон тэмдэглэлтэй хадгална. Камер нээгдэхгүй бол утасны үндсэн камер автоматаар ашиглагдана.'
-        },
-        {
-          page: 'dashboard', selector: '#dashboardPremiumWrap', title: 'Хяналтын самбар',
-          text: 'Энэ сарын борлуулалт, бараа, борлуулагч болон авах мөнгөний тойм. Үндсэн тайлан үнэгүй.'
-        },
-        {
-          page: 'settings', selector: '#subscriptionBanner', title: 'Эрхийн төлөв',
-          text: 'Тохиргоо хэсгээс компанийн туршилт, Business, Pro эсвэл дууссан төлөв болон багц ахиулах мэдээллийг харна.'
+          page:'sales',selector:'#saleForm',title:'Өдөр тутмын үндсэн ажил',
+          text:'Харилцагч ба бараагаа хайж сонгоно. Байхгүй харилцагчийг нэрээр нь шууд нэмнэ. Менежер бүртгэлгүй барааг борлуулалтын дэлгэцээс Quick Add хийж болно.'
         }
       ];
-      if (isManager()) {
+      if(manager){
         steps.push({
-          page: 'inventory', selector: '#productManagementCard', title: 'Бараа удирдах',
-          text: 'Менежер шинэ бараа нэмэх, код, нэгж үнэ, үлдэгдэл болон бага үлдэгдлийн хязгаарыг засах боломжтой. Үлдэгдэл 0 болсон барааг устгаж болно.'
+          page:'inventory',selector:'#productManagementCard',title:'Олон барааг хурдан оруулах',
+          text:'Олон бараатай бол Excel эсвэл Google Sheets-ээс жагсаалтаа copy-paste хийнэ. Цөөн бараатай бол “Барааг шуурхай нэмэх” ашиглана. Нэг бүрчлэн урт form бөглөх шаардлагагүй.'
         });
+      }
+      if(hasEntitlement('delivery')){
         steps.push({
-          page: 'settings', selector: '#userForm', title: 'Хэрэглэгч удирдах',
-          text: 'Менежер шинэ борлуулагч эсвэл менежер нэмэх, мэдээллийг засах боломжтой. Ажилтан бүрт өөрийн ажлын эрхийг сонгоно.'
+          page:'distribution',selector:'#visitForm',title:'Хүргэлт',
+          text:'Хүргэлтийн үед борлуулалт, жолооч, GPS, зураг, хүргэсэн/буцаасан тоо болон мөнгийг тусад нь бүртгэнэ.'
         });
       }
       steps.push({
-        page: 'settings', selector: '#walkthroughSettingsCard', title: 'Зааврыг дахин үзэх',
-        text: 'Энэ зааврыг хүссэн үедээ Тохиргоо хэсгийн товч эсвэл дээд талын “?” товчоор дахин эхлүүлж болно. Сүлжээ тасарсан үед борлуулалт, агуулахын бүртгэл төхөөрөмжид хадгалагдаж, интернет сэргэхэд автоматаар илгээгдэнэ.'
+        page:'dashboard',selector:'#dashboardPremiumWrap',title:'Хяналт',
+        text:'Өдрийн болон сарын борлуулалт, авлага, барааны хөдөлгөөнөө эндээс хянана. Pro багцад өртөг, ахиуц ашиг болон integrity audit нэмэгдэнэ.'
+      });
+      steps.push({
+        page:'settings',selector:'#subscriptionBanner',title:'Туршилтын хугацаа',
+        text:'Тохиргооноос туршилтын хугацаа, багц, хэрэглэгчийн суудал болон зааврыг дахин нээх боломжтой. Туршилт дуусвал мэдээлэл устахгүй, шинэ бичилт түр хаагдана.'
       });
       return steps;
     }
-
     async function startWalkthrough(force = false) {
       if (!state.session) return;
       if (state.walkthrough.active) return;
