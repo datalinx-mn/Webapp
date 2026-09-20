@@ -1,16 +1,52 @@
-# DataLinx Sales / Inventory / Distribution PDF Upgrade
+# DataLinx — жижиг бизнесийн өдөр тутмын ажил
 
-Deliverables:
+1–9 ажилтантай хүнсний бөөний худалдаа, түгээлтийн бизнесийн борлуулалт, бараа, хүргэлт, авах мөнгөний Монгол хэлтэй web app.
+Netlify-д байрлуулахад бэлтгэсэн static frontend нь Google Apps Script API-тай холбогдоно. Компани бүрийн бизнесийн мэдээлэл тусдаа private Google Spreadsheet-д хадгалагдана.
 
-1. `Code.gs`
-2. `DocumentService.gs`
-3. `PdfService.gs`
-4. `Index.html`
-5. `PrintTemplates.html`
-6. `PrintStyles.html`
-7. `PrintScripts.html`
-8. `Required_Google_Sheet_Structure.md`
-9. `Setup_Instructions.md`
-10. `Testing_Checklist.md`
+Шинэ суулгах үндсэн заавар: [Найдвартай ажиллагааны release](RELIABILITY_RELEASE_MN.md). POST login ба шинэ серверийн файлууд шаардлагатай.
 
-The Apps Script project is bound to the DataLinx MASTER Registry spreadsheet. Business data remains in a separate spreadsheet per company.
+## Энэ хувилбар
+
+- **Өнөөдөр:** хийх ажил, хүргэлт, хугацаа болсон авлага, бага үлдэгдэл.
+- **Мөнгө:** хэсэгчилсэн төлөлт, авлага, буцаалт, refund, жолоочийн бэлэн мөнгө тушаалт.
+- **Хүргэлт:** жолоочид оноох, нийт хүргэсэн/буцаасан тоог тулгах, PDF.
+- **Бараа:** савлагааны хөрвүүлэлт, агуулахын бодит үлдэгдэл, цуврал/дуусах хугацаа, буцаалт хүлээн авах эсвэл хорогдол болгох.
+- **Найдвартай бүртгэл:** тасарсан олон sheet-ийн бичилтийг сэргээх журнал, давтан хүсэлтээр үлдэгдлийг давхар өөрчлөхгүй, ажилтан тус бүрийн offline queue.
+
+Кодыг GitHub-д оруулах нь Apps Script серверийг автоматаар шинэчлэхгүй. Шинэ цэс нь сервер `operationsVersion: 1` буцаасны дараа идэвхжинэ.
+
+## Суулгах ба шалгах
+
+[Өдөр тутмын ажиллагааны шинэчлэл суулгах заавар](DAILY_OPERATIONS_SETUP_MN.md) — файлын жагсаалт, migration, бодит орчны шалгалт, rollback.
+
+[4 долоо хоногийн туршилтын төлөвлөгөө](PILOT_PLAN_MN.md) — жижиг бизнестэй турших ажлын санал; бодит үр дүн хараахан цуглараагүй.
+
+Node.js 20 буюу түүнээс дээш хувилбарт:
+
+```sh
+npm ci
+npm test
+```
+
+`npm run build` нь Netlify-ийн `dist` хавтсыг үүсгэнэ. `npm run bundle:gas` нь Apps Script-д зориулсан нийлмэл `release/Code.gs` үүсгэнэ. Browser runtime npm dependency шаардахгүй.
+
+## Кодын бүтэц
+
+| Файл | Үүрэг |
+|---|---|
+| `index.html`, `privacy.html`, `terms.html` | Нийтийн танилцуулга, нууцлал, нөхцөл |
+| `app.html` | Апп болон нэмэлт CSS/JS ачаална |
+| `app-core.html` | Нэвтрэх, сагс, offline queue, тохиргоо, хэвлэх цонх |
+| `operations-ui.js`, `operations-ui.css` | Өнөөдөр, мөнгө, хүргэлт, барааны нэмэлт урсгал |
+| `Code.gs` | Auth, registry, API routing, хуучин модулиуд |
+| `OperationsService.gs` | Борлуулалт, төлөлт, буцаалт, хүргэлт, stock, journal |
+| `ProductService.gs` | Барааны жагсаалт, засвар |
+| `DocumentService.gs`, `PdfService.gs`, `Print*.html` | Баримтын өгөгдөл, PDF, хувилбарууд |
+| `premium-ads.*`, `ads-config.js` | Одоо байгаа sponsor болон заргүй эрхийн тохиргоо |
+| `tests/` | Sheet service simulation болон DOM interaction шалгалт |
+
+## Зар ба өгөгдөл
+
+Үндсэн боломжууд үнэгүй. Одоо байгаа direct sponsor болон заргүй Active/Premium загварыг хадгалсан. Google AdSense идэвхгүй. Монгол хэл Google-ийн [publisher supported languages](https://support.google.com/adsense/answer/9727?hl=en) жагсаалтад ороогүй (2026-09-11 шалгасан).
+
+Master registry-д компанийн бүртгэл, хэрэглэгч, зар байна. Бизнесийн гүйлгээ, буцаалт, цуврал, журнал нь компанийн sheet-д байна. Sheet-ийг хэрэглэгчийн Google имэйлтэй хуваалцах ажлыг DataLinx гараар хийнэ.

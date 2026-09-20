@@ -112,7 +112,8 @@ function renderFirstPartyAd(slot, placement, notice = '') {
   const link = safeSponsorUrl(ad.linkUrl) || FACEBOOK_URL;
   const image = safeSponsorUrl(ad.imageUrl);
   slot.dataset.adProvider = 'first-party';
-  slot.innerHTML = `<section class="ad-shell">${adHeader(ad.sponsor || 'DataLinx')}<a class="sponsor-ad" href="${escapeHtml(link)}" target="_blank" rel="noopener sponsored">${image ? `<img class="sponsor-ad-image" src="${escapeHtml(image)}" alt="">` : '<div class="sponsor-ad-placeholder">DL</div>'}<div class="sponsor-ad-copy"><strong>${escapeHtml(ad.title || '')}</strong><small>${escapeHtml(ad.description || '')}</small></div><span class="sponsor-ad-action">Дэлгэрэнгүй ›</span></a></section>`;
+  slot.innerHTML = `<section class="ad-shell">${adHeader(ad.sponsor || 'DataLinx')}<a class="sponsor-ad" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer sponsored">${image ? `<img class="sponsor-ad-image" referrerpolicy="no-referrer" src="${escapeHtml(image)}" alt="">` : '<div class="sponsor-ad-placeholder">DL</div>'}<div class="sponsor-ad-copy"><strong>${escapeHtml(ad.title || '')}</strong><small>${escapeHtml(ad.description || '')}</small></div><span class="sponsor-ad-action">Дэлгэрэнгүй ›</span></a></section>`;
+  window.observeSponsor?.(slot,ad,placement);
 }
 
 function renderGoogleAd(slot, placement) {

@@ -75,6 +75,7 @@ function getPrintableSalesData(saleId, auth, documentType, reserveNumber, skipPe
   if (!matchingRows.length) throw new Error('Борлуулалтын мэдээлэл олдсонгүй.');
 
   const first = matchingRows[0].object;
+  if (!skipPermission) validateDocumentPermission_(auth, type, {sale:{salesEmployee:first['Рэп нэр']}});
   const actualSaleId = clean_(field_(first, ['SaleID'])) || clean_(field_(first, ['Client ID','ClientID'])) || saleRowIdentifier_(matchingRows[0]);
   const productMap = getProductRecordMap_(ss);
   const customer = getCustomerForSale_(ss, first);
@@ -113,10 +114,9 @@ function getPrintableSalesData(saleId, auth, documentType, reserveNumber, skipPe
   const discountTotal = products.reduce(function(sum, item) { return sum + item.discount; }, 0);
   const vatTotal = products.reduce(function(sum, item) { return sum + item.vat; }, 0);
   const total = products.reduce(function(sum, item) { return sum + item.total; }, 0);
-  const rowPaid = matchingRows.reduce(function(sum, entry) { return sum + Number(field_(entry.object, ['PaidAmount']) || 0); }, 0);
-  const paymentPaid = payments.reduce(function(sum, payment) { return sum + payment.amount; }, 0);
-  const paid = paymentPaid > 0 ? paymentPaid : rowPaid;
-  const remaining = Math.max(0, total - paid);
+  const ledger = opsSale_(ss, actualSaleId, skipPermission ? {role:'manager'} : auth);
+  const paid = ledger.paid;
+  const remaining = ledger.remaining;
   const status = clean_(field_(first, ['Status'])) || 'Approved';
   const numberField = type === 'INVOICE' ? 'InvoiceNumber' : 'WarehouseIssueNumber';
   let documentNumber = clean_(field_(first, [numberField]));
@@ -136,7 +136,7 @@ function getPrintableSalesData(saleId, auth, documentType, reserveNumber, skipPe
       companySpreadsheetId: company.spreadsheetId,
       createdBy: auth.fullName || auth.username,
       printedAt: new Date().toISOString(),
-      watermark: getWatermark_(type, status, paid, total, distribution ? clean_(field_(distribution.object, ['Status'])) : '')
+      watermark: getWatermark_(type, status, paid, ledger.net, distribution ? clean_(field_(distribution.object, ['Status'])) : '')
     },
     company: settings,
     customer: customer,
@@ -168,6 +168,8 @@ function getPrintableSalesData(saleId, auth, documentType, reserveNumber, skipPe
       total: total,
       paid: paid,
       remaining: remaining,
+      returned: ledger.returned,
+      refundDue: ledger.refundDue,
       amountInWords: numberToMongolianWords_(Math.round(total)) + ' төгрөг'
     }
   };
@@ -186,6 +188,8 @@ function getPrintableDistributionData(distributionId, auth, reserveNumber) {
   if (!distributionEntry) throw new Error('Түгээлтийн мэдээлэл олдсонгүй.');
 
   const distribution = mapDistributionObject_(distributionEntry.object);
+  validateDocumentPermission_(auth, 'DISTRIBUTION', {distribution:distribution,sale:{}});
+  if(isSalesRole_(auth.role)&&distribution.saleId)opsSale_(ss,distribution.saleId,auth);
   let saleData = null;
   if (distribution.saleId) {
     try { saleData = getPrintableSalesData(distribution.saleId, auth, 'INVOICE', false, true); }
@@ -213,7 +217,7 @@ function getPrintableDistributionData(distributionId, auth, reserveNumber) {
 
   const total = products.reduce(function(sum, item) { return sum + item.total; }, 0);
   const collected = Number(distribution.collectedPayment || 0);
-  const remaining = distribution.remainingReceivable || Math.max(0, total - collected);
+  const remaining = saleData ? saleData.totals.remaining : Math.max(0, total - collected);
   const data = {
     meta: {
       documentType: 'DISTRIBUTION',
@@ -319,6 +323,7 @@ function savePdfRecord(documentData) {
   ensureCompanySheets_(ss);
   const sheet = ss.getSheetByName(COMPANY_SHEETS.DOCUMENTS);
   const record = {
+    'ContentHash': documentData.contentHash || '',
     'DocumentID': documentData.documentId || createBusinessId_('DOC'),
     'CompanyID': documentData.companyId,
     'DocumentType': normalizeDocumentType_(documentData.documentType),
@@ -407,15 +412,17 @@ function mapCustomerObject_(object) {
 }
 
 function getPaymentsForSale_(ss, saleId) {
-  return sheetObjects_(ss.getSheetByName(COMPANY_SHEETS.PAYMENTS)).rows.filter(function(entry) {
-    return clean_(field_(entry.object, ['SaleID'])) === saleId && clean_(field_(entry.object, ['Баталгаажуулсан'])).toLowerCase() !== 'үгүй';
+  return opsGrouped_(ss, COMPANY_SHEETS.PAYMENTS,'SaleID',saleId).filter(function(entry) {
+    return clean_(field_(entry.object, ['SaleID'])) === saleId && !['үгүй','false','0','no'].includes(clean_(field_(entry.object, ['Баталгаажуулсан'])).toLowerCase());
   }).map(function(entry) {
     return {
       paymentId: clean_(field_(entry.object, ['PaymentID'])),
       date: iso_(field_(entry.object, ['Огноо'])),
       amount: Number(field_(entry.object, ['Дүн']) || 0),
       method: clean_(field_(entry.object, ['Төлбөрийн арга'])),
-      notes: clean_(field_(entry.object, ['Тэмдэглэл']))
+      notes: clean_(field_(entry.object, ['Тэмдэглэл'])),
+      reversalOf: clean_(entry.object.ReversalOf),
+      source: clean_(entry.object.Source)
     };
   });
 }
@@ -481,6 +488,7 @@ function findDistributionEntry_(sheet, distributionId) {
 
 function mapDistributionObject_(object) {
   return {
+    driverUsername:clean_(object.DriverUsername),
     distributionId: clean_(field_(object, ['DistributionID'])),
     saleId: clean_(field_(object, ['SaleID'])),
     invoiceNumber: clean_(field_(object, ['InvoiceNumber'])),
@@ -561,7 +569,7 @@ function validateDocumentPermission_(auth, type, data) {
     if (role === 'warehouse') return true;
   }
   if (type === 'DISTRIBUTION') {
-    if (role === 'driver' && samePerson_(data.distribution.driver, auth)) return true;
+    if (role === 'driver' && (data.distribution.driverUsername ? data.distribution.driverUsername === auth.username : samePerson_(data.distribution.driver, auth))) return true;
     if (isSalesRole_(role) && samePerson_(data.distribution.salesEmployee || data.sale.salesEmployee, auth)) return true;
   }
   throw new Error('Энэ баримтыг үүсгэх эсвэл хэвлэх эрх хүрэлцэхгүй байна.');

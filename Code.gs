@@ -42,7 +42,7 @@ const SHEET_HEADERS = {
   SETTINGS: ['Түлхүүр','Утга','Тайлбар'],
   PAYMENTS: ['PaymentID','SaleID','Огноо','Дүн','Төлбөрийн арга','Баталгаажуулсан','Тэмдэглэл','CreatedBy'],
   DOCUMENT_NUMBERS: ['CompanyID','DocumentType','Prefix','LastNumber','UpdatedAt','UpdatedBy'],
-  DOCUMENTS: ['DocumentID','CompanyID','DocumentType','DocumentNumber','ReferenceType','ReferenceID','SaleID','DistributionID','CustomerID','FileName','DriveFileID','PdfUrl','Version','Status','CreatedBy','CreatedAt']
+  DOCUMENTS: ['DocumentID','CompanyID','DocumentType','DocumentNumber','ReferenceType','ReferenceID','SaleID','DistributionID','CustomerID','FileName','DriveFileID','PdfUrl','Version','Status','CreatedBy','CreatedAt','ContentHash']
 };
 
 const LOGIN_ATTEMPT_LIMIT = 10;
@@ -56,18 +56,23 @@ function doGet(e) {
   try {
     ensureMasterSheets_();
     const action = clean_(e && e.parameter && e.parameter.action);
-    if (action === 'login') return json_(handleLogin_(e.parameter || {}));
+    if(action==='capabilities')return json_({success:true,operationsVersion:1,reliabilityVersion:1});
+    if (action === 'login') throw new Error('Шинэ хувилбараа нээнэ үү. Нэвтрэхэд POST шаардлагатай.');
     if (action === 'bootstrap') {
       const auth = requireSession_(clean_(e.parameter.token));
-      return json_(buildInitialPayload_(auth));
+      return json_(withOperationsRead_(auth,()=>buildInitialPayload_(auth)));
+    }
+    if (action === 'operations') {
+      const auth = requireSession_(clean_(e.parameter.token));
+      return json_(loadOperations_(auth, e.parameter));
     }
     if (action === 'module') {
       const auth = requireSession_(clean_(e.parameter.token));
-      return json_(loadModule_(auth, clean_(e.parameter.module)));
+      return json_(withOperationsRead_(auth,()=>loadModule_(auth, clean_(e.parameter.module))));
     }
     if (action === 'history') {
       const auth = requireSession_(clean_(e.parameter.token));
-      return json_(loadOlderHistory_(auth, e.parameter || {}));
+      return json_(withOperationsRead_(auth,()=>loadOlderHistory_(auth, e.parameter || {})));
     }
     return json_({ success: true, message: 'DataLinx API ажиллаж байна.' });
   } catch (error) {
@@ -80,13 +85,28 @@ function doPost(e) {
     ensureMasterSheets_();
     const payload = parseBody_(e);
     const action = clean_(payload.action);
+    if (action === 'login') return json_(handleLogin_(payload));
+    if (action === 'completeRecovery') return json_(securityCompleteRecovery_(payload));
     if (action === 'registerCompany') return json_(handleRegisterCompany_(payload));
 
     const auth = requireSession_(clean_(payload.token));
+    if(action==='sponsorEvent')return json_(recordSponsorEvent_(auth,payload));
+    if(action==='bootstrap')return json_(withOperationsRead_(auth,()=>buildInitialPayload_(auth)));
+    if(action==='operations')return json_(loadOperations_(auth,payload));
+    if(action==='module')return json_(withOperationsRead_(auth,()=>loadModule_(auth,clean_(payload.module))));
+    if(action==='history')return json_(withOperationsRead_(auth,()=>loadOlderHistory_(auth,payload)));
+    if(action==='backupStatus'||action==='createBackup'||action==='testRestore')return json_(backupAction_(auth,payload));
+    if(action==='inspectRequest'||action==='cancelRequest')return json_(dataQueueAction_(auth,payload));
+    if(action==='previewImport')return json_(dataPreviewImport_(auth,payload));
+    if(action==='logout')return json_(securityLogout_(auth,payload));
+    if(action==='changePassword')return json_(securityChangePassword_(auth,payload));
+    if(action==='issueRecovery')return json_(securityIssueRecovery_(auth,payload));
+    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash','approveReturn','reversePayment','cancelSale','importData','stocktake'].includes(action)) return json_(handleOperation_(auth, payload));
+    recoverOperations_(auth);
     if (action === 'saveProduct') return json_(handleSaveProduct_(auth, payload));
     if (action === 'deleteProduct') return json_(handleDeleteProduct_(auth, payload));
-    if (action === 'addSale') return json_(handleAddSale_(auth, payload));
-    if (action === 'addInventoryMove') return json_(handleAddInventoryMove_(auth, payload));
+
+
     if (action === 'addVisit') return json_(handleAddVisit_(auth, payload));
     if (action === 'saveUser') return json_(handleSaveUser_(auth, payload));
     if (action === 'deleteUser') return json_(handleDeleteUser_(auth, payload));
@@ -99,58 +119,18 @@ function doPost(e) {
   }
 }
 
-function handleLogin_(params) {
-  const username = clean_(params.username);
-  const password = String(params.password || '');
-  if (!username || !password) throw new Error('Хэрэглэгчийн нэр болон нууц үг шаардлагатай.');
-
-  const cache = CacheService.getScriptCache();
-  const rateKey = 'login:' + username.toLowerCase();
-  const failed = Number(cache.get(rateKey) || 0);
-  if (failed >= LOGIN_ATTEMPT_LIMIT) {
-    throw new Error('Нэг минутанд 10-аас олон буруу оролдлого хийсэн тул түр хаагдлаа. 1 минутын дараа дахин оролдоно уу.');
-  }
-
-  const master = masterSs_();
-  const users = values_(master.getSheetByName(MASTER_SHEETS.USERS));
-  const userRow = findRowByValue_(users, 0, username);
-  if (!userRow || !passwordMatches_(password, userRow.values[1])) {
-    cache.put(rateKey, String(failed + 1), LOGIN_WINDOW_SECONDS);
-    throw new Error('Хэрэглэгчийн нэр эсвэл нууц үг буруу байна.');
-  }
-
-  cache.remove(rateKey);
-  const companyName = clean_(userRow.values[4]);
-  const company = getCompany_(companyName);
-  if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
-  if (!company.spreadsheetId) throw new Error('Компанийн Spreadsheet ID бүртгэгдээгүй байна.');
-  if (company.status === 'Inactive') throw new Error('Компанийн эрх идэвхгүй байна. ' + UPGRADE_URL);
-
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-
-  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
-  const auth = {
-    username: clean_(userRow.values[0]),
-    fullName: clean_(userRow.values[2]),
-    role: normalizeRole_(userRow.values[3]),
-    company: companyName,
-    issuedAt: new Date().toISOString()
-  };
-  cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
-
-  const result = buildInitialPayload_(auth);
-  result.token = token;
-  return result;
-}
+function handleLogin_(params) {return secureLogin_(params);}
 
 function buildInitialPayload_(auth) {
   const company = requireActiveCompany_(auth.company);
   const companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
   const recent = getRecentTransactions_(companySs, INITIAL_HISTORY_DAYS, INITIAL_HISTORY_LIMIT);
+  recent.items = recent.items.filter(tx => opsCanSeeSale_(auth, {object: {SaleID:tx.saleId,CreatedBy:tx.createdBy,'Рэп нэр':tx.rep}}, companySs));
   return {
     success: true,
+    operationsVersion: 1,
+    reliabilityVersion: 1,
     user: { username: auth.username, fullName: auth.fullName, role: auth.role, company: auth.company },
     company: { name: company.name, phone: company.phone, email: company.email, spreadsheetId: company.spreadsheetId },
     companyStatus: company.status,
@@ -178,6 +158,7 @@ function loadModule_(auth, moduleName) {
     return { success: true, visits: getVisits_(companySs, auth, 50) };
   }
   if (moduleName === 'dashboard') {
+    opsAssertRole_(auth, ['manager','admin','accountant']);
     return { success: true, dashboard: buildDashboard_(companySs) };
   }
   if (moduleName === 'settings') {
@@ -202,7 +183,7 @@ function loadOlderHistory_(auth, params) {
   }).reverse() : [];
   return {
     success: true,
-    transactions: items,
+    transactions: items.filter(tx => opsCanSeeSale_(auth, {object:{SaleID:tx.saleId,CreatedBy:tx.createdBy,'Рэп нэр':tx.rep}}, companySs)),
     historyCursor: startRow,
     hasMoreTransactions: startRow > 2
   };
@@ -217,7 +198,9 @@ function handleRegisterCompany_(p) {
   const password = String(p.password || '');
   if (!companyName || !phone || !managerName || !username || !password) throw new Error('Компанийн нэр, утас, менежерийн нэр, хэрэглэгчийн нэр, нууц үг шаардлагатай.');
   if (!/^\d{8}$/.test(phone)) throw new Error('Утасны дугаар яг 8 оронтой тоо байна.');
-  if (password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
+  securityRate_('register:'+phone,3,3600);
+  securityRate_('register:global',20,3600);
+  const passwordHash=strongPassword_(password,false);
   validateUsername_(username);
 
   const lock = LockService.getScriptLock();
@@ -237,233 +220,18 @@ function handleRegisterCompany_(p) {
     // Харилцагч өөрийн sheet-ээ шууд үзэх/экспортлох хүсэлт гаргавал DataLinx админ
     // тухайн spreadsheet-ийг хэрэглэгчийн Google имэйлтэй ГАРААР share хийнэ.
     // Автоматаар share хийхгүй — энэ нь зориудын manual admin алхам.
-    companySheet.appendRow([companyName, newSheetId, 'Active', new Date(), 0, phone, email]);
-    userSheet.appendRow([username, sha256_(password), managerName, 'manager', companyName]);
+    companySheet.appendRow([companyName, newSheetId, 'Free', new Date(), 0, phone, email]);
+    userSheet.appendRow([username, passwordHash, managerName, 'manager', companyName,Date.now()]);
     return { success: true, message: 'Үнэгүй эрх амжилттай үүслээ.', spreadsheetId: newSheetId };
   } finally {
     lock.releaseLock();
   }
 }
 
-function handleAddSale_(auth, p) {
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-
-  const customerName = clean_(p.customer);
-  if (!customerName) throw new Error('Харилцагч сонгох эсвэл шинээр нэмнэ үү.');
-  const paymentType = clean_(p.paymentType) === 'Зээл' ? 'Зээл' : 'Бэлэн';
-  const clientId = clean_(p.clientId);
-  const location = clean_(p.location) || firstLocation_(companySs);
-  const warehouse = clean_(p.warehouse) || firstWarehouse_(companySs);
-  const items = normalizeSaleItems_(p);
-  if (!items.length) throw new Error('Бүтээгдэхүүнгүй борлуулалт бүртгэх боломжгүй.');
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    const salesSheet = companySs.getSheetByName(COMPANY_SHEETS.SALES);
-    const salesHeaders = getHeaders_(salesSheet);
-    if (clientId) {
-      const existing = findRowByHeaderValue_(salesSheet, ['Client ID','ClientID'], clientId);
-      if (existing) {
-        const mapped = mapSaleRow_(existing.values, existing.rowNumber, salesHeaders);
-        return { success: true, duplicate: true, date: mapped.date, total: mapped.total, remainingStock: mapped.remainingStock || 0, remainingStocks: getSaleStockMap_(companySs, p), saleId: mapped.saleId, transaction: mapped };
-      }
-    }
-
-    const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
-    const productData = sheetObjects_(productSheet);
-    const productByName = {};
-    productData.rows.forEach(function(entry) {
-      const name = clean_(field_(entry.object, ['Барааны нэр']));
-      if (name) productByName[name.toLowerCase()] = entry;
-    });
-
-    const aggregated = {};
-    const remainingStocks = {};
-    items.forEach(function(item) {
-      const key = item.product.toLowerCase();
-      if (!aggregated[key]) aggregated[key] = { product: item.product, quantity: 0 };
-      aggregated[key].quantity += item.quantity;
-    });
-
-    Object.keys(aggregated).forEach(function(key) {
-      const requested = aggregated[key];
-      const entry = productByName[key];
-      if (!entry) throw new Error(requested.product + ' бараа олдсонгүй.');
-      const stock = Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0);
-      if (stock < requested.quantity) throw new Error(requested.product + ' барааны үлдэгдэл хүрэлцэхгүй байна. Одоогийн үлдэгдэл: ' + stock);
-    });
-
-    const now = new Date();
-    const saleId = clean_(p.saleId) || createBusinessId_('SAL');
-    const status = normalizeSaleStatus_(p.status || 'Approved');
-    const customer = upsertCustomer_(companySs, customerName, p.customerData || {});
-    const discountTotal = nonNegativeNumberOrZero_(p.discount);
-    const vatTotal = nonNegativeNumberOrZero_(p.vat);
-    const grossTotal = items.reduce(function(sum, item) { return sum + item.quantity * item.unitPrice; }, 0);
-    const netTotal = Math.max(0, grossTotal - discountTotal + vatTotal);
-    const paidAmount = p.paidAmount === undefined || p.paidAmount === null || p.paidAmount === '' ? (paymentType === 'Бэлэн' ? netTotal : 0) : nonNegativeNumberOrZero_(p.paidAmount);
-    const dueDate = clean_(p.dueDate) || (paymentType === 'Зээл' ? defaultDueDate_(companySs, now) : '');
-
-    Object.keys(aggregated).forEach(function(key) {
-      const requested = aggregated[key];
-      const entry = productByName[key];
-      const stock = Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0);
-      const updatedStock = stock - requested.quantity;
-      setObjectFields_(productSheet, entry.rowNumber, { 'Одоогийн үлдэгдэл': updatedStock });
-      adjustWarehouseStock_(companySs, warehouse, requested.product, -requested.quantity, true, stock);
-      remainingStocks[requested.product] = updatedStock;
-    });
-
-    const salesRows = items.map(function(item, index) {
-      const lineDiscount = items.length === 1 ? discountTotal : 0;
-      const lineVat = items.length === 1 ? vatTotal : 0;
-      const lineGross = item.quantity * item.unitPrice;
-      return objectToRow_(salesHeaders, {
-        'Огноо': now,
-        'Рэп нэр': auth.fullName || auth.username,
-        'Бараа': item.product,
-        'Тоо': item.quantity,
-        'Үнэ': item.unitPrice,
-        'Нийт дүн': Math.max(0, lineGross - lineDiscount + lineVat),
-        'Харилцагч': customer.name,
-        'Төлбөрийн төрөл': paymentType,
-        'Байршил': location,
-        'Client ID': clientId,
-        'SaleID': saleId,
-        'Status': status,
-        'Warehouse': warehouse,
-        'DeliveryType': clean_(p.deliveryType),
-        'DeliveryDate': clean_(p.deliveryDate),
-        'Notes': clean_(p.notes),
-        'CustomerID': customer.customerId,
-        'Discount': lineDiscount,
-        'VAT': lineVat,
-        'PaidAmount': index === 0 ? paidAmount : 0,
-        'DueDate': dueDate,
-        'DeliveryID': clean_(p.deliveryId),
-        'CreatedBy': auth.username
-      });
-    });
-    appendRows_(salesSheet, salesRows);
-
-    const moveSheet = companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES);
-    const moveHeaders = getHeaders_(moveSheet);
-    const moveRows = items.map(function(item) {
-      return objectToRow_(moveHeaders, {
-        'Огноо': now,
-        'Бараа': item.product,
-        'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)': 'зарлага',
-        'Тоо': item.quantity,
-        'Шалтгаан': 'Борлуулалт ' + saleId,
-        'Агуулах': warehouse,
-        'Client ID': clientId,
-        'SaleID': saleId,
-        'DistributionID': clean_(p.deliveryId),
-        'Confirmed': 'Тийм',
-        'Нэгж үнэ': item.unitPrice,
-        'Нийт дүн': item.quantity * item.unitPrice,
-        'Рэп нэр': auth.fullName || auth.username
-      });
-    });
-    appendRows_(moveSheet, moveRows);
-
-    const remainingStock = Number(remainingStocks[items[0].product] || 0);
-    const transaction = {
-      rowNumber: salesSheet.getLastRow() - salesRows.length + 1,
-      date: now.toISOString(),
-      rep: auth.fullName || auth.username,
-      product: items.length === 1 ? items[0].product : items.length + ' төрлийн бараа',
-      quantity: items.reduce(function(sum, item) { return sum + item.quantity; }, 0),
-      unitPrice: items.length === 1 ? items[0].unitPrice : 0,
-      total: netTotal,
-      customer: customer.name,
-      paymentType: paymentType,
-      location: location,
-      clientId: clientId,
-      saleId: saleId,
-      status: status,
-      warehouse: warehouse,
-      dueDate: dueDate
-    };
-    return { success: true, date: now.toISOString(), total: netTotal, remainingStock: remainingStock, remainingStocks: remainingStocks, saleId: saleId, transaction: transaction };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleAddInventoryMove_(auth, p) {
-  if (!canManageInventory_(auth)) throw new Error('Агуулахын хөдөлгөөн хийх эрх хүрэлцэхгүй байна.');
-  const company = requireActiveCompany_(auth.company);
-  const companySs = openCompanySs_(company);
-  ensureCompanySheets_(companySs);
-  const productName = clean_(p.product);
-  const moveType = clean_(p.moveType).toLowerCase();
-  const quantity = positiveNumber_(p.quantity, 'Тоо хэмжээ');
-  const reason = clean_(p.reason);
-  const clientId = clean_(p.clientId);
-  if (!productName) throw new Error('Бараа сонгоно уу.');
-  if (['орлого', 'зарлага', 'шилжүүлэг'].indexOf(moveType) === -1) throw new Error('Хөдөлгөөний төрөл буруу байна.');
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const moveSheet = companySs.getSheetByName(COMPANY_SHEETS.INVENTORY_MOVES);
-    const existing = clientId ? findRowByHeaderValue_(moveSheet, ['Client ID','ClientID'], clientId) : null;
-    const productSheet = companySs.getSheetByName(COMPANY_SHEETS.PRODUCTS);
-    const productEntry = findObjectRowByValue_(productSheet, ['Барааны нэр'], productName);
-    if (!productEntry) throw new Error('Бараа олдсонгүй.');
-    if (existing) return { success: true, duplicate: true, date: iso_(field_(rowToObject_(getHeaders_(moveSheet), existing.values), ['Огноо'])), stock: Number(field_(productEntry.object, ['Одоогийн үлдэгдэл']) || 0) };
-
-    const current = Number(field_(productEntry.object, ['Одоогийн үлдэгдэл']) || 0);
-    let newTotal = current;
-    let fromWarehouse = '';
-    let toWarehouse = '';
-    const warehouse = clean_(p.warehouse) || firstWarehouse_(companySs);
-
-    if (moveType === 'орлого') {
-      newTotal = current + quantity;
-      adjustWarehouseStock_(companySs, warehouse, productName, quantity, false, current);
-    } else if (moveType === 'зарлага') {
-      if (current < quantity) throw new Error('Нийт үлдэгдэл хүрэлцэхгүй байна.');
-      newTotal = current - quantity;
-      adjustWarehouseStock_(companySs, warehouse, productName, -quantity, true, current);
-    } else {
-      fromWarehouse = clean_(p.fromWarehouse);
-      toWarehouse = clean_(p.toWarehouse);
-      if (!fromWarehouse || !toWarehouse || fromWarehouse === toWarehouse) throw new Error('Хоёр өөр агуулах сонгоно уу.');
-      adjustWarehouseStock_(companySs, fromWarehouse, productName, -quantity, true, current);
-      adjustWarehouseStock_(companySs, toWarehouse, productName, quantity, false, 0);
-    }
-
-    if (moveType !== 'шилжүүлэг') setObjectFields_(productSheet, productEntry.rowNumber, { 'Одоогийн үлдэгдэл': newTotal });
-    const date = new Date();
-    appendObjectRow_(moveSheet, {
-      'Огноо': date,
-      'Бараа': productName,
-      'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)': moveType,
-      'Тоо': quantity,
-      'Шалтгаан': reason,
-      'Агуулах': warehouse,
-      'Гарах агуулах': fromWarehouse,
-      'Хүлээн авах агуулах': toWarehouse,
-      'Client ID': clientId,
-      'SaleID': saleId,
-      'DistributionID': clean_(p.distributionId),
-      'Confirmed': 'Тийм',
-      'Нэгж үнэ': nonNegativeNumberOrZero_(p.unitPrice),
-      'Нийт дүн': nonNegativeNumberOrZero_(p.unitPrice) * quantity,
-      'Рэп нэр': auth.fullName || auth.username
-    });
-    return { success: true, date: date.toISOString(), stock: newTotal };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
 function handleAddVisit_(auth, p) {
+  opsAssertRole_(auth, ['manager','admin','rep','sales','driver']);
+  if (Number(p.collectedPayment || 0) || clean_(p.returnedProducts)) throw new Error('Төлбөр, буцаалтыг Өнөөдөр хэсгийн хүргэлт эсвэл Мөнгө хэсгээс бүртгэнэ үү.');
+  if (clean_(p.saleId)) throw new Error('Борлуулалттай хүргэлтийг Өнөөдөр → Хүргэлт хэсгээс бүртгэнэ үү.');
   const company = requireActiveCompany_(auth.company);
   const companySs = openCompanySs_(company);
   ensureCompanySheets_(companySs);
@@ -573,7 +341,7 @@ function handleSaveUser_(auth, p) {
   const password = String(p.password || '');
   if (!username || !fullName) throw new Error('Нэр болон хэрэглэгчийн нэр шаардлагатай.');
   validateUsername_(username);
-  if (password && password.length < 6) throw new Error('Нууц үг хамгийн багадаа 6 тэмдэгт байна.');
+  const passwordHash=password?strongPassword_(password,false):'';
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -585,17 +353,22 @@ function handleSaveUser_(auth, p) {
     if (existingTarget && (!editing || existingTarget.rowNumber !== editing.rowNumber)) throw new Error('Энэ хэрэглэгчийн нэр ашиглагдаж байна.');
 
 
+    if (editing && clean_(editing.values[4]).toLowerCase() !== auth.company.toLowerCase()) throw new Error('Хэрэглэгч олдсонгүй.');
+    if (editing && clean_(editing.values[0]) === auth.username && !isManagerRole_(role)) throw new Error('Өөрийн удирдах эрхийг хасах боломжгүй.');
+    if (editing && originalUsername && username!==originalUsername)throw new Error('Хэрэглэгчийн нэрийг солихгүй. Шинэ ажилтан үүсгэнэ үү.');
     if (editing) {
+      const oldUser=securityUser_(originalUsername||username);
+      if(passwordHash)securitySavePassword_(oldUser,passwordHash);
       userSheet.getRange(editing.rowNumber, 1, 1, 5).setValues([[
         username,
-        password ? sha256_(password) : String(editing.values[1] || ''),
+        passwordHash || String(editing.values[1] || ''),
         fullName,
         role,
         auth.company
       ]]);
     } else {
       if (!password) throw new Error('Шинэ хэрэглэгчид нууц үг шаардлагатай.');
-      userSheet.appendRow([username, sha256_(password), fullName, role, auth.company]);
+      userSheet.appendRow([username, passwordHash, fullName, role, auth.company,Date.now()]);
     }
     return { success: true };
   } finally {
@@ -669,6 +442,8 @@ function getProducts_(companySs) {
       name: name,
       code: clean_(field_(entry.object, ['Код'])),
       unit: clean_(field_(entry.object, ['Хэмжих нэгж'])) || 'ш',
+      packName: clean_(entry.object.PackName) || 'Хайрцаг',
+      packSize: Number(entry.object.PackSize || 1),
       price: Number(field_(entry.object, ['Нэгж үнэ']) || 0),
       stock: Number(field_(entry.object, ['Одоогийн үлдэгдэл']) || 0),
       threshold: Number(field_(entry.object, ['Бага үлдэгдлийн хязгаар']) || norms[name.toLowerCase()] || 0)
@@ -737,7 +512,8 @@ function mapSaleRow_(row, rowNumber, headers) {
     vat: Number(field_(object, ['VAT']) || 0),
     paidAmount: Number(field_(object, ['PaidAmount']) || 0),
     dueDate: isoOrText_(field_(object, ['DueDate'])),
-    distributionId: clean_(field_(object, ['DeliveryID']))
+    distributionId: clean_(field_(object, ['DeliveryID'])),
+    createdBy: clean_(field_(object, ['CreatedBy']))
   };
 }
 
@@ -846,6 +622,8 @@ function buildDashboard_(companySs) {
   let currentCount = 0;
   let creditTotal = 0;
   const currentSaleIds = {};
+  const returnedByLine = {};
+  opsRows_(companySs,'Буцаалт').filter(e=>opsCreditApproved_(e.object)).forEach(e=>{const r=e.object,key=r.SaleID+'|'+r.LineID;const value=returnedByLine[key]||(returnedByLine[key]={amount:0,quantity:0});value.amount+=Number(r['Дүн']||0);value.quantity+=Number(r['Тоо']||0);});
   const byProduct = {};
   const byRep = {};
   const creditByCustomer = {};
@@ -854,20 +632,28 @@ function buildDashboard_(companySs) {
     const row = entry.object;
     const date = asDate_(field_(row, ['Огноо']));
     if (!date) return;
-    const total = Number(field_(row, ['Нийт дүн']) || 0);
-    const saleId = clean_(field_(row, ['SaleID'])) || ('ROW-' + entry.rowNumber);
+    if (['cancelled','цуцлагдсан','draft','ноорог'].includes(clean_(row.Status).toLowerCase())) return;
+    const saleId = saleRowIdentifier_(entry);
+    const returned = returnedByLine[saleId+'|'+(row.LineID||'ROW-'+entry.rowNumber)]||{amount:0,quantity:0};
+    const total = opsMoney_(Math.max(0,Number(field_(row,['Нийт дүн'])||0)-returned.amount));
+    const quantity = Math.max(0,Number(field_(row,['Тоо'])||0)-returned.quantity);
     if (date >= currentStart && date < nextStart) {
       currentTotal += total;
       if (!currentSaleIds[saleId]) { currentSaleIds[saleId] = true; currentCount += 1; }
-      addMetric_(byProduct, clean_(field_(row, ['Бараа'])) || 'Тодорхойгүй', total, Number(field_(row, ['Тоо']) || 0));
-      addMetric_(byRep, clean_(field_(row, ['Рэп нэр'])) || 'Тодорхойгүй', total, Number(field_(row, ['Тоо']) || 0));
+      addMetric_(byProduct, clean_(field_(row, ['Бараа'])) || 'Тодорхойгүй', total, quantity);
+      addMetric_(byRep, clean_(field_(row, ['Рэп нэр'])) || 'Тодорхойгүй', total, quantity);
     }
     if (date >= previousStart && date < currentStart) previousTotal += total;
-    if (clean_(field_(row, ['Төлбөрийн төрөл'])) === 'Зээл') {
-      const remaining = Math.max(0, total - Number(field_(row, ['PaidAmount']) || 0));
-      creditTotal += remaining;
-      addMetric_(creditByCustomer, clean_(field_(row, ['Харилцагч'])) || 'Тодорхойгүй', remaining, 0);
-    }
+
+  });
+
+  const ids = new Set(data.rows.map(saleRowIdentifier_));
+  opsRows_(companySs,'Эхний авлага').forEach(e=>ids.add(e.object.OpeningID));
+  ids.forEach(id => {
+    const sale = opsSale_(companySs, id, {role:'manager'});
+    if (['cancelled','цуцлагдсан','draft','ноорог'].includes(sale.status.toLowerCase())) return;
+    creditTotal += sale.remaining;
+    if (sale.remaining) addMetric_(creditByCustomer, sale.customer, sale.remaining, 0);
   });
 
   return {
@@ -1017,7 +803,7 @@ function getActiveAds_() {
 function ensureMasterSheets_() {
   const ss = masterSs_();
   ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл']);
-  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр']);
+  ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр'].concat(SECURITY_USER_HEADERS));
   ensureSheet_(ss, MASTER_SHEETS.ADS, MASTER_AD_HEADERS);
 }
 
@@ -1036,6 +822,7 @@ function ensureCompanySheets_(ss) {
   ensureSheet_(ss, COMPANY_SHEETS.PAYMENTS, SHEET_HEADERS.PAYMENTS);
   ensureSheet_(ss, COMPANY_SHEETS.DOCUMENT_NUMBERS, SHEET_HEADERS.DOCUMENT_NUMBERS);
   ensureSheet_(ss, COMPANY_SHEETS.DOCUMENTS, SHEET_HEADERS.DOCUMENTS);
+  ensureOperationsSheets_(ss);
 }
 
 function seedCompanySettings_(ss, companyInfo) {
@@ -1052,7 +839,7 @@ function seedCompanySettings_(ss, companyInfo) {
     ['VatRate', '0', 'НӨАТ хувь'],
     ['DefaultPaymentTermDays', '14', 'Зээлийн төлбөрийн хугацаа (хоног)'],
     ['PdfRootFolderId', '', 'Систем автоматаар үүсгэнэ'],
-    ['PdfShareMode', 'LINK', 'LINK үед PDF-ийг холбоостой хүн үзнэ; PRIVATE үед зөвхөн Drive эрхтэй хүн үзнэ'],
+    ['PdfShareMode', 'PRIVATE', 'LINK үед PDF-ийг холбоостой хүн үзнэ; PRIVATE үед зөвхөн Drive эрхтэй хүн үзнэ'],
     ['WarehouseManager', '', 'Үндсэн нярав'],
     ['DefaultDriver', '', 'Үндсэн жолооч'],
     ['DefaultVehicle', '', 'Үндсэн тээврийн хэрэгсэл'],
@@ -1064,7 +851,7 @@ function seedCompanySettings_(ss, companyInfo) {
   appendRows_(sheet, rows);
 }
 
-function masterSs_() { return SpreadsheetApp.getActiveSpreadsheet(); }
+function masterSs_() { const active=SpreadsheetApp.getActiveSpreadsheet();return active||SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('DATALINX_MASTER_ID')); }
 
 function ensureSheet_(ss, name, requiredHeaders) {
   let sheet = ss.getSheetByName(name);
@@ -1089,12 +876,22 @@ function requireSession_(token) {
   const cache = CacheService.getScriptCache();
   const raw = cache.get('session:' + token);
   if (!raw) throw new Error('Session хугацаа дууссан. Дахин нэвтэрнэ үү.');
-  cache.put('session:' + token, raw, SESSION_SECONDS);
-  return JSON.parse(raw);
+  const auth = JSON.parse(raw);
+  const user = findRowByValue_(values_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)), 0, auth.username);
+  if (!user || clean_(user.values[4]) !== auth.company) throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  const current=securityUser_(auth.username);
+  if(Number(current.object.SessionVersion||0)!==Number(auth.sessionVersion||0))throw new Error('Session хүчингүй болсон. Дахин нэвтэрнэ үү.');
+  if(auth.issuedAt && Date.now()-Date.parse(auth.issuedAt)>86400000)throw new Error('Session хугацаа дууссан.');
+  auth.role = normalizeRole_(user.values[3]); auth.fullName = clean_(user.values[2]);
+  cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
+  return auth;
 }
 
 function passwordMatches_(input, stored) {
-  return String(stored || '') === sha256_(input) || String(stored || '') === String(input || '');
+  stored=String(stored||'');input=String(input||'');
+  if(stored.startsWith('$2'))return !bcrypt.truncates(input)&&bcrypt.compareSync(input,stored);
+  if(/^[a-f0-9]{64}$/i.test(stored))return secureEqual_(stored.toLowerCase(),sha256_(input));
+  return !!stored && secureEqual_(stored,input); // Legacy plaintext is upgraded immediately on successful login.
 }
 
 function sha256_(text) {

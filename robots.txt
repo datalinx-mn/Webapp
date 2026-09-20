@@ -6,3 +6,5 @@ Allow: /
 
 User-agent: Google-Display-Ads-Bot
 Allow: /
+
+Sitemap: https://datalinx-business.netlify.app/sitemap.xml

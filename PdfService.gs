@@ -1,13 +1,15 @@
 'use strict';
 
-function generatePdfDocument_(auth, documentType, referenceId, options) {
+function generatePdfDocumentInternal_(auth, documentType, referenceId, options) {
   const type = normalizeDocumentType_(documentType);
   const company = requireActiveCompany_(auth.company);
   const forceNewVersion = Boolean(options && options.forceNewVersion);
-  const printable = getPrintableDataByType_(type, referenceId, auth, true);
+  getPrintableDataByType_(type, referenceId, auth, true); // Reserve the document number first.
+  const printable = withOperationsRead_(auth,()=>getPrintableDataByType_(type,referenceId,auth,false));
   const latest = getLatestDocumentRecord_(company.spreadsheetId, type, printable.meta.referenceId);
 
-  if (latest && !forceNewVersion) {
+  const contentHash=pdfContentHash_(printable);
+  if (latest && latest.ContentHash===contentHash && !forceNewVersion) {
     return {
       success: true,
       exists: true,
@@ -18,7 +20,7 @@ function generatePdfDocument_(auth, documentType, referenceId, options) {
 
   try {
     const version = latest ? Number(field_(latest, ['Version']) || 1) + 1 : 1;
-    if (latest) markDocumentSuperseded_(company.spreadsheetId, clean_(field_(latest, ['DocumentID'])));
+
 
     const documentHtml = buildPrintableDocumentHtml_(printable, type, { pdf: true });
     const fullHtml = renderPrintTemplate_(documentHtml, printable.meta.documentTitle + ' ' + printable.meta.documentNumber);
@@ -35,6 +37,7 @@ function generatePdfDocument_(auth, documentType, referenceId, options) {
     const pdfUrl = file.getUrl();
     const createdAt = new Date();
     const record = savePdfRecord({
+      contentHash: contentHash,
       companyId: company.spreadsheetId,
       documentType: type,
       documentNumber: printable.meta.documentNumber,
@@ -51,6 +54,7 @@ function generatePdfDocument_(auth, documentType, referenceId, options) {
       createdBy: auth.username,
       createdAt: createdAt
     });
+    if (latest) markDocumentSuperseded_(company.spreadsheetId, clean_(field_(latest, ['DocumentID'])));
     updateReferencePdfFields_(company.spreadsheetId, type, printable.meta.referenceId, printable.meta.documentNumber, pdfUrl, createdAt);
 
     return {
@@ -104,8 +108,9 @@ function getPdfTargetFolder_(company, printable, type) {
 function applyPdfSharing_(file, companyId) {
   const ss = SpreadsheetApp.openById(companyId);
   const settings = getSettingsMap_(ss);
-  const mode = clean_(settings.PdfShareMode || 'LINK').toUpperCase();
-  if (mode === 'LINK') {
+  const mode = clean_(settings.PdfShareMode || 'PRIVATE').toUpperCase();
+  file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  if (mode === 'LINK' && settings.PdfLinkSharingApproved === 'Тийм') {
     try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
     catch (error) {
       // Google Workspace admin may block link sharing. The file remains private and
@@ -386,7 +391,9 @@ function buildTotalsBox_(totals, dueDate) {
     ['Хөнгөлөлт', totals.discount],
     ['НӨАТ', totals.vat],
     ['Нийт төлөх дүн', totals.total],
+    ['Буцаалтын дүн', totals.returned || 0],
     ['Төлсөн дүн', totals.paid],
+    ['Буцааж олгох дүн', totals.refundDue || 0],
     ['Үлдэгдэл', totals.remaining]
   ];
   return '<section class="totals-box">' + rows.map(function(item, index) {
@@ -455,4 +462,24 @@ function htmlEscape_(value) {
 
 function htmlAttr_(value) {
   return htmlEscape_(value).replace(/`/g, '&#96;');
+}
+
+function pdfContentHash_(printable){const copy=JSON.parse(JSON.stringify(printable));if(copy.meta){delete copy.meta.printedAt;delete copy.meta.createdBy;}return sha256_(JSON.stringify(copy));}
+
+// Persistent per-document leases serialize PDF versions without holding the business lock
+// during HTML conversion and Drive calls. A failed execution expires after ten minutes.
+function generatePdfDocument_(auth,type,referenceId,options){
+  const company=requireActiveCompany_(auth.company),key='pdf-lease:'+sha256_(company.spreadsheetId+'|'+normalizeDocumentType_(type)+'|'+referenceId),owner=Utilities.getUuid();
+  const props=PropertiesService.getScriptProperties(),lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{const raw=props.getProperty(key),old=raw?JSON.parse(raw):null;if(old&&old.expires>Date.now())throw new Error('Энэ PDF үүсэж байна. Түр хүлээгээд дахин нээнэ үү.');props.setProperty(key,JSON.stringify({owner,expires:Date.now()+600000}));}finally{lock.releaseLock();}
+  try{return generatePdfDocumentInternal_(auth,type,referenceId,options);}
+  finally{lock.waitLock(30000);try{const raw=props.getProperty(key);if(raw&&JSON.parse(raw).owner===owner)props.deleteProperty(key);}finally{lock.releaseLock();}}
+}
+// Operator-only migration. Existing public links must be reviewed separately from new PDFs.
+function privatizeExistingPdfs(companyName){
+  const company=requireActiveCompany_(companyName),ss=openCompanySs_(company);ensureCompanySheets_(ss);
+  updateSetting_(ss,'PdfShareMode','PRIVATE','PDF хувийн эрх');updateSetting_(ss,'PdfLinkSharingApproved','Үгүй','Нийтийн холбоосын зөвшөөрөл');
+  let changed=0;const failed=[];
+  opsRows_(ss,COMPANY_SHEETS.DOCUMENTS).forEach(e=>{if(!e.object.DriveFileID)return;try{DriveApp.getFileById(e.object.DriveFileID).setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);changed++;}catch(error){failed.push(e.object.DocumentID);}});
+  return {changed,failed};
 }
