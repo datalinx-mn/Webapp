@@ -1104,7 +1104,11 @@ function ensureCompanySheets_(ss) {
   ensureSheet_(ss, COMPANY_SHEETS.DOCUMENT_NUMBERS, SHEET_HEADERS.DOCUMENT_NUMBERS);
   ensureSheet_(ss, COMPANY_SHEETS.DOCUMENTS, SHEET_HEADERS.DOCUMENTS);
   ensureOperationsSheets_(ss);
-  backfillCompanyEntityIds_(ss);
+  const settings=getSettingsMap_(ss);
+  if(clean_(settings.EntityIdsBackfillV1)!=='done'){
+    backfillCompanyEntityIds_(ss);
+    updateSetting_(ss,'EntityIdsBackfillV1','done','Legacy ProductID/CustomerID backfill нэг удаа дууссан.');
+  }
 }
 
 function backfillCompanyEntityIds_(ss) {
