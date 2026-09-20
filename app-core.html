@@ -1625,6 +1625,23 @@
     </section>
   </div>
 
+  <dialog id="quickProductDialog" class="ops-dialog">
+    <form id="quickProductForm" class="form-grid">
+      <header><div><h3>Барааг шуурхай нэмэх</h3><small>Борлуулалтаа орхилгүй 4 үндсэн мэдээллээр бүртгэнэ.</small></div><button id="quickProductClose" class="btn btn-neutral" type="button" aria-label="Хаах">×</button></header>
+      <div class="field"><label for="quickProductName">Барааны нэр</label><input id="quickProductName" maxlength="120" required></div>
+      <div class="form-grid two">
+        <div class="field"><label for="quickProductCode">Баркод / код</label><input id="quickProductCode" maxlength="50" inputmode="numeric"></div>
+        <div class="field"><label for="quickProductUnit">Нэгж</label><input id="quickProductUnit" maxlength="30" value="ш" required></div>
+      </div>
+      <div class="form-grid two">
+        <div class="field"><label for="quickProductPrice">Зарах үнэ</label><input id="quickProductPrice" type="number" min="0" step="1" inputmode="numeric" required></div>
+        <div class="field"><label for="quickProductStock">Эхний үлдэгдэл</label><input id="quickProductStock" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></div>
+      </div>
+      <p class="field-hint">Өртөг, савлагаа, дуусах хугацаа, бага үлдэгдлийн хязгаарыг дараа нь нөхөж болно.</p>
+      <footer><button id="quickProductSave" class="btn btn-primary btn-block" type="submit">Нэмээд борлуулалтдаа үргэлжлүүлэх</button></footer>
+    </form>
+  </dialog>
+
   <div id="cameraModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Камер">
     <div class="modal-card">
       <div class="video-wrap"><video id="cameraVideo" autoplay playsinline muted></video></div>
@@ -1729,7 +1746,7 @@
     const CACHE_KEY = 'datalinxLastPayloadV3';
     const WALKTHROUGH_KEY_PREFIX = 'datalinxWalkthroughDoneV1';
     const BARCODE_FALLBACK_URL = 'https://unpkg.com/@zxing/browser@0.2.1';
-    const DATALINX_FRONTEND_RELEASE = '2026.09.20.2';
+    const DATALINX_FRONTEND_RELEASE = '2026.09.20.3';
     const PLANS_URL = './plans.html';
 
     const state = {
@@ -1838,13 +1855,16 @@
         inputId: 'saleProduct',
         menuId: 'saleProductMenu',
         controlId: 'saleProductControl',
-        allowCreate: false,
+        allowCreate: true,
+        canCreate: () => isManager() && hasEntitlement('inventory'),
         items: () => state.products.map(product => ({
           value: product.name,
           label: product.name,
           meta: `${money(product.price)} · үлдэгдэл ${formatNumber(product.stock)}`
         })),
         emptyText: 'Бүртгэлтэй бараа олдсонгүй.',
+        createText: value => `“${value}” барааг шуурхай нэмэх`,
+        onCreate: openQuickProduct,
         onSelect: updateSaleProduct
       });
       document.addEventListener('pointerdown', event => {
@@ -1884,7 +1904,7 @@
         const option = event.target.closest('[data-smart-value]');
         if (!option) return;
         event.preventDefault();
-        selectSmartValue(config, option.dataset.smartValue);
+        selectSmartValue(config, option.dataset.smartValue, option.dataset.smartCreate === '1');
       });
     }
 
@@ -1911,13 +1931,19 @@
         <button type="button" class="smart-select-option${index === config.activeIndex ? ' active' : ''}" role="option" data-smart-value="${escapeHtml(item.value)}">
           <span>${escapeHtml(item.label)}</span>${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ''}
         </button>`);
-      if (config.allowCreate && query && !exact) {
-        rows.unshift(`<button type="button" class="smart-select-option create" role="option" data-smart-value="${escapeHtml(config.input.value.trim())}"><span>＋ ${escapeHtml(config.createText(config.input.value.trim()))}</span></button>`);
+      const canCreate=config.allowCreate && (!config.canCreate || config.canCreate());
+      if (canCreate && query && !exact) {
+        rows.unshift(`<button type="button" class="smart-select-option create" role="option" data-smart-create="1" data-smart-value="${escapeHtml(config.input.value.trim())}"><span>＋ ${escapeHtml(config.createText(config.input.value.trim()))}</span></button>`);
       }
       config.menu.innerHTML = rows.length ? rows.join('') : `<div class="smart-select-empty">${escapeHtml(config.emptyText)}</div>`;
     }
 
-    function selectSmartValue(config, value) {
+    function selectSmartValue(config, value, created = false) {
+      if (created && typeof config.onCreate === 'function') {
+        closeSmartSelect(config);
+        config.onCreate(value);
+        return;
+      }
       config.input.value = value;
       config.input.dataset.selectedValue = value;
       config.input.setAttribute('aria-invalid', 'false');
@@ -1936,7 +1962,7 @@
         if (!config.control.classList.contains('open')) return;
         event.preventDefault();
         const selected = options[config.activeIndex] || options[0];
-        if (selected) selectSmartValue(config, selected.dataset.smartValue);
+        if (selected) selectSmartValue(config, selected.dataset.smartValue, selected.dataset.smartCreate === '1');
         return;
       }
       event.preventDefault();
@@ -1971,6 +1997,8 @@
     function bindForms() {
       $('#loginForm').addEventListener('submit', handleLogin);
       $('#registerForm').addEventListener('submit', handleRegister);
+      $('#quickProductForm').addEventListener('submit', handleQuickProductSave);
+      $('#quickProductClose').addEventListener('click', () => $('#quickProductDialog').close());
       $('#saleForm').addEventListener('submit', handleSale);
       $('#inventoryForm').addEventListener('submit', handleInventoryMove);
       $('#visitForm').addEventListener('submit', handleVisit);
@@ -2319,7 +2347,7 @@
         ensureUrl();
         const data = await postAction(payload, false);
         if (!data.success) throw new Error(data.message || 'Бүртгэл үүсгэж чадсангүй.');
-        toast('Үнэгүй эрх амжилттай үүслээ. Одоо нэвтэрнэ үү.', 'success');
+        toast('1 сарын үнэгүй Business туршилт үүслээ. Одоо нэвтэрнэ үү.', 'success');
         $('#loginUsername').value = payload.username;
         $('#loginPassword').value = payload.password;
         $('.auth-tab[data-auth-tab="login"]').click();
@@ -2833,7 +2861,7 @@
     }
 
     function currentPlan() {
-      return state.session?.plan || state.session?.entitlements || {id:'Free',name:'Free',monthlyPriceMnt:0,ads:true,maxUsers:2,maxWarehouses:1,features:{}};
+      return state.session?.plan || state.session?.entitlements || {id:'Expired',name:'Туршилтын хугацаа дууссан',monthlyPriceMnt:0,ads:false,maxUsers:1,maxWarehouses:1,features:{}};
     }
     function hasEntitlement(feature) { return Boolean(currentPlan()?.features?.[feature]); }
     function planLimit(key, fallback = 0) {
@@ -2855,7 +2883,7 @@
       const status = state.session.companyStatus;
       const plan = currentPlan();
       const topStatus = $('#topStatus');
-      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Free' ? 'FREE · ЗАРТАЙ' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
+      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ТУРШИЛТ ДУУССАН' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
       topStatus.className = `status-pill ${status === 'Inactive' ? 'inactive' : plan.id !== 'Free' ? 'premium' : ''}`;
       $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
       renderSelects();
@@ -2897,6 +2925,45 @@
         .concat(items.map(item => `<option value="${escapeHtml(valueFn(item))}">${escapeHtml(labelFn(item))}</option>`)).join('');
       if (items.some(item => String(valueFn(item)) === previous)) select.value = previous;
       if (!select.value && items.length === 1) select.value = valueFn(items[0]);
+    }
+
+    function openQuickProduct(name = '') {
+      if (!isManager()) return toast('Шинэ барааг менежер шуурхай нэмнэ.', 'error');
+      if (!hasEntitlement('inventory')) return toast(planUpgradeMessage(), 'error');
+      if (!navigator.onLine) return toast('Шинэ бараа бүртгэхэд интернет шаардлагатай.', 'error');
+      $('#quickProductForm').reset();
+      $('#quickProductName').value = name;
+      $('#quickProductUnit').value = 'ш';
+      $('#quickProductStock').value = '0';
+      $('#quickProductDialog').showModal();
+      window.setTimeout(() => (name ? $('#quickProductPrice') : $('#quickProductName')).focus(), 50);
+    }
+
+    async function handleQuickProductSave(event) {
+      event.preventDefault();
+      const button=$('#quickProductSave');
+      setButtonLoading(button,true,'Нэмж байна...');
+      try {
+        const payload={
+          action:'saveProduct',clientId:createClientId(),originalName:'',
+          name:$('#quickProductName').value.trim(),code:$('#quickProductCode').value.trim(),
+          unit:$('#quickProductUnit').value.trim()||'ш',price:numberValue($('#quickProductPrice').value),
+          stock:numberValue($('#quickProductStock').value),threshold:0
+        };
+        if(!payload.name)throw new Error('Барааны нэрийг оруулна уу.');
+        if(payload.price<0||payload.stock<0)throw new Error('Үнэ болон үлдэгдэл 0-ээс бага байж болохгүй.');
+        const data=await postAction(payload);
+        if(!data.success)throw new Error(data.message||'Бараа нэмэгдсэнгүй.');
+        state.serverProducts=Array.isArray(data.products)?data.products:state.serverProducts;
+        rebuildOptimisticState();
+        $('#quickProductDialog').close();
+        $('#saleProduct').value=payload.name;
+        $('#saleProduct').dataset.selectedValue=payload.name;
+        updateSaleProduct();
+        renderAll();saveCache();
+        toast('Бараа нэмэгдлээ. Борлуулалтаа үргэлжлүүлнэ үү.','success');
+      } catch(error){toast(error.message,'error');}
+      finally{setButtonLoading(button,false);}
     }
 
     function updateSaleProduct() {
@@ -3874,10 +3941,12 @@
         $('#subscriptionText').textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
       } else {
         const plan=currentPlan();
-        $('#subscriptionTitle').textContent = plan.id==='Free' ? 'Free · ₮0 / сар' : plan.name+' · '+money(plan.monthlyPriceMnt)+' / сар';
-        $('#subscriptionText').textContent = plan.id==='Free'
-          ? 'Үндсэн борлуулалт, бараа, авлага · '+plan.maxUsers+' хэрэглэгч · '+plan.maxWarehouses+' агуулах · зарын дэмжлэгтэй.'
-          : 'Заргүй · '+plan.maxUsers+' хэрэглэгч хүртэл · '+plan.maxWarehouses+' агуулах хүртэл.';
+        $('#subscriptionTitle').textContent = plan.id==='Trial' ? 'Business туршилт · эхний 1 сар үнэгүй' : plan.id==='Expired' ? 'Туршилтын хугацаа дууссан' : plan.name+' · '+money(plan.monthlyPriceMnt)+' / сар';
+        $('#subscriptionText').textContent = plan.id==='Trial'
+          ? 'Business-ийн бүх боломж 1 сар үнэгүй · '+plan.maxUsers+' хэрэглэгч · '+plan.maxWarehouses+' агуулах.'
+          : plan.id==='Expired'
+            ? 'Өгөгдөл тань хадгалагдсан. Шинэ гүйлгээ хийхийн тулд Business эсвэл Pro сонгоно уу.'
+            : 'Заргүй · '+plan.maxUsers+' хэрэглэгч хүртэл · '+plan.maxWarehouses+' агуулах хүртэл.';
       }
       const user = state.session.user;
       $('#profileInfo').innerHTML = [
