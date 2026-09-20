@@ -878,6 +878,43 @@ function ensureMasterSheets_() {
 function createMasterId_(prefix) {
   return prefix + '-' + Utilities.getUuid().replace(/-/g, '').slice(0, 20).toUpperCase();
 }
+function auditMasterRegistry() {
+  ensureMasterSheets_();
+  const issues = [], companyRows = sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES)).rows,
+    userRows = sheetObjects_(masterSs_().getSheetByName(MASTER_SHEETS.USERS)).rows;
+  const duplicateCheck = function(rows, getter, code, label) {
+    const seen = {}, duplicates = [];
+    rows.forEach(function(entry) {
+      const value = clean_(getter(entry.object));
+      if (!value) return;
+      const key = value.toLowerCase();
+      if (seen[key] && duplicates.indexOf(value) === -1) duplicates.push(value);
+      seen[key] = true;
+    });
+    if (duplicates.length) issues.push({ severity:'error', code:code, message:label + ': ' + duplicates.join(', ') });
+  };
+  duplicateCheck(companyRows, o=>o['Company ID'], 'DUPLICATE_COMPANY_ID', 'Company ID давхардсан');
+  duplicateCheck(companyRows, o=>o['Spreadsheet ID'], 'DUPLICATE_SPREADSHEET_ID', 'Spreadsheet ID давхардсан');
+  duplicateCheck(companyRows, o=>o['Компани нэр'], 'DUPLICATE_COMPANY_NAME', 'Компанийн нэр давхардсан');
+  duplicateCheck(userRows, o=>o['Username'], 'DUPLICATE_USERNAME', 'Username давхардсан');
+  duplicateCheck(userRows, o=>o['User ID'], 'DUPLICATE_USER_ID', 'User ID давхардсан');
+  const companiesById = {}, companiesByName = {};
+  companyRows.forEach(function(entry) {
+    const o=entry.object,id=clean_(o['Company ID']),name=clean_(o['Компани нэр']);
+    if(id)companiesById[id]=o;if(name)companiesByName[name.toLowerCase()]=o;
+    const spreadsheetId=clean_(o['Spreadsheet ID']);
+    if(!spreadsheetId)issues.push({severity:'error',code:'MISSING_SPREADSHEET_ID',message:(name||id||'Нэргүй компани')+' Spreadsheet ID дутуу.'});
+    else try { SpreadsheetApp.openById(spreadsheetId).getName(); }
+    catch(error){issues.push({severity:'error',code:'SPREADSHEET_UNAVAILABLE',message:(name||id)+' company Sheet нээгдсэнгүй: '+String(error.message||error).slice(0,160)});}
+  });
+  userRows.forEach(function(entry) {
+    const o=entry.object,username=clean_(o.Username),companyId=clean_(o['Company ID']),companyName=clean_(o['Компани нэр']);
+    if(!clean_(o['User ID']))issues.push({severity:'warning',code:'MISSING_USER_ID',message:username+' User ID дутуу.'});
+    if(companyId && !companiesById[companyId])issues.push({severity:'error',code:'ORPHAN_USER_COMPANY_ID',message:username+' байхгүй Company ID руу холбогдсон: '+companyId});
+    else if(!companyId && companyName && !companiesByName[companyName.toLowerCase()])issues.push({severity:'error',code:'ORPHAN_USER_COMPANY_NAME',message:username+' байхгүй компанийн нэртэй: '+companyName});
+  });
+  return {checkedAt:new Date().toISOString(),ok:!issues.some(i=>i.severity==='error'),companies:companyRows.length,users:userRows.length,issues:issues};
+}
 
 function backfillMasterIds_(companySheet, userSheet) {
   const companyHeaders = getHeaders_(companySheet);
