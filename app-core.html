@@ -1729,7 +1729,8 @@
     const CACHE_KEY = 'datalinxLastPayloadV3';
     const WALKTHROUGH_KEY_PREFIX = 'datalinxWalkthroughDoneV1';
     const BARCODE_FALLBACK_URL = 'https://unpkg.com/@zxing/browser@0.2.1';
-    const DATALINX_FRONTEND_RELEASE = '2026.09.20.1';
+    const DATALINX_FRONTEND_RELEASE = '2026.09.20.2';
+    const PLANS_URL = './plans.html';
 
     const state = {
       session: null,
@@ -2272,6 +2273,8 @@
           user: data.user,
           company: data.company,
           companyStatus: data.companyStatus,
+          plan: data.plan || null,
+          entitlements: data.entitlements || data.plan || null,
           expiresAt: data.expiresAt || ''
         };
         try { localStorage.setItem(SESSION_KEY, JSON.stringify(state.session)); }
@@ -2627,6 +2630,8 @@
         state.session.user = data.user || state.session.user;
         state.session.company = data.company || state.session.company;
         state.session.companyStatus = data.companyStatus || state.session.companyStatus;
+        state.session.plan = data.plan || state.session.plan || null;
+        state.session.entitlements = data.entitlements || state.session.entitlements || data.plan || null;
         state.session.expiresAt = data.expiresAt || state.session.expiresAt;
         localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
         applyPayload(data, true);
@@ -2639,11 +2644,19 @@
     }
 
     function applyPayload(data, resetModules = false) {
+      if (state.session) {
+        if (data.user) state.session.user = data.user;
+        if (data.company) state.session.company = data.company;
+        if (Object.prototype.hasOwnProperty.call(data, 'companyStatus')) state.session.companyStatus = data.companyStatus;
+        if (data.plan) state.session.plan = data.plan;
+        if (data.entitlements) state.session.entitlements = data.entitlements;
+        if (Object.prototype.hasOwnProperty.call(data, 'expiresAt')) state.session.expiresAt = data.expiresAt || '';
+      }
       if (Object.prototype.hasOwnProperty.call(data, 'backendRelease')) state.backendRelease = String(data.backendRelease || '');
       if (Object.prototype.hasOwnProperty.call(data, 'schemaVersion')) state.schemaVersion = Number(data.schemaVersion || 0);
       if (Array.isArray(data.products)) state.serverProducts = data.products;
       if (Array.isArray(data.customers)) state.customers = data.customers;
-      if (Array.isArray(data.warehouses)) state.warehouses = data.warehouses;
+      if (Array.isArray(data.warehouses)) state.warehouses = data.warehouses.slice(0, planLimit('maxWarehouses', 1));
       if (Array.isArray(data.locations)) state.locations = data.locations;
       if (Array.isArray(data.recentTransactions)) state.serverTransactions = data.recentTransactions;
       if (Array.isArray(data.inventoryMoves)) state.serverInventoryMoves = data.inventoryMoves;
@@ -4129,6 +4142,8 @@
         user: state.session.user,
         company: state.session.company,
         companyStatus: state.session.companyStatus,
+        plan: state.session.plan || null,
+        entitlements: state.session.entitlements || null,
         expiresAt: state.session.expiresAt,
         products: state.serverProducts,
         customers: state.customers,
