@@ -121,7 +121,7 @@ function parseImportCsv(text){
           const text=await file.text(),signature=v.kind+'|'+text;
           if(checked===signature&&parsed)return operation('importData',{kind,rows:parsed});
           parsed=parseImportCsv(text);kind=v.kind;
-          const allowed={products:['name','code','price','stock','unit','warehouse','threshold','packName','packSize','expiryDate'],customers:['name','phone','address','registrationNumber','contactPerson'],opening:['customer','amount','date','dueDate','reference']};
+          const allowed={products:['name','code','price','cost','stock','unit','warehouse','threshold','packName','packSize','expiryDate'],customers:['name','phone','address','registrationNumber','contactPerson'],opening:['customer','amount','date','dueDate','reference']};
           if(Object.keys(parsed[0]).some(k=>!allowed[kind].includes(k)))throw new Error('Загварын баганын нэрийг өөрчлөхгүй.');
           await api({action:'previewImport',kind,rows:parsed,clientId:requestId});checked=signature;
           el('import-preview').innerHTML=`<p><strong>${parsed.length} мөр шалгагдлаа.</strong> Доорх мэдээллийг шалгаад дахин «Үргэлжлүүлэх» дарж хадгална.</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(parsed,null,2))}</pre>`;
