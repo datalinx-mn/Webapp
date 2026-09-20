@@ -30,7 +30,7 @@ const COMPANY_SHEETS = {
 
 const SHEET_HEADERS = {
   PRODUCTS: ['Барааны нэр','Нэгж үнэ','Одоогийн үлдэгдэл','Бага үлдэгдлийн хязгаар','Код','Хэмжих нэгж','Идэвхтэй','ProductID'],
-  SALES: ['Огноо','Рэп нэр','Бараа','Тоо','Үнэ','Нийт дүн','Харилцагч','Төлбөрийн төрөл','Байршил','Client ID','SaleID','Status','Warehouse','DeliveryType','DeliveryDate','Notes','InvoiceNumber','InvoicePdfUrl','InvoiceGeneratedAt','WarehouseIssueNumber','WarehouseIssuePdfUrl','WarehouseIssueGeneratedAt','CustomerID','Discount','VAT','PaidAmount','DueDate','DeliveryID','CreatedBy','ProductID','InputUnit','InputQuantity','InputUnitPrice'],
+  SALES: ['Огноо','Рэп нэр','Бараа','Тоо','Үнэ','Нийт дүн','Харилцагч','Төлбөрийн төрөл','Байршил','Client ID','SaleID','Status','Warehouse','DeliveryType','DeliveryDate','Notes','InvoiceNumber','InvoicePdfUrl','InvoiceGeneratedAt','WarehouseIssueNumber','WarehouseIssuePdfUrl','WarehouseIssueGeneratedAt','CustomerID','Discount','VAT','PaidAmount','DueDate','DeliveryID','CreatedBy','ProductID','InputUnit','InputQuantity','InputUnitPrice','InitialPaymentMethod'],
   INVENTORY_MOVES: ['Огноо','Бараа','Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)','Тоо','Шалтгаан','Агуулах','Гарах агуулах','Хүлээн авах агуулах','Client ID','SaleID','DistributionID','Confirmed','Нэгж үнэ','Нийт дүн','Рэп нэр','ProductID'],
   NORMS: ['Бараа','Бага үлдэгдлийн хязгаар','ProductID'],
   DISTRIBUTION_ITEMS: ['DistributionID','SaleID','Бараа','Код','Нэгж','Захиалсан','Хүргэсэн','Буцаасан','Нэгжийн үнэ','Нийт дүн','ProductID'],
