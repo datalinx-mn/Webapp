@@ -528,7 +528,11 @@ function getCompany_(companyRef) {
 
 function setCompanyPlan(companyRef,planId,months) {
   ensureMasterSheets_();
-  const plan=normalizePlanId_(planId),company=getCompany_(companyRef);
+  const raw=clean_(planId),key=raw.toLowerCase();
+  const explicit={trial:'Trial',business:'Business',pro:'Pro',active:'Business',premium:'Business','идэвхтэй':'Business'};
+  const plan=explicit[key];
+  if(!plan)throw new Error('Багцын нэр буруу. Trial, Business эсвэл Pro гэж оруулна уу.');
+  const company=getCompany_(companyRef);
   if(!company)throw new Error('Компани олдсонгүй.');
   const sheet=masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES);
   const entry=sheetObjects_(sheet).rows.find(e=>clean_(e.object['Company ID'])===company.id);
