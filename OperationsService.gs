@@ -592,8 +592,9 @@ function loadOperations_(auth,p) {
     const costCoveragePct=revenueForCost>0?Math.round(knownRevenue/revenueForCost*10000)/100:100;
     const supplierAccess=finance||auth.role==='warehouse';
     const suppliers=supplierAccess?opsRows_(ss,'Нийлүүлэгч').filter(e=>!['үгүй','false','0','inactive'].includes(clean_(e.object.Active).toLowerCase())).map(e=>e.object):[];
-    const purchases=supplierAccess?opsRows_(ss,'Худалдан авалт').map(e=>opsPurchaseSummary_(ss,e)).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,100):[];
-    const supplierPayables=finance?purchases.filter(x=>x.payable>0):[];
+    const allPurchases=supplierAccess?opsRows_(ss,'Худалдан авалт').map(e=>opsPurchaseSummary_(ss,e)).sort((a,b)=>String(b.date).localeCompare(String(a.date))):[];
+    const purchases=allPurchases.slice(0,100);
+    const supplierPayables=finance?allPurchases.filter(x=>x.payable>0):[];
     return {success:true,operations:{version:1,asOf:new Date().toISOString(),today,
       sales:active.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,100),
       pendingCredits:(isManagerRole_(auth.role)||auth.role==='accountant')?opsRows_(ss,'Буцаалт').filter(e=>e.object.CreditStatus==='Pending').map(e=>e.object):[],
