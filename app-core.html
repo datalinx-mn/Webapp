@@ -3899,7 +3899,7 @@
       if (!state.users.length) { wrap.innerHTML = emptyHtml('Хэрэглэгчийн мэдээлэл алга.'); return; }
       wrap.innerHTML = `<table><thead><tr><th>Нэр</th><th>Username</th><th>Роль</th><th>Үйлдэл</th></tr></thead><tbody>${state.users.map(user => `
         <tr>
-          <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(roleLabel(user.role))}</td>
+          <td>${escapeHtml(user.fullName)}${user.seatAllowed===false?'<br><small style="color:var(--danger)">Багцын суудлаас гадуур</small>':''}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(roleLabel(user.role))}</td>
           <td><button class="btn btn-secondary" style="min-height:40px;padding:7px 10px" type="button" onclick='editUser(${JSON.stringify(user).replace(/'/g, "&#39;")})'>Засах</button>
           ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Идэвхгүй болгох</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>`;
