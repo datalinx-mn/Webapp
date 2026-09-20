@@ -175,7 +175,12 @@ function recoverOperations_(auth) {
   try { ensureOperationsSheets_(ss); opsRecover_(ss); } finally { lock.releaseLock(); }
 }
 function opsFeatureForAction_(action) {
-  return ({saveDelivery:'delivery',remitCash:'delivery',closeCash:'cashClose',saveSupplier:'suppliers',receivePurchase:'suppliers',addSupplierPayment:'suppliers',importData:'csvImport'})[action]||'';
+  return ({
+    addSale:'sales',addInventoryMove:'inventory',addPayment:'receivables',returnSale:'returns',receiveReturn:'returns',
+    refundPayment:'returns',approveReturn:'returns',reversePayment:'receivables',cancelSale:'sales',stocktake:'inventory',
+    saveDelivery:'delivery',remitCash:'delivery',closeCash:'cashClose',saveSupplier:'suppliers',receivePurchase:'suppliers',
+    addSupplierPayment:'suppliers',importData:'csvImport'
+  })[action]||'';
 }
 function opsPlanCompany_(auth){return requireActiveCompany_(auth.companyId||auth.company);}
 function opsAssertWarehousePlan_(auth,ss,warehouse) {
