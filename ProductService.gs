@@ -28,6 +28,9 @@ function handleSaveProduct_(auth, payload) {
   var packName = clean_(payload.packName) || 'Хайрцаг';
   var packSize = positiveNumber_(payload.packSize || 1, 'Савлагааны тоо');
   var threshold = productNonNegativeNumber_(payload.threshold, 'Бага үлдэгдлийн хязгаар');
+  var averageCostInput = payload.averageCost;
+  var hasAverageCostInput = averageCostInput !== undefined && averageCostInput !== null && String(averageCostInput).trim() !== '';
+  var averageCost = hasAverageCostInput ? productNonNegativeNumber_(averageCostInput, 'Дундаж өртөг') : null;
 
   if (!name) throw new Error('Барааны нэрийг оруулна уу.');
   if (name.length > 120) throw new Error('Барааны нэр 120 тэмдэгтээс урт байж болохгүй.');
@@ -69,7 +72,9 @@ function handleSaveProduct_(auth, payload) {
     if (target && Number(target.stock) !== stock) throw new Error('Үлдэгдлийг Бараа нэмэх / гаргах хэсгээс өөрчилнө үү.');
     if (target && target.name !== name && productHasHistory_(companySs,target.name)) throw new Error('Хөдөлгөөний түүхтэй барааны нэрийг солих боломжгүй. Шинэ бараа нэмнэ үү.');
     var productId = target && target.id ? target.id : createBusinessId_('PRD');
-    var fields = {'Барааны нэр':name,'Нэгж үнэ':price,'Одоогийн үлдэгдэл':stock,'Бага үлдэгдлийн хязгаар':threshold,'Код':code,'Хэмжих нэгж':unit,'Идэвхтэй':'Тийм',ProductID:productId,PackName:packName,PackSize:packSize};
+    var effectiveAverageCost = hasAverageCostInput ? averageCost : (target ? target.averageCost : null);
+    var effectiveCostKnown = hasAverageCostInput ? true : (target ? target.costKnown : false);
+    var fields = {'Барааны нэр':name,'Нэгж үнэ':price,'Одоогийн үлдэгдэл':stock,'Бага үлдэгдлийн хязгаар':threshold,'Код':code,'Хэмжих нэгж':unit,'Идэвхтэй':'Тийм',ProductID:productId,PackName:packName,PackSize:packSize,AverageCost:effectiveCostKnown?effectiveAverageCost:'',CostKnown:effectiveCostKnown?'Тийм':'Үгүй'};
     if (target) {
       setObjectFields_(productSheet,target.rowNumber,fields);
       if (target.name !== name) renameProductReferences_(companySs,target.name,name);
@@ -89,7 +94,9 @@ function handleSaveProduct_(auth, payload) {
         unit: unit,
         price: price,
         stock: stock,
-        threshold: threshold
+        threshold: threshold,
+        averageCost: effectiveCostKnown ? effectiveAverageCost : null,
+        costKnown: effectiveCostKnown
       },
       products: getProductsForManager_(companySs)
     };
@@ -145,7 +152,7 @@ function assertProductManager_(auth) {
 
 function getProductSheet_(companySs) { return ensureSheet_(companySs,'Бараа',SHEET_HEADERS.PRODUCTS.concat(['PackName','PackSize'])); }
 function readProductRows_(sheet) {
-  return {rows:sheetObjects_(sheet).rows.map(e => ({rowNumber:e.rowNumber,id:clean_(e.object.ProductID),name:e.object['Барааны нэр'],price:Number(e.object['Нэгж үнэ']||0),stock:Number(e.object['Одоогийн үлдэгдэл']||0),threshold:Number(e.object['Бага үлдэгдлийн хязгаар']||0),code:e.object['Код'],unit:e.object['Хэмжих нэгж'],active:e.object['Идэвхтэй']}))};
+  return {rows:sheetObjects_(sheet).rows.map(e => ({rowNumber:e.rowNumber,id:clean_(e.object.ProductID),name:e.object['Барааны нэр'],price:Number(e.object['Нэгж үнэ']||0),stock:Number(e.object['Одоогийн үлдэгдэл']||0),threshold:Number(e.object['Бага үлдэгдлийн хязгаар']||0),code:e.object['Код'],unit:e.object['Хэмжих нэгж'],active:e.object['Идэвхтэй'],averageCost:clean_(e.object.AverageCost)===''?null:Number(e.object.AverageCost||0),costKnown:['тийм','true','1','yes'].includes(clean_(e.object.CostKnown).toLowerCase())}))};
 }
 
 function getProductsForManager_(companySs) { return getProducts_(companySs); }
