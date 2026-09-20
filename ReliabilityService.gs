@@ -35,6 +35,7 @@ function opsCancelSale_(auth,p,ss,tx){
   correction_(tx,auth,'Sale cancellation',sale.id,p.reason);
   sale.rows.forEach(e=>{
     const o=e.object,qty=opsQty_(Number(o['Тоо'])),name=o['Бараа'],product=opsProduct_(ss,o.ProductID||name),productId=clean_(product.object.ProductID);
+    if(['тийм','true','1','yes'].includes(clean_(o.CostKnownAtSale).toLowerCase()))opsWeightedCostIn_(tx,product,qty,Number(o.UnitCostAtSale||0));
     opsStock_(ss,tx,product,sale.warehouse,qty);
     JSON.parse(o.BatchAllocations||'[]').filter(a=>a.batchId).forEach(a=>{
       const batch=tx.rows('Цуврал').find(b=>b.object.BatchID===a.batchId);
