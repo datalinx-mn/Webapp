@@ -3373,7 +3373,7 @@
           <td class="num">${escapeHtml(formatNumber(product.stock))}</td>
           <td><div class="row-actions">
             <button class="btn btn-secondary" type="button" data-product-edit="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px">Засах</button>
-            <button class="btn btn-danger" type="button" data-product-delete="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px" ${numberValue(product.stock) !== 0 ? 'disabled title="Үлдэгдэл 0 болсон үед устгана"' : ''}>Устгах</button>
+            <button class="btn btn-danger" type="button" data-product-delete="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px" ${numberValue(product.stock) !== 0 ? 'disabled title="Үлдэгдэл 0 болсон үед идэвхгүй болгоно"' : ''}>Идэвхгүй болгох</button>
           </div></td>
         </tr>`).join('')}</tbody></table>` : emptyHtml(query ? 'Хайлтад тохирох бараа олдсонгүй.' : 'Бараа бүртгэлгүй байна.');
     }
@@ -3862,7 +3862,7 @@
         <tr>
           <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(roleLabel(user.role))}</td>
           <td><button class="btn btn-secondary" style="min-height:40px;padding:7px 10px" type="button" onclick='editUser(${JSON.stringify(user).replace(/'/g, "&#39;")})'>Засах</button>
-          ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Устгах</button>` : ''}</td>
+          ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Идэвхгүй болгох</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>`;
     }
 
@@ -3904,14 +3904,14 @@
     }
 
     window.deleteUser = async function(username) {
-      if (!confirm(`${username} хэрэглэгчийг устгах уу?`)) return;
+      if (!confirm(`${username} хэрэглэгчийг идэвхгүй болгох уу? Түүхэн гүйлгээ хэвээр хадгалагдана.`)) return;
       try {
-        if (!navigator.onLine) throw new Error('Хэрэглэгч устгахад интернет шаардлагатай.');
+        if (!navigator.onLine) throw new Error('Хэрэглэгчийн эрх идэвхгүй болгоход интернет шаардлагатай.');
         const data = await postAction({ action: 'deleteUser', username });
-        if (!data.success) throw new Error(data.message || 'Устгаж чадсангүй.');
+        if (!data.success) throw new Error(data.message || 'Хэрэглэгчийн эрхийг идэвхгүй болгож чадсангүй.');
         state.loaded.settings = false;
         await loadModule('settings');
-        toast('Хэрэглэгч устгагдлаа.', 'success');
+        toast('Хэрэглэгчийн эрх идэвхгүй боллоо.', 'success');
       } catch (error) {
         toast(error.message, 'error');
       }
