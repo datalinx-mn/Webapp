@@ -1732,6 +1732,9 @@
 
     const state = {
       session: null,
+      backendRelease: '',
+      schemaVersion: 0,
+      storageWarning: '',
       serverProducts: [],
       serverTransactions: [],
       serverInventoryMoves: [],
@@ -1789,6 +1792,13 @@
       bindDocumentUi();
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', updateConnectivityUi);
+      window.addEventListener('storage', event => {
+        if ([OFFLINE_QUEUE_KEY, CACHE_KEY, SESSION_KEY].includes(event.key)) {
+          rebuildOptimisticState();
+          renderAll();
+          updateConnectivityUi();
+        }
+      });
       window.addEventListener('resize', scheduleWalkthroughPosition, { passive: true });
       window.addEventListener('resize', fitPreviewPaper, { passive: true });
       window.addEventListener('scroll', scheduleWalkthroughPosition, { passive: true });
@@ -2263,7 +2273,9 @@
           companyStatus: data.companyStatus,
           expiresAt: data.expiresAt || ''
         };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(state.session)); }
+        catch (error) { toast('Төхөөрөмжийн хадгалах зай хүрэлцэхгүй байна. Offline бүртгэл найдвартай хадгалагдахгүй.', 'error'); }
+        migrateLocalIdentity_();
         state.loaded = { inventory: false, distribution: false, dashboard: false, settings: false };
         applyPayload(data, true);
         showApp();
@@ -2297,7 +2309,7 @@
         if (!payload.managerName) throw fieldError_('Менежерийн бүтэн нэрийг оруулна уу.', '#regManagerName');
         if (payload.username.length < 3) throw fieldError_('Хэрэглэгчийн нэр хамгийн багадаа 3 тэмдэгт байна.', '#regUsername');
         if (/\s/.test(payload.username)) throw fieldError_('Хэрэглэгчийн нэрд зай оруулахгүй.', '#regUsername');
-        if (payload.password.length < 12) throw fieldError_('Нууц үг хамгийн багадаа 6 тэмдэгт байна.', '#regPassword');
+        if (payload.password.length < 12) throw fieldError_('Нууц үг хамгийн багадаа 12 тэмдэгт байна.', '#regPassword');
         if (!navigator.onLine) throw new Error('Компани бүртгэхэд интернет холболт шаардлагатай.');
         ensureUrl();
         const data = await postAction(payload, false);
@@ -2626,6 +2638,8 @@
     }
 
     function applyPayload(data, resetModules = false) {
+      if (Object.prototype.hasOwnProperty.call(data, 'backendRelease')) state.backendRelease = String(data.backendRelease || '');
+      if (Object.prototype.hasOwnProperty.call(data, 'schemaVersion')) state.schemaVersion = Number(data.schemaVersion || 0);
       if (Array.isArray(data.products)) state.serverProducts = data.products;
       if (Array.isArray(data.customers)) state.customers = data.customers;
       if (Array.isArray(data.warehouses)) state.warehouses = data.warehouses;
@@ -3899,7 +3913,8 @@
       const item = {
         id: createClientId(),
         action,
-        company: state.session?.company?.name || state.session?.user?.company || '',
+        companyId: currentCompanyId_(),
+        company: currentCompanyName_(),
         username: state.session?.user?.username || '',
         createdAt: new Date().toISOString(),
         payload: { ...payload }
@@ -3921,8 +3936,7 @@
       const syncToken=state.session.token;
       let targetResult = { status: targetId ? 'queued' : 'done' };
       try {
-        const currentCompany = state.session?.company?.name || state.session?.user?.company || '';
-        const items = getQueue().filter(item => sameCompany(item.company, currentCompany) && item.username === state.session?.user?.username && !item.failed);
+        const items = getQueue().filter(item => queueBelongsToCurrent_(item) && item.username === state.session?.user?.username && !item.failed);
         for (const item of items) {
           if(state.session?.token!==syncToken) break;
           // Preserve queue order, including transactions entered before this one.
@@ -4013,18 +4027,53 @@
 
     function getQueue() {
       try {
-        const data = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+        const raw = localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]';
+        const data = JSON.parse(raw);
         return Array.isArray(data) ? data : [];
-      } catch (error) { return []; }
+      } catch (error) {
+        state.storageWarning = 'Offline бүртгэлийн хадгалалт гэмтсэн байна. Шинэ бүртгэл хийхээс өмнө DataLinx-тэй холбогдоно уу.';
+        return [];
+      }
     }
-    function saveQueue(queue) { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue)); }
+    function saveQueue(queue) {
+      try {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+        state.storageWarning = '';
+      } catch (error) {
+        state.storageWarning = 'Төхөөрөмжийн хадгалах зай хүрэлцэхгүй байна.';
+        throw new Error('Offline бүртгэлийг төхөөрөмжид хадгалж чадсангүй. Зай чөлөөлөөд дахин оролдоно уу.');
+      }
+    }
     function removeQueueItem(id) { saveQueue(getQueue().filter(item => item.id !== id)); }
+    function currentCompanyId_() { return String(state.session?.company?.id || state.session?.user?.companyId || '').trim(); }
+    function currentCompanyName_() { return String(state.session?.company?.name || state.session?.user?.company || '').trim(); }
+    function queueBelongsToCurrent_(item) {
+      const currentId = currentCompanyId_();
+      const itemId = String(item?.companyId || '').trim();
+      if (currentId && itemId) return itemId === currentId;
+      return sameCompany(item?.company, currentCompanyName_());
+    }
+    function migrateLocalIdentity_() {
+      const companyId = currentCompanyId_();
+      const companyName = currentCompanyName_();
+      const username = state.session?.user?.username || '';
+      if (!companyId || !companyName || !username) return;
+      const queue = getQueue();
+      let changed = false;
+      queue.forEach(item => {
+        if (!item.companyId && sameCompany(item.company, companyName) && (!item.username || item.username === username)) {
+          item.companyId = companyId;
+          changed = true;
+        }
+      });
+      if (changed) saveQueue(queue);
+    }
     function pendingQueueCount() {
-      const company = state.session?.company?.name || state.session?.user?.company || '';
-      return getQueue().filter(item => sameCompany(item.company, company) && item.username === state.session?.user?.username).length;
+      return getQueue().filter(item => queueBelongsToCurrent_(item) && item.username === state.session?.user?.username).length;
     }
     function createClientId() {
-      return `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      if (globalThis.crypto?.randomUUID) return 'web_' + globalThis.crypto.randomUUID();
+      return `web_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
     }
     function sameCompany(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
 
@@ -4067,6 +4116,8 @@
       const payload = {
         reliabilityVersion: state.reliabilityVersion||0,
         operationsVersion: typeof operationsUIActivated !== 'undefined' && operationsUIActivated ? 1 : 0,
+        backendRelease: state.backendRelease || '',
+        schemaVersion: state.schemaVersion || 0,
         user: state.session.user,
         company: state.session.company,
         companyStatus: state.session.companyStatus,
@@ -4085,12 +4136,19 @@
         hasMoreTransactions: state.hasMoreTransactions,
         loaded: state.loaded
       };
-      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(payload)); }
+      catch (error) { console.warn('DataLinx cache write failed', error); }
     }
 
     function readCache() {
-      try { const cached=JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return cached && cached.user?.username === state.session?.user?.username && sameCompany(cached.user?.company,state.session?.user?.company) ? cached : null; }
-      catch (error) { return null; }
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+        if (!cached || cached.user?.username !== state.session?.user?.username) return null;
+        const currentId = currentCompanyId_();
+        const cachedId = String(cached.company?.id || cached.user?.companyId || '').trim();
+        if (currentId && cachedId) return currentId === cachedId ? cached : null;
+        return sameCompany(cached.user?.company, state.session?.user?.company) ? cached : null;
+      } catch (error) { return null; }
     }
 
     function setButtonLoading(button, loading, text = '') {
