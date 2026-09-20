@@ -40,7 +40,19 @@ function parseImportCsv(text){
   window.renderReliability=function(data){
     currentData=data||currentData;
     if(!state.session||!state.reliabilityVersion){settings.innerHTML='';return;}
-    settings.innerHTML=`<h3>Хамгаалалт ба мэдээлэл</h3><div class="ops-actions">${button('Нууц үг солих','password')}${button('Бүх төхөөрөмжөөс гарах','logout-all')}${manager()?button('Ажилтны нууц үг сэргээх','issue-recovery')+button('CSV импорт','import')+button('Нөөцлөлт шалгах','backups'):''}</div><p>PDF хувийн эрхээр үүснэ. Нээх Google эрхийг DataLinx оператор тохируулна.</p>`;
+    const build=window.DATALINX_BUILD_INFO||{};
+    const companyId=state.session?.company?.id||state.session?.user?.companyId||'—';
+    const releaseInfo=[
+      ['Frontend',typeof DATALINX_FRONTEND_RELEASE==='string'?DATALINX_FRONTEND_RELEASE:(build.sourceRelease||'—')],
+      ['Backend',state.backendRelease||'—'],
+      ['Schema',String(state.schemaVersion||'—')],
+      ['Company ID',companyId],
+      ['Commit',build.commitRef?String(build.commitRef).slice(0,12):'manual / unknown'],
+      ['Deploy',build.deployId?String(build.deployId).slice(0,12):'—'],
+      ['Queue',String(pendingQueueCount())],
+      ['Network',navigator.onLine?'Online':'Offline']
+    ].map(([k,v])=>`<div class="info-row"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
+    settings.innerHTML=`<h3>Хамгаалалт ба мэдээлэл</h3><div class="ops-actions">${button('Нууц үг солих','password')}${button('Бүх төхөөрөмжөөс гарах','logout-all')}${manager()?button('Ажилтны нууц үг сэргээх','issue-recovery')+button('CSV импорт','import')+button('Нөөцлөлт шалгах','backups'):''}</div><p>PDF хувийн эрхээр үүснэ. Нээх Google эрхийг DataLinx оператор тохируулна.</p><details><summary>Системийн оношлогоо</summary><div class="info-box">${releaseInfo}</div>${state.storageWarning?`<p role="alert"><strong>${esc(state.storageWarning)}</strong></p>`:''}</details>`;
     let panel=el('reliability-more');if(!panel&&el('ops-more')){panel=document.createElement('section');panel.id='reliability-more';panel.className='card';el('ops-more').appendChild(panel);}
     if(panel)panel.innerHTML=`<h3>Бүртгэлээ шалгах</h3><div class="ops-actions">${button('Утасны бүртгэл шалгах','queue')}${button('Утасны бүртгэл татах','export-queue')}${manager()?button('CSV импорт','import'):''}${['manager','admin','warehouse'].includes(state.session.user.role)?button('Тооллого тулгах','stocktake'):''}</div>`;
     let credits=el('reliability-credits');if(!credits&&el('ops-money')){credits=document.createElement('section');credits.id='reliability-credits';credits.className='card';el('ops-money').appendChild(credits);}
