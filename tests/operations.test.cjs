@@ -144,6 +144,11 @@ test('Trial gives one month of full Business-level access',()=>{
   assert.equal(company.entitlements.features.csvImport,true);assert.equal(company.entitlements.features.suppliers,true);
   assert.equal(company.entitlements.features.profitability,false);
 });
+test('operator plan activation rejects typos instead of silently changing access',()=>{
+  const f=fixture();
+  assert.throws(()=>f.ctx.setCompanyPlan('Alpha','Busienss',1),/Багцын нэр буруу/);
+  assert.equal(f.ctx.getCompany_('Alpha').planId,'Pro');
+});
 test('Business remains paid ad-free operations plan',()=>{
   const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const company=f.ctx.getCompany_('Alpha');
   assert.equal(company.planId,'Business');assert.equal(company.entitlements.ads,false);assert.equal(company.entitlements.monthlyPriceMnt,24900);
