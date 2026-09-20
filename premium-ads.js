@@ -8,8 +8,9 @@ const GOOGLE_ADSENSE_SCRIPT_ID = 'datalinx-google-adsense-script';
 
 const dataLinxGoogleAds = { scriptPromise: null };
 
-function isFreePlan() { return state.session?.companyStatus === 'Free'; }
-function isAdFreePlan() { return state.session?.companyStatus === 'Active'; }
+function isFreePlan() { return state.session?.companyStatus !== 'Inactive' && (state.session?.plan?.ads ?? state.session?.entitlements?.ads ?? false) === true; }
+function isAdFreePlan() { return state.session?.companyStatus !== 'Inactive' && !isFreePlan(); }
+function monetizationPlan(){ return state.session?.plan || state.session?.entitlements || {id:'Expired',name:'Туршилтын хугацаа дууссан',monthlyPriceMnt:0,ads:false,maxUsers:1,maxWarehouses:1,features:{}}; }
 function currentPageName() { return document.querySelector('.page.active')?.id?.replace(/^page-/, '') || 'sales'; }
 function isGoogleAdsConfigured() {
   const pageLanguage = String(document.documentElement.lang || '').toLowerCase().split('-')[0];
@@ -24,27 +25,27 @@ function upgradeSettingsDesign() {
   banner.innerHTML = `
     <div class="plan-icon" aria-hidden="true">DL</div>
     <div class="plan-copy">
-      <span class="plan-eyebrow">DataLinx эрхийн төлөв</span>
-      <h3 id="subscriptionTitle">Үнэгүй · зарын дэмжлэгтэй</h3>
-      <p id="subscriptionText">Бүх үндсэн боломж нээлттэй.</p>
+      <span class="plan-eyebrow">DataLinx багц</span>
+      <h3 id="subscriptionTitle">1 сарын үнэгүй туршилт</h3>
+      <p id="subscriptionText">Business-ийн бүх боломжийг эхний 1 сар үнэгүй.</p>
     </div>
-    <span id="settingsPlanBadge" class="plan-badge">FREE</span>
+    <span id="settingsPlanBadge" class="plan-badge">1 САР ҮНЭГҮЙ</span>
     <div class="plan-actions">
-      <a id="upgradeNoAdsBtn" class="btn btn-primary" href="${FACEBOOK_URL}" target="_blank" rel="noopener" style="text-decoration:none">Premium · заргүй болгох</a>
+      <a id="upgradeNoAdsBtn" class="btn btn-primary" href="${PLANS_URL}" target="_blank" rel="noopener" style="text-decoration:none">Багц ахиулах</a>
       <a class="btn btn-secondary" href="${FACEBOOK_URL}" target="_blank" rel="noopener" style="text-decoration:none">Тусламж авах</a>
     </div>`;
 
   const premiumCard = document.createElement('section');
   premiumCard.id = 'premiumNoAdsCard';
   premiumCard.className = 'card premium-no-ads hidden';
-  premiumCard.innerHTML = '<div class="premium-no-ads-icon" aria-hidden="true">✓</div><div><h3>Premium · заргүй орчин</h3><p>Google Ads болон ивээн тэтгэсэн зарууд таны бүх цэснээс бүрэн хасагдсан.</p></div>';
+  premiumCard.innerHTML = '<div class="premium-no-ads-icon" aria-hidden="true">✓</div><div><h3>Төлбөртэй багц · заргүй</h3><p>Business болон Pro багцад Google AdSense-ийн гуравдагч талын script ачаалагдахгүй, sponsor content болон sponsor metric илгээгдэхгүй.</p></div>';
   banner.insertAdjacentElement('afterend', premiumCard);
 
   const settingsGrid = banner.parentElement;
   const settingsAd = document.querySelector('[data-ad-placement="settings"]');
   if (settingsAd && settingsGrid) premiumCard.insertAdjacentElement('afterend', settingsAd);
   const privacy = document.querySelector('#page-settings .ad-privacy-note .card-subtitle');
-  if (privacy) privacy.textContent = 'Free эрхийн үед жижиг, саад болдоггүй шууд ивээн тэтгэсэн зар харуулна. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Premium эрхтэй үед зарын код огт ачаалагдахгүй.';
+  if (privacy) privacy.textContent = 'Нэвтэрсэн аппын Trial, Business, Pro багцууд заргүй. DataLinx нь танай борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон түгээлтийн зургийг сурталчлагчид дамжуулахгүй. Нэвтэрсэн апп дотор Google AdSense-ийн гуравдагч талын script ачаалагдахгүй, sponsor content болон sponsor metric илгээгдэхгүй.';
   const subtitle = document.querySelector('#page-settings .page-head p');
   if (subtitle) subtitle.textContent = 'Эрхийн төлөв, зар, хэрэглэгч болон системийн тохиргоо.';
 }
@@ -52,10 +53,11 @@ function upgradeSettingsDesign() {
 function updatePlanUi() {
   if (!state.session) return;
   const status = state.session.companyStatus;
+  const plan = monetizationPlan();
   const top = document.getElementById('topStatus');
   if (top) {
-    top.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : isAdFreePlan() ? 'PREMIUM · ЗАРГҮЙ' : 'ҮНЭГҮЙ · ЗАРТАЙ';
-    top.className = `status-pill ${status === 'Inactive' ? 'inactive' : isAdFreePlan() ? 'premium' : ''}`;
+    top.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ТУРШИЛТ ДУУССАН' : plan.id.toUpperCase() + ' · ЗАРГҮЙ';
+    top.className = `status-pill ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
   }
   const badge = document.getElementById('settingsPlanBadge');
   const title = document.getElementById('subscriptionTitle');
@@ -63,18 +65,22 @@ function updatePlanUi() {
   const premiumCard = document.getElementById('premiumNoAdsCard');
   const upgrade = document.getElementById('upgradeNoAdsBtn');
   if (!badge || !title || !text || !premiumCard || !upgrade) return;
-  badge.className = `plan-badge ${status === 'Inactive' ? 'inactive' : isAdFreePlan() ? 'premium' : ''}`;
-  premiumCard.classList.toggle('hidden', !isAdFreePlan());
-  upgrade.classList.toggle('hidden', isAdFreePlan() || status === 'Inactive');
+  badge.className = `plan-badge ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
+  premiumCard.classList.toggle('hidden', status === 'Inactive' || plan.id === 'Expired');
+  upgrade.classList.toggle('hidden', plan.id === 'Pro' || status === 'Inactive');
+  upgrade.textContent = plan.id === 'Business' ? 'Pro руу ахиулах' : plan.id === 'Expired' ? 'Business / Pro сонгох' : 'Багц харах';
   if (status === 'Inactive') {
     badge.textContent = 'ИДЭВХГҮЙ'; title.textContent = 'Эрх идэвхгүй'; text.textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
-  } else if (isAdFreePlan()) {
-    badge.textContent = 'PREMIUM'; title.textContent = 'Premium · заргүй'; text.textContent = 'Бүх үндсэн боломж нээлттэй бөгөөд Google Ads болон ивээн тэтгэсэн зарын код ачаалагдахгүй.';
+  } else if (plan.id === 'Expired') {
+    badge.textContent = 'ДУУССАН'; title.textContent = '1 сарын үнэгүй хугацаа дууссан'; text.textContent = 'Өгөгдөл хадгалагдсан. Шинэ гүйлгээ үргэлжлүүлэхийн тулд Business эсвэл Pro багц сонгоно уу.';
+  } else if (plan.id === 'Trial') {
+    badge.textContent = '1 САР ҮНЭГҮЙ'; title.textContent = 'Business туршилт · 0₮'; text.textContent = `Business-ийн бүх боломж · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · заргүй.`;
+  } else if (plan.id === 'Pro') {
+    badge.textContent = 'PRO'; title.textContent = 'Pro · 59,900₮ / сар'; text.textContent = `Заргүй · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · ашиг, integrity audit, advanced control.`;
   } else {
-    badge.textContent = 'FREE'; title.textContent = 'Үнэгүй · зарын дэмжлэгтэй'; text.textContent = 'Борлуулалт, агуулах, түгээлт, хяналтын самбар, олон байршил болон хэрэглэгчийн удирдлагын үндсэн боломжууд бүгд нээлттэй.';
+    badge.textContent = 'BUSINESS'; title.textContent = 'Business · 24,900₮ / сар'; text.textContent = `Заргүй · ${plan.maxUsers} хэрэглэгч · ${plan.maxWarehouses} агуулах · хүргэлт, PDF, backup, CSV, нийлүүлэгч/худалдан авалт.`;
   }
 }
-
 function safeSponsorUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -93,7 +99,7 @@ function loadGoogleAdsScript() {
     script.crossOrigin = 'anonymous';
     script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(GOOGLE_ADSENSE_CLIENT)}`;
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Google Ads script ачаалсангүй.'));
+    script.onerror = () => reject(new Error('Google AdSense script ачаалсангүй.'));
     document.head.appendChild(script);
   }).catch(error => { dataLinxGoogleAds.scriptPromise = null; throw error; });
   return dataLinxGoogleAds.scriptPromise;
@@ -119,7 +125,7 @@ function renderFirstPartyAd(slot, placement, notice = '') {
 function renderGoogleAd(slot, placement) {
   if (slot.dataset.adProvider === 'google' && slot.dataset.adRendered === 'true') return;
   slot.dataset.adProvider = 'google'; slot.dataset.adRendered = 'false';
-  slot.innerHTML = `<section class="ad-shell" aria-label="Google зар">${adHeader('Google Ads')}<div class="google-ad-surface"><div class="ad-loading">Зар ачаалж байна...</div><ins class="adsbygoogle" style="display:block" data-ad-client="${escapeHtml(GOOGLE_ADSENSE_CLIENT)}" data-ad-slot="${escapeHtml(GOOGLE_ADSENSE_SLOT)}" data-ad-format="auto" data-full-width-responsive="true"></ins></div></section>`;
+  slot.innerHTML = `<section class="ad-shell" aria-label="Google зар">${adHeader('Google AdSense')}<div class="google-ad-surface"><div class="ad-loading">Зар ачаалж байна...</div><ins class="adsbygoogle" style="display:block" data-ad-client="${escapeHtml(GOOGLE_ADSENSE_CLIENT)}" data-ad-slot="${escapeHtml(GOOGLE_ADSENSE_SLOT)}" data-ad-format="auto" data-full-width-responsive="true"></ins></div></section>`;
   loadGoogleAdsScript().then(() => {
     if (!isFreePlan() || slot.classList.contains('hidden') || slot.dataset.adRendered === 'true') return;
     slot.querySelector('.ad-loading')?.remove();

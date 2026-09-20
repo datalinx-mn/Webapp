@@ -1,0 +1,40 @@
+name: DataLinx CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/master-register-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run bundle:gas
+      - name: Syntax check public scripts
+        run: |
+          node --check operations-ui.js
+          node --check reliability-ui.js
+          node --check workspace-ui.js
+          node --check brand.js
+          node --check premium-ads.js
+      - name: Syntax check bundled Apps Script
+        run: cp release/Code.gs /tmp/datalinx-release.js && node --check /tmp/datalinx-release.js
+      - name: Verify production allowlist excludes backend
+        run: |
+          test -f dist/app.html
+          test ! -e dist/Code.gs
+          test ! -e dist/OperationsService.gs
+          test ! -e dist/SecurityService.gs

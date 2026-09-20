@@ -2,7 +2,7 @@
 
 function generatePdfDocumentInternal_(auth, documentType, referenceId, options) {
   const type = normalizeDocumentType_(documentType);
-  const company = requireActiveCompany_(auth.company);
+  const company = requireActiveCompany_(auth.companyId || auth.company);
   const forceNewVersion = Boolean(options && options.forceNewVersion);
   getPrintableDataByType_(type, referenceId, auth, true); // Reserve the document number first.
   const printable = withOperationsRead_(auth,()=>getPrintableDataByType_(type,referenceId,auth,false));
@@ -469,7 +469,7 @@ function pdfContentHash_(printable){const copy=JSON.parse(JSON.stringify(printab
 // Persistent per-document leases serialize PDF versions without holding the business lock
 // during HTML conversion and Drive calls. A failed execution expires after ten minutes.
 function generatePdfDocument_(auth,type,referenceId,options){
-  const company=requireActiveCompany_(auth.company),key='pdf-lease:'+sha256_(company.spreadsheetId+'|'+normalizeDocumentType_(type)+'|'+referenceId),owner=Utilities.getUuid();
+  const company=requireActiveCompany_(auth.companyId || auth.company),key='pdf-lease:'+sha256_(company.spreadsheetId+'|'+normalizeDocumentType_(type)+'|'+referenceId),owner=Utilities.getUuid();
   const props=PropertiesService.getScriptProperties(),lock=LockService.getScriptLock();lock.waitLock(30000);
   try{const raw=props.getProperty(key),old=raw?JSON.parse(raw):null;if(old&&old.expires>Date.now())throw new Error('Энэ PDF үүсэж байна. Түр хүлээгээд дахин нээнэ үү.');props.setProperty(key,JSON.stringify({owner,expires:Date.now()+600000}));}finally{lock.releaseLock();}
   try{return generatePdfDocumentInternal_(auth,type,referenceId,options);}

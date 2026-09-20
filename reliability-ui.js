@@ -1,4 +1,24 @@
 'use strict';
+function parsePastedProducts(text){
+  const lines=String(text||'').trim().split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!lines.length||lines.length>50)throw new Error('1–50 мөр paste хийнэ үү.');
+  const cells=lines.map(line=>line.split('\t').map(v=>v.trim()));
+  const aliases={name:['name','бараа','барааны нэр'],code:['code','barcode','баркод','код'],price:['price','үнэ','зарах үнэ'],stock:['stock','үлдэгдэл','эхний үлдэгдэл'],unit:['unit','нэгж','хэмжих нэгж']};
+  const normalize=v=>String(v||'').toLowerCase().trim();
+  const first=cells[0].map(normalize);
+  const findKey=label=>Object.entries(aliases).find(([,values])=>values.includes(label))?.[0]||'';
+  const mapped=first.map(findKey),hasHeader=mapped.includes('name')&&(mapped.includes('price')||mapped.includes('stock'));
+  const headers=hasHeader?mapped:['name','code','price','stock','unit'].slice(0,Math.max(...cells.map(r=>r.length)));
+  const data=hasHeader?cells.slice(1):cells;
+  if(!data.length)throw new Error('Барааны мөр алга.');
+  return data.map((row,index)=>{
+    const out={};headers.forEach((h,i)=>{if(h)out[h]=row[i]??'';});
+    if(!out.name)throw new Error((index+1)+'-р мөрийн барааны нэр дутуу.');
+    out.price=out.price||0;out.stock=out.stock||0;out.unit=out.unit||'ш';
+    return out;
+  });
+}
+
 function parseImportCsv(text){
   const rows=[];let row=[],cell='',quoted=false,closed=false;
   text=String(text).replace(/^\uFEFF/,'');
@@ -40,17 +60,30 @@ function parseImportCsv(text){
   window.renderReliability=function(data){
     currentData=data||currentData;
     if(!state.session||!state.reliabilityVersion){settings.innerHTML='';return;}
-    settings.innerHTML=`<h3>Хамгаалалт ба мэдээлэл</h3><div class="ops-actions">${button('Нууц үг солих','password')}${button('Бүх төхөөрөмжөөс гарах','logout-all')}${manager()?button('Ажилтны нууц үг сэргээх','issue-recovery')+button('CSV импорт','import')+button('Нөөцлөлт шалгах','backups'):''}</div><p>PDF хувийн эрхээр үүснэ. Нээх Google эрхийг DataLinx оператор тохируулна.</p>`;
+    const build=window.DATALINX_BUILD_INFO||{};
+    const companyId=state.session?.company?.id||state.session?.user?.companyId||'—';
+    const releaseInfo=[
+      ['Frontend',typeof DATALINX_FRONTEND_RELEASE==='string'?DATALINX_FRONTEND_RELEASE:(build.sourceRelease||'—')],
+      ['Backend',state.backendRelease||'—'],
+      ['Schema',String(state.schemaVersion||'—')],
+      ['Company ID',companyId],
+      ['Commit',build.commitRef?String(build.commitRef).slice(0,12):'manual / unknown'],
+      ['Deploy',build.deployId?String(build.deployId).slice(0,12):'—'],
+      ['Queue',String(pendingQueueCount())],
+      ['Network',navigator.onLine?'Online':'Offline']
+    ].map(([k,v])=>`<div class="info-row"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
+    settings.innerHTML=`<h3>Хамгаалалт ба мэдээлэл</h3><div class="ops-actions">${button('Нууц үг солих','password')}${button('Бүх төхөөрөмжөөс гарах','logout-all')}${manager()?button('Ажилтны нууц үг сэргээх','issue-recovery')+(hasEntitlement('csvImport')?button('CSV импорт','import'):'')+(hasEntitlement('backup')?button('Нөөцлөлт шалгах','backups'):''):''}</div><p>${hasEntitlement('pdf')?'PDF хувийн эрхээр үүснэ.':'PDF нь Business/Pro багцад нээгдэнэ.'}</p><details><summary>Системийн оношлогоо</summary><div class="info-box">${releaseInfo}</div>${state.storageWarning?`<p role="alert"><strong>${esc(state.storageWarning)}</strong></p>`:''}</details>`;
     let panel=el('reliability-more');if(!panel&&el('ops-more')){panel=document.createElement('section');panel.id='reliability-more';panel.className='card';el('ops-more').appendChild(panel);}
-    if(panel)panel.innerHTML=`<h3>Бүртгэлээ шалгах</h3><div class="ops-actions">${button('Утасны бүртгэл шалгах','queue')}${button('Утасны бүртгэл татах','export-queue')}${manager()?button('CSV импорт','import'):''}${['manager','admin','warehouse'].includes(state.session.user.role)?button('Тооллого тулгах','stocktake'):''}</div>`;
+    if(panel)panel.innerHTML=`<h3>Бүртгэлээ шалгах</h3><div class="ops-actions">${button('Утасны бүртгэл шалгах','queue')}${button('Утасны бүртгэл татах','export-queue')}${manager()&&hasEntitlement('integrityAudit')?button('Өгөгдлийн бүрэн бүтэн байдал','integrity'):''}${manager()&&hasEntitlement('csvImport')?button('CSV импорт','import'):''}${['manager','admin','warehouse'].includes(state.session.user.role)?button('Тооллого тулгах','stocktake'):''}</div>`;
     let credits=el('reliability-credits');if(!credits&&el('ops-money')){credits=document.createElement('section');credits.id='reliability-credits';credits.className='card';el('ops-money').appendChild(credits);}
     if(credits){credits.hidden=!finance();credits.innerHTML='<h3>Авлагаас хасах зөвшөөрөл</h3>'+((currentData?.pendingCredits||[]).map(r=>`<div class="ops-row"><div><strong>${esc(r['Бараа'])} · ${money(r['Дүн'])}</strong><small>${esc(r['Шалтгаан'])}</small></div>${button('Шийдвэрлэх','approve-return',r.ReturnID)}</div>`).join('')||'<p>Хүлээгдэж буй зөвшөөрөл алга.</p>');}
   };
+  window.openDataImport=function(){showPage('settings');window.setTimeout(()=>document.querySelector('[data-reliable="import"]')?.click(),80);};
   const originalRender=renderAll;renderAll=function(){originalRender();window.renderReliability();};
   const originalPayload=applyPayload;applyPayload=function(data,reset){state.reliabilityVersion=Number(data.reliabilityVersion||0);originalPayload(data,reset);window.renderReliability();};
   const originalDetail=openSaleDetail;openSaleDetail=function(id){originalDetail(id);if(state.reliabilityVersion&&finance()){el('saleDetailBody').insertAdjacentHTML('beforeend',`<div class="ops-actions">${button('Төлөлт засах','payments',id)}${manager()?button('Захиалга цуцлах','cancel-sale',id):''}</div>`);}};
   const originalLogout=logout;logout=function(){dialog.close();currentData=null;state.reliabilityVersion=0;originalLogout();};
-  function ownQueue(){return getQueue().filter(q=>q.username===state.session?.user?.username&&sameCompany(q.company,state.session?.user?.company));}
+  function ownQueue(){return getQueue().filter(q=>q.username===state.session?.user?.username&&queueBelongsToCurrent_(q));}
   function exportQueue(){const safe=ownQueue().map(q=>{const copy=JSON.parse(JSON.stringify(q));delete copy.payload.token;return copy;});const blob=new Blob([JSON.stringify(safe,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='datalinx-pending-records.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function cancelQueue(item,reason,replacement){
     if(state.syncing)throw new Error('Илгээж байна. Дууссаны дараа дахин оролдоно уу.');
@@ -59,7 +92,7 @@ function parseImportCsv(text){
       const result=await api({action:'cancelRequest',requestId:item.id,reason});
       if(result.status==='Done'){removeQueueItem(item.id);done('Сервер дээр хадгалагдсан байна. Мэдээллийг шинэчиллээ.');await refreshData(false);return;}
       if(result.status!=='Cancelled')throw new Error('Цуцлалтыг баталгаажуулж чадсангүй.');
-      const archiveKey='datalinx-queue-archive:'+state.session.user.company+':'+state.session.user.username;
+      const archiveKey='datalinx-queue-archive:'+(currentCompanyId_()||currentCompanyName_())+':'+state.session.user.username;
       let archive=[];try{archive=JSON.parse(localStorage.getItem(archiveKey)||'[]');}catch{}
       archive.push({...item,cancelledAt:new Date().toISOString(),reason});localStorage.setItem(archiveKey,JSON.stringify(archive));
       const queue=getQueue(),index=queue.findIndex(q=>q.id===item.id);
@@ -104,20 +137,29 @@ function parseImportCsv(text){
       }
       if(action==='import'){
         let parsed=null,kind='',checked='';
-        return modal('CSV файлаар эхний мэдээлэл оруулах','<p>Шинэ мөр нэмнэ. Нэг удаад 50 хүртэл мөр. Эхлээд загвар татаж бөглөөд, файлыг шалгана.</p><p><a href="./templates/products.csv" download>Барааны загвар</a> · <a href="./templates/customers.csv" download>Харилцагчийн загвар</a> · <a href="./templates/opening.csv" download>Эхний авлагын загвар</a></p>'+select('Төрөл','kind',[['products','Бараа ба эхний үлдэгдэл'],['customers','Харилцагч'],['opening','Эхний авлага']])+field('CSV файл','file','file','','required accept=".csv,text/csv"')+'<div id="import-preview"></div>',async v=>{
-          const file=el('reliability-form').elements.file.files[0];if(!file||file.size>150000)throw new Error('150 KB хүртэл CSV файл сонгоно уу.');
-          const text=await file.text(),signature=v.kind+'|'+text;
+        return modal('Эхний мэдээллээ хурдан оруулах','<p>Нэг удаад 50 хүртэл мөр. CSV файл оруулах эсвэл Excel / Google Sheets-ээс шууд copy-paste хийж болно.</p><p><a href="./templates/products.csv" download>Барааны CSV загвар</a> · <a href="./templates/customers.csv" download>Харилцагчийн загвар</a> · <a href="./templates/opening.csv" download>Эхний авлагын загвар</a></p>'+select('Төрөл','kind',[['products','Бараа ба эхний үлдэгдэл'],['customers','Харилцагч'],['opening','Эхний авлага']])+field('CSV файл (заавал биш)','file','file','','accept=".csv,text/csv"')+'<label class="field">Excel / Sheets-ээс paste <textarea id="import-paste" rows="7" placeholder="name[TAB]code[TAB]price[TAB]stock[TAB]unit&#10;Талх[TAB]123456[TAB]2500[TAB]20[TAB]ш"></textarea><small>Paste нь зөвхөн Бараа төрөлд. Толгой мөртэй эсвэл нэр · код · үнэ · үлдэгдэл · нэгж дарааллаар байж болно.</small></label><div id="import-preview"></div>',async v=>{
+          const file=el('reliability-form').elements.file.files[0],pasted=el('import-paste').value.trim();
+          if(!file&&!pasted)throw new Error('CSV файл сонгох эсвэл Excel / Sheets-ээс мөрөө paste хийнэ үү.');
+          if(file&&file.size>150000)throw new Error('150 KB хүртэл CSV файл сонгоно уу.');
+          if(pasted&&v.kind!=='products')throw new Error('Copy-paste хурдан оруулалт одоогоор Бараа төрөлд ажиллана.');
+          const text=file?await file.text():pasted,signature=v.kind+'|'+(file?'csv|':'paste|')+text;
           if(checked===signature&&parsed)return operation('importData',{kind,rows:parsed});
-          parsed=parseImportCsv(text);kind=v.kind;
-          const allowed={products:['name','code','price','stock','unit','warehouse','threshold','packName','packSize','expiryDate'],customers:['name','phone','address','registrationNumber','contactPerson'],opening:['customer','amount','date','dueDate','reference']};
+          parsed=file?parseImportCsv(text):parsePastedProducts(text);kind=v.kind;
+          const allowed={products:['name','code','price','cost','stock','unit','warehouse','threshold','packName','packSize','expiryDate'],customers:['name','phone','address','registrationNumber','contactPerson'],opening:['customer','amount','date','dueDate','reference']};
           if(Object.keys(parsed[0]).some(k=>!allowed[kind].includes(k)))throw new Error('Загварын баганын нэрийг өөрчлөхгүй.');
           await api({action:'previewImport',kind,rows:parsed,clientId:requestId});checked=signature;
           el('import-preview').innerHTML=`<p><strong>${parsed.length} мөр шалгагдлаа.</strong> Доорх мэдээллийг шалгаад дахин «Үргэлжлүүлэх» дарж хадгална.</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(parsed,null,2))}</pre>`;
         });
       }
+      if(action==='integrity'){
+        const r=await api({action:'integrityCheck'});
+        const html=r.issues?.length?r.issues.map(i=>`<section class="card"><strong>${esc(i.severity==='error'?'АЛДАА':'АНХААРУУЛГА')} · ${esc(i.code)}</strong><p>${esc(i.message)}</p></section>`).join(''):'<p><strong>Ноцтой бүтцийн зөрүү илрээгүй.</strong></p>';
+        return modal('Өгөгдлийн бүрэн бүтэн байдал',`<p>Шалгасан: ${esc(formatDate(r.checkedAt))} · Төлөв: <strong>${r.ok?'Хэвийн':'Зөрүү илэрсэн'}</strong></p>${html}`,null);
+      }
       if(action==='backups'){
         const r=await api({action:'backupStatus'});
-        return modal('Нөөцлөлтийн байдал',`<p>Автомат нөөцлөлт: <strong>${r.scheduled?'Тохируулсан':'Оператор идэвхжүүлээгүй'}</strong></p><p>Нөөц нь хувийн Drive хуулбар. Сэргээх шалгалт тусдаа хуулбар дээр явагдана.</p>${button('Одоо нөөцлөх','backup-now')}${r.backups.map(b=>`<section class="card"><strong>${esc(formatDate(b.createdAt))}</strong><p>${esc(b.status==='Verified'?'Хуулбар тулгаж баталгаажсан':'Нөөцлөлт амжилтгүй')} ${esc(b.error)}</p>${b.restoreTestAt?'<p>Сэргээх шалгалт: '+esc(formatDate(b.restoreTestAt))+'</p>':''}${b.status==='Verified'?button('Сэргээхийг турших','restore-test',b.id):''}</section>`).join('')||'<p>Нөөцийн бүртгэл алга.</p>'}`,null);
+        const health=r.healthy?'<strong>Хэвийн</strong>':`<strong role="alert">Анхаарах шаардлагатай</strong>`;
+        return modal('Нөөцлөлтийн байдал',`<p>Автомат нөөцлөлт: <strong>${r.scheduled?'Тохируулсан':'Оператор идэвхжүүлээгүй'}</strong> · Эрүүл мэнд: ${health}</p><p>Сүүлийн баталгаажсан нөөц: ${r.latestVerifiedAt?esc(formatDate(r.latestVerifiedAt)):'байхгүй'}${r.latestAgeHours!==null?' · '+esc(String(r.latestAgeHours))+' цагийн өмнө':''}</p><p>Нөөц нь хувийн Drive хуулбар. Сэргээх шалгалт тусдаа хуулбар дээр явагдана.</p>${button('Одоо нөөцлөх','backup-now')}${r.backups.map(b=>`<section class="card"><strong>${esc(formatDate(b.createdAt))}</strong><p>${esc(b.status==='Verified'?'Хуулбар тулгаж баталгаажсан':'Нөөцлөлт амжилтгүй')} ${esc(b.error)}</p>${b.restoreTestAt?'<p>Сэргээх шалгалт: '+esc(formatDate(b.restoreTestAt))+'</p>':''}${b.status==='Verified'?button('Сэргээхийг турших','restore-test',b.id):''}</section>`).join('')||'<p>Нөөцийн бүртгэл алга.</p>'}`,null);
       }
       if(action==='backup-now')return modal('Одоо нөөцлөх','<p>Компанийн хүснэгтийн хувийн хуулбар үүсгэнэ. Том хүснэгтэд хэдэн минут шаардлагатай байж болно.</p>',async()=>{await api({action:'createBackup'});done('Нөөц хуулбар үүсгэж, өгөгдлийг тулгалаа.');});
       if(action==='restore-test')return modal('Нөөцөөс сэргээхийг турших','<p>Тусдаа хувийн хуулбар нээж бүх хүснэгтийг тулгана. Ажиллаж буй бүртгэл солигдохгүй.</p>',async()=>{const r=await api({action:'testRestore',backupId:id});done(r.message);});

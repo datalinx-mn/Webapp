@@ -26,7 +26,7 @@ function fixture(){
  });
  for(const f of ['Bcrypt.gs','SecurityService.gs','ReliabilityService.gs','BackupService.gs','SponsorshipService.gs','Code.gs','OperationsService.gs','DocumentService.gs','ProductService.gs','PdfService.gs'])vm.runInContext(fs.readFileSync(f,'utf8'),ctx,{filename:f});
  ctx.ensureMasterSheets_();
- master.getSheetByName('Компани').appendRow(['Alpha','A','Free','',0,'12345678','']);master.getSheetByName('Компани').appendRow(['Beta','B','Free','',0,'12345678','']);
+ ctx.appendObjectRow_(master.getSheetByName('Компани'),{'Компани нэр':'Alpha','Spreadsheet ID':'A','Төлөв':'Active','Утас':'12345678',Plan:'Pro','Billing Cycle':'monthly'});ctx.appendObjectRow_(master.getSheetByName('Компани'),{'Компани нэр':'Beta','Spreadsheet ID':'B','Төлөв':'Active','Утас':'12345678',Plan:'Pro','Billing Cycle':'monthly'});
  for(const u of [['owner','Manager','manager','Alpha'],['rep','Seller','rep','Alpha'],['driver','Driver','driver','Alpha'],['warehouse','Keeper','warehouse','Alpha'],['accountant','Finance','accountant','Alpha'],['other','Other','manager','Beta']])master.getSheetByName('Хэрэглэгч').appendRow([u[0],'pw',u[1],u[2],u[3]]);
  for(const ss of [books.A,books.B]){ctx.ensureCompanySheets_(ss);ctx.appendObjectRow_(ss.getSheetByName('Агуулах'),{'Агуулахын нэр':'Main'});ctx.appendObjectRow_(ss.getSheetByName('Агуулах'),{'Агуулахын нэр':'Other'});ctx.appendObjectRow_(ss.getSheetByName('Байршил'),{'Байршлын нэр':'Main'});ctx.appendObjectRow_(ss.getSheetByName('Бараа'),{'Барааны нэр':'Bread','Нэгж үнэ':100,'Одоогийн үлдэгдэл':100,'Хэмжих нэгж':'ш','Идэвхтэй':true,PackSize:12,PackName:'Box'});ctx.appendObjectRow_(ss.getSheetByName('Бараа'),{'Барааны нэр':'Cake','Нэгж үнэ':200,'Одоогийн үлдэгдэл':50,'Хэмжих нэгж':'ш','Идэвхтэй':true});}
  const users={owner:{username:'owner',fullName:'Manager',role:'manager',company:'Alpha'},rep:{username:'rep',fullName:'Seller',role:'rep',company:'Alpha'},driver:{username:'driver',fullName:'Driver',role:'driver',company:'Alpha'},warehouse:{username:'warehouse',fullName:'Keeper',role:'warehouse',company:'Alpha'},accountant:{username:'accountant',fullName:'Finance',role:'accountant',company:'Alpha'},other:{username:'other',fullName:'Other',role:'manager',company:'Beta'}};
@@ -60,5 +60,128 @@ test('product edit preserves reordered headers and refuses stock or history chan
 test('product edit recovers pending stock changes before validating stale input',()=>{const f=fixture();f.books.A.getSheetByName('Гүйлгээ').failWrites=1;assert.throws(()=>f.sale(),/interruption/);assert.throws(()=>f.ctx.handleSaveProduct_(f.users.owner,{originalName:'Bread',name:'Bread',price:100,stock:100,threshold:0}),/Үлдэгдлийг/);assert.equal(f.ctx.opsRows_(f.books.A,'Үйлдлийн журнал')[0].object.Status,'Done');assert.equal(f.stock(),90);});
 test('daily and monthly reports agree after payments and returns',()=>{const f=fixture(),r=f.sale();f.run({action:'addPayment',saleId:r.saleId,amount:200});f.run({action:'returnSale',saleId:r.saleId,lineId:f.ledger(r.saleId).items[0].lineId,quantity:2,reason:'Return'});const daily=f.ctx.loadOperations_(f.users.owner,{}).operations,monthly=f.ctx.withOperationsRead_(f.users.owner,()=>f.ctx.buildDashboard_(f.books.A));assert.equal(monthly.currentTotal,daily.todayTotal);assert.equal(monthly.creditTotal,600);assert.equal(monthly.byProduct[0].quantity,8);});
 test('delivery PDF requires assigned username even with a matching display name',()=>{const f=fixture(),r=f.sale(),d=f.run({action:'saveDelivery',saleId:r.saleId,driver:'driver',date:'2026-09-11',address:'UB'});assert.throws(()=>f.ctx.getPrintableDistributionData(d.distributionId,{...f.users.driver,username:'another-driver'},true),/эрх/);assert.equal(f.books.A.getSheetByName('DOCUMENT_NUMBERS').getLastRow(),1);});
+
+test('initial payment method separates bank from cash and daily cash close reconciles once',()=>{
+  const f=fixture();
+  f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Банк'});
+  f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Бэлэн'});
+  const today=f.ctx.opsDay_();
+  const movement=f.ctx.opsCashMovementForDay_(f.books.A,today);
+  assert.equal(movement.initialCashSales,1000);
+  assert.equal(movement.systemMovement,1000);
+  const close=f.run({action:'closeCash',date:today,openingCash:500,countedCash:1500,reason:''},'accountant');
+  assert.equal(close.expectedCash,1500);
+  assert.equal(close.difference,0);
+  assert.throws(()=>f.run({action:'closeCash',date:today,openingCash:500,countedCash:1500},'accountant'),/өмнө/);
+});
+test('cash close requires explanation for a real variance',()=>{
+  const f=fixture();f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Бэлэн'});
+  assert.throws(()=>f.run({action:'closeCash',date:f.ctx.opsDay_(),openingCash:0,countedCash:900},'accountant'),/шалтгаан/);
+  const close=f.run({action:'closeCash',date:f.ctx.opsDay_(),openingCash:0,countedCash:900,reason:'100 төгрөгийн зөрүү шалгаж байна'},'accountant');
+  assert.equal(close.difference,-100);
+});
+test('cash close subtracts supplier cash payments and daily expenses',()=>{
+  const f=fixture(),today=f.ctx.opsDay_();
+  f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Бэлэн'});
+  const supplier=f.run({action:'saveSupplier',name:'Supply Co',paymentTermDays:0},'accountant');
+  f.run({action:'receivePurchase',supplierId:supplier.supplierId,invoiceNumber:'INV-1',date:today,warehouse:'Main',paidAmount:200,paymentMethod:'Бэлэн',items:[{product:'Bread',inputQuantity:2,inputUnit:'base',inputUnitCost:100}]},'accountant');
+  const expense=f.run({action:'addExpense',date:today,category:'Шатахуун',description:'Хүргэлтийн шатахуун',amount:150,method:'Бэлэн'},'accountant');
+  const movement=f.ctx.opsCashMovementForDay_(f.books.A,today);
+  assert.equal(movement.initialCashSales,1000);
+  assert.equal(movement.supplierCashPayments,200);
+  assert.equal(movement.otherCashExpenses,150);
+  assert.equal(movement.systemMovement,650);
+  const close=f.run({action:'closeCash',date:today,openingCash:500,countedCash:1150},'accountant');
+  assert.equal(close.expectedCash,1150);assert.equal(close.difference,0);
+  assert.ok(expense.expenseId);
+});
+test('expense reversal restores same-day cash movement without deleting audit history',()=>{
+  const f=fixture(),today=f.ctx.opsDay_();
+  const expense=f.run({action:'addExpense',date:today,category:'Оффис',description:'Хэрэгсэл',amount:100,method:'Бэлэн'},'accountant');
+  assert.equal(f.ctx.opsCashMovementForDay_(f.books.A,today).otherCashExpenses,100);
+  f.run({action:'reverseExpense',expenseId:expense.expenseId,reason:'Давхар бүртгэл'},'accountant');
+  assert.equal(f.ctx.opsCashMovementForDay_(f.books.A,today).otherCashExpenses,0);
+  const rows=f.ctx.opsRows_(f.books.A,'Зардал');
+  assert.equal(rows.length,2);assert.equal(rows[1].object.ReversalOf,expense.expenseId);
+  assert.throws(()=>f.run({action:'reverseExpense',expenseId:expense.expenseId,reason:'again'},'accountant'),/өмнө/);
+});
+test('pack sales retain both entered pack values and base-unit audit values',()=>{
+  const f=fixture(),r=f.sale({items:[{product:'Bread',quantity:2,inputUnit:'pack',unitPrice:1200}]});
+  const row=f.ctx.opsRows_(f.books.A,'Гүйлгээ').find(e=>e.object.SaleID===r.saleId).object;
+  assert.ok(row.ProductID);
+  assert.equal(row.InputUnit,'pack');
+  assert.equal(Number(row.InputQuantity),2);
+  assert.equal(Number(row.InputUnitPrice),1200);
+  assert.equal(Number(row['Тоо']),24);
+  assert.equal(Number(row['Үнэ']),100);
+});
+test('integrity audit catches warehouse total mismatches',()=>{
+  const f=fixture();f.sale();
+  const row=f.ctx.opsRows_(f.books.A,'Агуулахын үлдэгдэл').find(e=>e.object['Бараа']==='Bread');
+  f.ctx.setObjectFields_(f.books.A.getSheetByName('Агуулахын үлдэгдэл'),row.rowNumber,{'Үлдэгдэл':89});
+  const r=f.ctx.dataIntegrityCheck_(f.users.owner);
+  assert.equal(r.ok,false);
+  assert.ok(r.issues.some(i=>i.code==='STOCK_TOTAL_MISMATCH'));
+});
+test('MASTER backfill creates stable IDs and bootstrap does not expose spreadsheet ID',()=>{
+  const f=fixture(),audit=f.ctx.auditMasterRegistry();
+  assert.equal(audit.ok,true);
+  const company=f.ctx.getCompany_('Alpha');
+  assert.ok(company.id);
+  const user=f.ctx.securityUser_('owner').object;
+  assert.ok(user['User ID']);assert.equal(user['Company ID'],company.id);
+  const payload=f.ctx.buildInitialPayload_(f.users.owner);
+  assert.equal(payload.company.id,company.id);
+  assert.equal(Object.prototype.hasOwnProperty.call(payload.company,'spreadsheetId'),false);
+});
+
+test('Trial gives one month of full Business-level access',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Trial',1);
+  const company=f.ctx.getCompany_('Alpha');
+  assert.equal(company.planId,'Trial');assert.equal(company.entitlements.ads,false);
+  assert.equal(company.entitlements.monthlyPriceMnt,0);assert.equal(company.entitlements.maxUsers,5);assert.equal(company.entitlements.maxWarehouses,2);
+  assert.equal(company.entitlements.features.delivery,true);assert.equal(company.entitlements.features.pdf,true);
+  assert.equal(company.entitlements.features.csvImport,true);assert.equal(company.entitlements.features.suppliers,true);
+  assert.equal(company.entitlements.features.profitability,false);
+});
+test('Business remains paid ad-free operations plan',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Business',1);const company=f.ctx.getCompany_('Alpha');
+  assert.equal(company.planId,'Business');assert.equal(company.entitlements.ads,false);assert.equal(company.entitlements.monthlyPriceMnt,24900);
+  assert.equal(company.entitlements.maxUsers,5);assert.equal(company.entitlements.maxWarehouses,2);
+});
+test('Pro unlocks profitability and integrity controls',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Pro',1);const company=f.ctx.getCompany_('Alpha');
+  assert.equal(company.entitlements.monthlyPriceMnt,59900);assert.equal(company.entitlements.features.profitability,true);
+  assert.equal(company.entitlements.features.integrityAudit,true);assert.equal(company.entitlements.maxUsers,20);assert.equal(company.entitlements.maxWarehouses,10);
+});
+test('expired trial becomes read-only without deleting company data',()=>{
+  const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Trial','Plan Start':'2020-01-01','Plan End':'2020-02-01','Billing Cycle':'trial','Төлөв':'Active'});
+  const company=f.ctx.getCompany_('Alpha');assert.equal(company.planId,'Expired');assert.equal(company.status,'Expired');assert.equal(f.stock(),100);
+  const dashboard=f.ctx.loadModule_(f.users.owner,'dashboard');assert.equal(dashboard.success,true);
+  assert.throws(()=>f.sale(),/багц|дууссан/);
+  assert.throws(()=>f.run({action:'addInventoryMove',product:'Талх',moveType:'орлого',quantity:1,warehouse:'Үндсэн агуулах'}),/багц|дууссан/);
+});
+test('expired plan keeps only the manager seat active until renewal',()=>{
+  const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Trial','Plan End':'2020-02-01','Төлөв':'Active'});
+  const company=f.ctx.getCompany_('Alpha'),status=f.ctx.planSeatStatus_(company);
+  assert.equal(status.used,5);assert.equal(status.max,1);assert.equal(status.over,4);
+  assert.equal(f.ctx.planSeatAllowed_(company,'owner'),true);assert.equal(f.ctx.planSeatAllowed_(company,'rep'),false);
+});
+test('legacy Free row migrates once into a one-month Trial',()=>{
+  const f=fixture();f.ctx.ensureMasterSheets_();const sheet=f.master.getSheetByName('Компани'),entry=f.ctx.sheetObjects_(sheet).rows.find(e=>e.object['Компани нэр']==='Alpha');
+  f.ctx.setObjectFields_(sheet,entry.rowNumber,{Plan:'Free','Plan Start':'','Plan End':'','Billing Cycle':'free','Төлөв':'Free'});
+  f.ctx.ensureMasterSheets_();
+  const migrated=f.ctx.getCompany_('Alpha');
+  assert.equal(migrated.configuredPlanId,'Trial');assert.equal(migrated.status,'Active');assert.ok(migrated.expiresAt);
+});
+test('quick product creation records initial stock as an auditable inventory movement',()=>{
+  const f=fixture();f.ctx.setCompanyPlan('Alpha','Trial',1);
+  const result=f.ctx.handleSaveProduct_(f.users.owner,{name:'Шинэ бараа',code:'12345',unit:'ш',price:2500,stock:12,threshold:0,clientId:'quick-product-1'});
+  assert.equal(result.success,true);assert.equal(result.product.stock,12);
+  const moves=f.ctx.opsRows_(f.books.A,'Агуулахын хөдөлгөөн').filter(e=>e.object['Бараа']==='Шинэ бараа');
+  assert.equal(moves.length,1);assert.equal(Number(moves[0].object['Тоо']),12);assert.equal(moves[0].object['Client ID'],'quick-product-1');
+});
 module.exports={fixture,test};
 console.log(`${tests.length} scenarios passed`);

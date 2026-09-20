@@ -1,51 +1,58 @@
-# DataLinx — Google Ads + Premium заргүй тохиргоо
+# DataLinx — 1 сарын үнэгүй туршилт + төлбөртэй багцын зарын бодлого
 
 ## Эрхийн төлөв
 
-MASTER Registry-ийн `Компани` tab дахь `Төлөв`:
+MASTER Registry-ийн `Компани` tab дахь үндсэн талбарууд:
 
-- `Free` — бүх үндсэн боломж нээлттэй, зар харагдана.
-- `Active` — Premium заргүй эрх. Одоогийн backend дээр идэвхжүүлсэн огноо болон хугацаа сараар тохируулна.
-- `Inactive` — систем ашиглах эрх хаалттай.
+- `Plan = Trial` — шинэ компани Business-ийн боломжийг эхний 1 сар үнэгүй, заргүй туршина.
+- `Plan = Business` — 24,900₮/сар, заргүй.
+- `Plan = Pro` — 59,900₮/сар, заргүй.
+- Туршилт эсвэл төлбөртэй хугацаа дуусвал effective plan нь `Expired` болно. Өгөгдөл устахгүй, менежер read-only байдлаар нэвтэрч болно.
+- `Төлөв = Inactive` — операторын зүгээс бүрэн хаасан төлөв.
 
-Хугацаатай Premium эрхийн жишээ:
+MASTER нэмэлт баганууд:
+`Plan | Plan Start | Plan End | Billing Cycle`
+
+Операторын жишээ:
 
 ```text
-Төлөв = Active
-Идэвхжүүлсэн огноо = 2026-08-01
-Хугацаа(сар) = 12
+setCompanyPlan('CMP-...', 'Business', 1)
+setCompanyPlan('CMP-...', 'Pro', 1)
 ```
 
-## Google AdSense ID
+Шинэ бүртгэлд `Trial` автоматаар 1 сарын хугацаатай үүснэ.
 
-`premium-ads.js` дотор:
+## Зар сурталчилгаа
 
-```javascript
-const GOOGLE_ADSENSE_CLIENT = 'ca-pub-REPLACE_WITH_YOUR_PUBLISHER_ID';
-const GOOGLE_ADSENSE_SLOT = 'REPLACE_WITH_YOUR_AD_SLOT_ID';
-```
+Нэвтэрсэн бизнесийн аппын Trial, Business, Pro багцууд заргүй.
 
-гэсэн утгуудыг баталгаажсан AdSense publisher ID болон responsive display ad unit-ийн slot ID-аар солино.
+- Google AdSense-ийн гуравдагч талын script нэвтэрсэн апп дотор ачаалагдахгүй.
+- Direct sponsor content болон sponsor impression/click metric нэвтэрсэн апп дотор илгээгдэхгүй.
+- Public marketing хуудсанд тусдаа сурталчилгаа байж болно.
+- Борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон зураг зэрэг бизнесийн дотоод датаар ad targeting хийхгүй.
 
-Placeholder хэвээр байвал app эвдрэхгүй. MASTER Registry-ийн `Зар` tab дахь direct sponsor зар эсвэл DataLinx house ad харагдана.
+## Туршилтын хугацаа
 
-## Ажиллах зарчим
+Trial нь Business-ийн entitlement-ийг ашиглана:
+- 5 хэрэглэгч
+- 2 агуулах
+- борлуулалт, бараа, авлага, буцаалт
+- хүргэлт
+- PDF
+- backup
+- CSV / copy-paste импорт
+- нийлүүлэгч, худалдан авалт, өглөг
+- касс хаалт
+- ажиллагааны дэлгэрэнгүй тайлан
 
-- Google-ийн script зөвхөн `Free` хэрэглэгчийн нээсэн цэсэнд lazy-load хийнэ.
-- `Active` хэрэглэгчид Google Ads болон direct sponsor зар бүрэн хасагдана.
-- Зар form, submit, barcode scanner, камер, GPS, modal, PDF болон print document дотор орохгүй.
-- Google Ads ачаалж чадахгүй үед direct sponsor fallback ажиллана.
-- Борлуулалт, бараа, ажилтан, харилцагч, авлага, GPS болон зураг ad request-д зориудаар дамжуулахгүй.
-
-## Файлын бүтэц
-
-- `index.html` — жижиг loader.
-- `app-core.html` — өмнөх бүрэн app-ийн өөрчлөгдөөгүй snapshot.
-- `premium-ads.css` — шинэ зар болон plan card дизайн.
-- `premium-ads.js` — Free/Premium зарын логик ба Google AdSense lazy integration.
-
-`app-core.html`-ийг шууд засахын оронд шинэ UI өөрчлөлтийг тусдаа CSS/JS module-д хийхэд үндсэн app-ийг буцаах, шалгах болон шинэчлэхэд хялбар.
+Trial дуусахад шинэ operational write хаагдана. Data устахгүй.
 
 ## Production checklist
 
-Google Ads-ийг идэвхжүүлэхээс өмнө production domain, AdSense site approval, Privacy Policy, шаардлагатай consent/CMP, `ads.txt` болон Google-ийн зар байрлуулах бодлогыг шалгана.
+Production-д rollout хийхээс өмнө:
+1. MASTER backup авах.
+2. Apps Script backend + frontend-ийг нэг release-аар deploy хийх.
+3. Trial registration → 1 сарын Plan End үүсэхийг шалгах.
+4. Trial expiry → read-only болохыг шалгах.
+5. Business/Pro activation → write access буцаад нээгдэхийг шалгах.
+6. Public pricing / privacy / terms хуудсууд шинэ model-тэй таарч буйг шалгах.

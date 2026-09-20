@@ -9,7 +9,15 @@ console.log(`Static build: ${files.length} public files and CSV templates. Backe
 // Assemble the same modules as the source loader, avoiding fetch + document.write on production.
 let app=fs.readFileSync('app-core.html','utf8');
 const head='<meta name="robots" content="noindex,nofollow,noarchive"><link rel="icon" href="./brand-mark.svg">'+['premium-ads.css','operations-ui.css','brand.css','workspace-ui.css'].map(f=>`<link rel="stylesheet" href="./${f}?v=20260912ux">`).join('')+'<script src="./ads-config.js?v=20260912ux"></script>';
-const tail=['premium-ads.js','operations-ui.js','sponsor-metrics.js','reliability-ui.js','brand.js','workspace-ui.js','app-route.js'].map(f=>`<script src="./${f}?v=20260912ux"></script>`).join('');
+const buildInfo={
+  sourceRelease:'2026.09.20.1',
+  commitRef:process.env.COMMIT_REF||process.env.HEAD||'',
+  deployId:process.env.DEPLOY_ID||'',
+  context:process.env.CONTEXT||'local',
+  builtAt:new Date().toISOString()
+};
+const buildInfoScript='<script>window.DATALINX_BUILD_INFO='+JSON.stringify(buildInfo).replace(/</g,'\\u003c')+';<\\/script>';
+const tail=buildInfoScript+['premium-ads.js','operations-ui.js','sponsor-metrics.js','reliability-ui.js','brand.js','workspace-ui.js','app-route.js'].map(f=>`<script src="./${f}?v=20260920r1"></script>`).join('');
 app=app.replace('</head>',head+'</head>').replace('</body>',tail+'</body>');
 fs.writeFileSync('dist/app.html',app);
 console.log('App assembled: no extra HTML fetch on production.');

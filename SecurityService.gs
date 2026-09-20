@@ -25,15 +25,29 @@ function secureLogin_(p) {
   securityRate_('login:'+username.toLowerCase(),10,60);
   const entry=securityUser_(username);
   if(!entry||!passwordMatches_(password,entry.object.Password))throw new Error('Хэрэглэгчийн нэр эсвэл нууц үг буруу байна.');
+  const active=clean_(field_(entry.object,['Идэвхтэй'])).toLowerCase();
+  if(['үгүй','inactive','false','0'].includes(active))throw new Error('Хэрэглэгчийн эрх идэвхгүй байна.');
   const upgraded=String(entry.object.Password).startsWith('$2')?null:strongPassword_(password,true);
   const lock=LockService.getScriptLock();lock.waitLock(30000);
   let auth,token;
   try {
     const current=securityUser_(username);
     if(!current||current.object.Password!==entry.object.Password)throw new Error('Нэвтрэх мэдээлэл өөрчлөгдсөн. Дахин нэвтэрнэ үү.');
-    requireActiveCompany_(current.object['Компани нэр']);
+    const currentActive=clean_(field_(current.object,['Идэвхтэй'])).toLowerCase();
+    if(['үгүй','inactive','false','0'].includes(currentActive))throw new Error('Хэрэглэгчийн эрх идэвхгүй байна.');
+    const company=requireActiveCompany_(clean_(field_(current.object,['Company ID']))||current.object['Компани нэр']);
+    if(!planSeatAllowed_(company,current.object.Username))throw new Error(company.entitlements.name+' багц '+company.entitlements.maxUsers+' идэвхтэй хэрэглэгч хүртэл. Менежер илүүдэл хэрэглэгчийг идэвхгүй болгох эсвэл багцаа ахиулна уу: '+UPGRADE_URL);
     if(upgraded)setObjectFields_(masterSs_().getSheetByName(MASTER_SHEETS.USERS),current.rowNumber,{Password:upgraded});
-    auth={username:current.object.Username,fullName:current.object['Бүтэн нэр'],role:normalizeRole_(current.object['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']),company:current.object['Компани нэр'],sessionVersion:Number(current.object.SessionVersion||0),issuedAt:new Date().toISOString()};
+    auth={
+      userId:clean_(field_(current.object,['User ID','UserID'])),
+      username:current.object.Username,
+      fullName:current.object['Бүтэн нэр'],
+      role:normalizeRole_(current.object['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']),
+      company:company.name,
+      companyId:company.id,
+      sessionVersion:Number(current.object.SessionVersion||0),
+      issuedAt:new Date().toISOString()
+    };
     token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
     CacheService.getScriptCache().put('session:'+token,JSON.stringify(auth),SESSION_SECONDS);
   }finally{lock.releaseLock();}

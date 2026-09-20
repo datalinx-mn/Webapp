@@ -790,7 +790,7 @@
     }
 
 
-    /* Free-with-ads access model */
+    /* Legacy ad-slot styles kept for public compatibility; logged-in plans are ad-free. */
     .ad-slot { margin: 0 0 14px; }
     .sponsor-ad {
       min-height: 84px;
@@ -1166,7 +1166,7 @@
             <div class="quick-start-steps">
               <div id="quickStepProduct" class="quick-step">
                 <span class="quick-step-index">1</span>
-                <div><strong>Бараа бүртгэх</strong><small>Нэр, үнэ, үлдэгдэл эсвэл баркод оруулна.</small></div>
+                <div><strong>Бараа оруулах</strong><small>Цөөн бол Quick Add, олон бол Excel/Sheets paste.</small></div>
                 <button id="quickProductBtn" class="btn btn-secondary" type="button">Бараа нэмэх</button>
               </div>
               <div id="quickStepCustomer" class="quick-step">
@@ -1231,10 +1231,10 @@
               </div>
               <div class="form-grid two">
                 <div class="field">
-                  <label for="salePayment">Төлбөрийн төрөл</label>
+                  <label for="salePayment">Төлбөрийн нөхцөл</label>
                   <select id="salePayment" required>
-                    <option value="Бэлэн">Бэлэн</option>
-                    <option value="Зээл">Зээл</option>
+                    <option value="Бэлэн">Шууд төлсөн</option>
+                    <option value="Зээл">Зээл / дараа төлөх</option>
                   </select>
                 </div>
                 <div id="saleLocationField" class="field hidden">
@@ -1274,6 +1274,10 @@
             <summary><span>Бараа удирдах<small>Шинэ бараа нэмэх, үнэ болон үлдэгдэл засах</small></span></summary>
             <div class="simple-details-body">
               <div class="product-management-grid">
+              <div class="ops-actions" style="grid-column:1/-1;margin-bottom:8px">
+                <button id="productBulkImportBtn" class="btn btn-secondary" type="button">Excel / Sheets жагсаалт оруулах</button>
+                <small class="field-hint">Олон бараатай бол нэг бүрчлэн бичих шаардлагагүй.</small>
+              </div>
               <form id="productForm" class="form-grid" novalidate>
                 <input id="productOriginalName" type="hidden">
                 <div class="field">
@@ -1625,6 +1629,23 @@
     </section>
   </div>
 
+  <dialog id="quickProductDialog" class="ops-dialog">
+    <form id="quickProductForm" class="form-grid">
+      <header><div><h3>Барааг шуурхай нэмэх</h3><small>Борлуулалтаа орхилгүй 4 үндсэн мэдээллээр бүртгэнэ.</small></div><button id="quickProductClose" class="btn btn-neutral" type="button" aria-label="Хаах">×</button></header>
+      <div class="field"><label for="quickProductName">Барааны нэр</label><input id="quickProductName" maxlength="120" required></div>
+      <div class="form-grid two">
+        <div class="field"><label for="quickProductCode">Баркод / код</label><input id="quickProductCode" maxlength="50" inputmode="numeric"></div>
+        <div class="field"><label for="quickProductUnit">Нэгж</label><input id="quickProductUnit" maxlength="30" value="ш" required></div>
+      </div>
+      <div class="form-grid two">
+        <div class="field"><label for="quickProductPrice">Зарах үнэ</label><input id="quickProductPrice" type="number" min="0" step="1" inputmode="numeric" required></div>
+        <div class="field"><label for="quickProductStock">Эхний үлдэгдэл</label><input id="quickProductStock" type="number" min="0" step="0.01" inputmode="decimal" value="0" required></div>
+      </div>
+      <p class="field-hint">Өртөг, савлагаа, дуусах хугацаа, бага үлдэгдлийн хязгаарыг дараа нь нөхөж болно.</p>
+      <footer><button id="quickProductSave" class="btn btn-primary btn-block" type="submit">Нэмээд борлуулалтдаа үргэлжлүүлэх</button></footer>
+    </form>
+  </dialog>
+
   <div id="cameraModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Камер">
     <div class="modal-card">
       <div class="video-wrap"><video id="cameraVideo" autoplay playsinline muted></video></div>
@@ -1729,9 +1750,14 @@
     const CACHE_KEY = 'datalinxLastPayloadV3';
     const WALKTHROUGH_KEY_PREFIX = 'datalinxWalkthroughDoneV1';
     const BARCODE_FALLBACK_URL = 'https://unpkg.com/@zxing/browser@0.2.1';
+    const DATALINX_FRONTEND_RELEASE = '2026.09.20.3';
+    const PLANS_URL = './plans.html';
 
     const state = {
       session: null,
+      backendRelease: '',
+      schemaVersion: 0,
+      storageWarning: '',
       serverProducts: [],
       serverTransactions: [],
       serverInventoryMoves: [],
@@ -1743,6 +1769,7 @@
       locations: [],
       visits: [],
       users: [],
+      seatStatus: null,
       ads: [],
       saleCart: [],
       dashboard: null,
@@ -1789,6 +1816,13 @@
       bindDocumentUi();
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', updateConnectivityUi);
+      window.addEventListener('storage', event => {
+        if ([OFFLINE_QUEUE_KEY, CACHE_KEY, SESSION_KEY].includes(event.key)) {
+          rebuildOptimisticState();
+          renderAll();
+          updateConnectivityUi();
+        }
+      });
       window.addEventListener('resize', scheduleWalkthroughPosition, { passive: true });
       window.addEventListener('resize', fitPreviewPaper, { passive: true });
       window.addEventListener('scroll', scheduleWalkthroughPosition, { passive: true });
@@ -1825,13 +1859,16 @@
         inputId: 'saleProduct',
         menuId: 'saleProductMenu',
         controlId: 'saleProductControl',
-        allowCreate: false,
+        allowCreate: true,
+        canCreate: () => isManager() && hasEntitlement('inventory'),
         items: () => state.products.map(product => ({
           value: product.name,
           label: product.name,
           meta: `${money(product.price)} · үлдэгдэл ${formatNumber(product.stock)}`
         })),
         emptyText: 'Бүртгэлтэй бараа олдсонгүй.',
+        createText: value => `“${value}” барааг шуурхай нэмэх`,
+        onCreate: openQuickProduct,
         onSelect: updateSaleProduct
       });
       document.addEventListener('pointerdown', event => {
@@ -1871,7 +1908,7 @@
         const option = event.target.closest('[data-smart-value]');
         if (!option) return;
         event.preventDefault();
-        selectSmartValue(config, option.dataset.smartValue);
+        selectSmartValue(config, option.dataset.smartValue, option.dataset.smartCreate === '1');
       });
     }
 
@@ -1898,13 +1935,19 @@
         <button type="button" class="smart-select-option${index === config.activeIndex ? ' active' : ''}" role="option" data-smart-value="${escapeHtml(item.value)}">
           <span>${escapeHtml(item.label)}</span>${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ''}
         </button>`);
-      if (config.allowCreate && query && !exact) {
-        rows.unshift(`<button type="button" class="smart-select-option create" role="option" data-smart-value="${escapeHtml(config.input.value.trim())}"><span>＋ ${escapeHtml(config.createText(config.input.value.trim()))}</span></button>`);
+      const canCreate=config.allowCreate && (!config.canCreate || config.canCreate());
+      if (canCreate && query && !exact) {
+        rows.unshift(`<button type="button" class="smart-select-option create" role="option" data-smart-create="1" data-smart-value="${escapeHtml(config.input.value.trim())}"><span>＋ ${escapeHtml(config.createText(config.input.value.trim()))}</span></button>`);
       }
       config.menu.innerHTML = rows.length ? rows.join('') : `<div class="smart-select-empty">${escapeHtml(config.emptyText)}</div>`;
     }
 
-    function selectSmartValue(config, value) {
+    function selectSmartValue(config, value, created = false) {
+      if (created && typeof config.onCreate === 'function') {
+        closeSmartSelect(config);
+        config.onCreate(value);
+        return;
+      }
       config.input.value = value;
       config.input.dataset.selectedValue = value;
       config.input.setAttribute('aria-invalid', 'false');
@@ -1923,7 +1966,7 @@
         if (!config.control.classList.contains('open')) return;
         event.preventDefault();
         const selected = options[config.activeIndex] || options[0];
-        if (selected) selectSmartValue(config, selected.dataset.smartValue);
+        if (selected) selectSmartValue(config, selected.dataset.smartValue, selected.dataset.smartCreate === '1');
         return;
       }
       event.preventDefault();
@@ -1958,6 +2001,9 @@
     function bindForms() {
       $('#loginForm').addEventListener('submit', handleLogin);
       $('#registerForm').addEventListener('submit', handleRegister);
+      $('#quickProductForm').addEventListener('submit', handleQuickProductSave);
+      $('#quickProductClose').addEventListener('click', () => $('#quickProductDialog').close());
+      $('#productBulkImportBtn').addEventListener('click', () => { if(window.openDataImport) window.openDataImport(); else toast('Импортын хэсгийг ачаалж байна. Дахин оролдоно уу.','error'); });
       $('#saleForm').addEventListener('submit', handleSale);
       $('#inventoryForm').addEventListener('submit', handleInventoryMove);
       $('#visitForm').addEventListener('submit', handleVisit);
@@ -1983,11 +2029,8 @@
     }
 
     function bindQuickStart() {
-      $('#quickProductBtn')?.addEventListener('click', async () => {
-        showPage('inventory');
-        const details = $('#productManagementCard');
-        if (details) details.open = true;
-        window.setTimeout(() => $('#productName')?.focus(), 220);
+      $('#quickProductBtn')?.addEventListener('click', () => {
+        openQuickProduct('');
       });
       $('#quickCustomerBtn')?.addEventListener('click', () => {
         showPage('sales', false);
@@ -2261,9 +2304,13 @@
           user: data.user,
           company: data.company,
           companyStatus: data.companyStatus,
+          plan: data.plan || null,
+          entitlements: data.entitlements || data.plan || null,
           expiresAt: data.expiresAt || ''
         };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(state.session)); }
+        catch (error) { toast('Төхөөрөмжийн хадгалах зай хүрэлцэхгүй байна. Offline бүртгэл найдвартай хадгалагдахгүй.', 'error'); }
+        migrateLocalIdentity_();
         state.loaded = { inventory: false, distribution: false, dashboard: false, settings: false };
         applyPayload(data, true);
         showApp();
@@ -2297,12 +2344,12 @@
         if (!payload.managerName) throw fieldError_('Менежерийн бүтэн нэрийг оруулна уу.', '#regManagerName');
         if (payload.username.length < 3) throw fieldError_('Хэрэглэгчийн нэр хамгийн багадаа 3 тэмдэгт байна.', '#regUsername');
         if (/\s/.test(payload.username)) throw fieldError_('Хэрэглэгчийн нэрд зай оруулахгүй.', '#regUsername');
-        if (payload.password.length < 12) throw fieldError_('Нууц үг хамгийн багадаа 6 тэмдэгт байна.', '#regPassword');
+        if (payload.password.length < 12) throw fieldError_('Нууц үг хамгийн багадаа 12 тэмдэгт байна.', '#regPassword');
         if (!navigator.onLine) throw new Error('Компани бүртгэхэд интернет холболт шаардлагатай.');
         ensureUrl();
         const data = await postAction(payload, false);
         if (!data.success) throw new Error(data.message || 'Бүртгэл үүсгэж чадсангүй.');
-        toast('Үнэгүй эрх амжилттай үүслээ. Одоо нэвтэрнэ үү.', 'success');
+        toast('1 сарын үнэгүй Business туршилт үүслээ. Одоо нэвтэрнэ үү.', 'success');
         $('#loginUsername').value = payload.username;
         $('#loginPassword').value = payload.password;
         $('.auth-tab[data-auth-tab="login"]').click();
@@ -2362,7 +2409,7 @@
       state.serverTransactions = [];
       state.serverInventoryMoves = [];
       state.ads = [];
-      state.visits=[];state.users=[];state.customers=[];state.dashboard=null;
+      state.visits=[];state.users=[];state.seatStatus=null;state.customers=[];state.dashboard=null;
       state.selectedSale=null;state.selectedDistribution=null;
       state.saleCart = [];
       $('#appScreen').classList.add('hidden');
@@ -2372,8 +2419,8 @@
     }
 
     function getWalkthroughStorageKey() {
-      const company = state.session?.company?.name || state.session?.user?.company || 'company';
-      const username = state.session?.user?.username || 'user';
+      const company = state.session?.company?.id || state.session?.user?.companyId || state.session?.company?.name || state.session?.user?.company || 'company';
+      const username = state.session?.user?.id || state.session?.user?.username || 'user';
       return `${WALKTHROUGH_KEY_PREFIX}:${company}:${username}`.toLowerCase();
     }
 
@@ -2388,69 +2435,46 @@
     }
 
     function buildWalkthroughSteps() {
-      const steps = [
+      const role=state.session?.user?.role||'';
+      const manager=['manager','admin'].includes(role);
+      const steps=[
         {
-          page: 'sales', selector: '#companyTitle', title: 'Тавтай морил',
-          text: 'Энэ бол зөвхөн танай компанийн тусдаа орчин. Дээд хэсгээс компанийн нэр, нэвтэрсэн хэрэглэгч болон Free/Premium эрхийн төлвийг харна.'
+          page:'sales',selector:'#companyTitle',title:'Тавтай морил',
+          text:'Танай компанийн DataLinx орчин бэлэн боллоо. Эхний 1 сар Business-ийн бүх боломж үнэгүй, заргүй ажиллана.'
         },
         {
-          page: 'sales', selector: '#quickStartCard', title: '3 алхмаар эхлэх',
-          text: 'Менежер эхлээд бараагаа бүртгэж, борлуулалтын үеэр харилцагчаа нэмж, дараа нь эхний борлуулалтаа хадгална. Хийсэн алхам бүр автоматаар тэмдэглэгдэнэ.'
+          page:'sales',selector:'#quickStartCard',title:'3 алхмаар эхэлнэ',
+          text:manager
+            ? '1) Бараагаа Quick Add эсвэл Excel/Sheets paste-аар оруулна. 2) Харилцагчийн нэрийг борлуулалт дээр шууд нэмнэ. 3) Эхний борлуулалтаа хадгална.'
+            : 'Бараа, харилцагч, тоо хэмжээ, төлбөрөө сонгоод борлуулалтаа хадгална.'
         },
         {
-          page: 'sales', selector: '#saleForm', title: 'Борлуулалт бүртгэх',
-          text: 'Бараа, тоо хэмжээ, үнэ, харилцагч болон төлбөрийн төрлийг сонгоод хадгална. Борлуулалт хадгалагдахад барааны үлдэгдэл автоматаар хасагдана.'
-        },
-        {
-          page: 'sales', selector: '#saleCustomer', title: 'Харилцагч сонгох',
-          text: 'Эхлээд бүртгэлтэй харилцагчаа хайж сонгоно. Жагсаалтад байхгүй бол нэрийг бичээд шинэ харилцагчаар шууд нэмнэ.'
-        },
-        {
-          page: 'sales', selector: '#saleProduct', title: 'Бараа сонгох',
-          text: 'Дараа нь бараагаа хайж сонгоно. Барааны бүртгэлд байгаа нэгж үнэ автоматаар санал болж, боломжит үлдэгдэл харагдана. Үнийг тухайн борлуулалтад засаж болно.'
-        },
-        {
-          page: 'sales', selector: '#recentSalesList', title: 'Гүйлгээний түүх',
-          text: 'Шинэ гүйлгээ энд шууд харагдана. Анхны ачаалал хурдан байлгахын тулд сүүлийн 60 хоногийг харуулж, илүү хуучин мэдээллийг “Хуучин түүх ачаалах” товчоор нээнэ.'
-        },
-        {
-          page: 'inventory', selector: '#productStockList', title: 'Агуулахын үлдэгдэл',
-          text: 'Бүх барааны одоогийн үлдэгдлийг эндээс хянана. Бага үлдэгдлийн хязгаар болон олон агуулахын боломж бүх компанид нээлттэй.'
-        },
-        {
-          page: 'inventory', selector: '#inventoryForm', title: 'Орлого, зарлага бүртгэх',
-          text: 'Бараа орлогод авах, зарлагадах эсвэл агуулах хооронд шилжүүлэх хөдөлгөөнийг шалтгаантай нь бүртгэнэ.'
-        },
-        {
-          page: 'distribution', selector: '#visitForm', title: 'Түгээлтийн айлчлал',
-          text: 'Харилцагч дээр очсон айлчлалаа нэр, GPS байршил, зураг болон тэмдэглэлтэй хадгална. Камер нээгдэхгүй бол утасны үндсэн камер автоматаар ашиглагдана.'
-        },
-        {
-          page: 'dashboard', selector: '#dashboardPremiumWrap', title: 'Хяналтын самбар',
-          text: 'Энэ сарын борлуулалт, бараа, борлуулагч болон авах мөнгөний тойм. Үндсэн тайлан үнэгүй.'
-        },
-        {
-          page: 'settings', selector: '#subscriptionBanner', title: 'Эрхийн төлөв',
-          text: 'Тохиргоо хэсгээс компанийн Free/Premium/Inactive төлөв болон Premium эрхийн холбоо барих мэдээллийг харна.'
+          page:'sales',selector:'#saleForm',title:'Өдөр тутмын үндсэн ажил',
+          text:'Харилцагч ба бараагаа хайж сонгоно. Байхгүй харилцагчийг нэрээр нь шууд нэмнэ. Менежер бүртгэлгүй барааг борлуулалтын дэлгэцээс Quick Add хийж болно.'
         }
       ];
-      if (isManager()) {
+      if(manager){
         steps.push({
-          page: 'inventory', selector: '#productManagementCard', title: 'Бараа удирдах',
-          text: 'Менежер шинэ бараа нэмэх, код, нэгж үнэ, үлдэгдэл болон бага үлдэгдлийн хязгаарыг засах боломжтой. Үлдэгдэл 0 болсон барааг устгаж болно.'
+          page:'inventory',selector:'#productManagementCard',title:'Олон барааг хурдан оруулах',
+          text:'Олон бараатай бол Excel эсвэл Google Sheets-ээс жагсаалтаа copy-paste хийнэ. Цөөн бараатай бол “Барааг шуурхай нэмэх” ашиглана. Нэг бүрчлэн урт form бөглөх шаардлагагүй.'
         });
+      }
+      if(hasEntitlement('delivery')){
         steps.push({
-          page: 'settings', selector: '#userForm', title: 'Хэрэглэгч удирдах',
-          text: 'Менежер шинэ борлуулагч эсвэл менежер нэмэх, мэдээллийг засах боломжтой. Ажилтан бүрт өөрийн ажлын эрхийг сонгоно.'
+          page:'distribution',selector:'#visitForm',title:'Хүргэлт',
+          text:'Хүргэлтийн үед борлуулалт, жолооч, GPS, зураг, хүргэсэн/буцаасан тоо болон мөнгийг тусад нь бүртгэнэ.'
         });
       }
       steps.push({
-        page: 'settings', selector: '#walkthroughSettingsCard', title: 'Зааврыг дахин үзэх',
-        text: 'Энэ зааврыг хүссэн үедээ Тохиргоо хэсгийн товч эсвэл дээд талын “?” товчоор дахин эхлүүлж болно. Сүлжээ тасарсан үед борлуулалт, агуулахын бүртгэл төхөөрөмжид хадгалагдаж, интернет сэргэхэд автоматаар илгээгдэнэ.'
+        page:'dashboard',selector:'#dashboardPremiumWrap',title:'Хяналт',
+        text:'Өдрийн болон сарын борлуулалт, авлага, барааны хөдөлгөөнөө эндээс хянана. Pro багцад өртөг, ахиуц ашиг болон integrity audit нэмэгдэнэ.'
+      });
+      steps.push({
+        page:'settings',selector:'#subscriptionBanner',title:'Туршилтын хугацаа',
+        text:'Тохиргооноос туршилтын хугацаа, багц, хэрэглэгчийн суудал болон зааврыг дахин нээх боломжтой. Туршилт дуусвал мэдээлэл устахгүй, шинэ бичилт түр хаагдана.'
       });
       return steps;
     }
-
     async function startWalkthrough(force = false) {
       if (!state.session) return;
       if (state.walkthrough.active) return;
@@ -2614,6 +2638,8 @@
         state.session.user = data.user || state.session.user;
         state.session.company = data.company || state.session.company;
         state.session.companyStatus = data.companyStatus || state.session.companyStatus;
+        state.session.plan = data.plan || state.session.plan || null;
+        state.session.entitlements = data.entitlements || state.session.entitlements || data.plan || null;
         state.session.expiresAt = data.expiresAt || state.session.expiresAt;
         localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
         applyPayload(data, true);
@@ -2626,14 +2652,25 @@
     }
 
     function applyPayload(data, resetModules = false) {
+      if (state.session) {
+        if (data.user) state.session.user = data.user;
+        if (data.company) state.session.company = data.company;
+        if (Object.prototype.hasOwnProperty.call(data, 'companyStatus')) state.session.companyStatus = data.companyStatus;
+        if (data.plan) state.session.plan = data.plan;
+        if (data.entitlements) state.session.entitlements = data.entitlements;
+        if (Object.prototype.hasOwnProperty.call(data, 'expiresAt')) state.session.expiresAt = data.expiresAt || '';
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'backendRelease')) state.backendRelease = String(data.backendRelease || '');
+      if (Object.prototype.hasOwnProperty.call(data, 'schemaVersion')) state.schemaVersion = Number(data.schemaVersion || 0);
       if (Array.isArray(data.products)) state.serverProducts = data.products;
       if (Array.isArray(data.customers)) state.customers = data.customers;
-      if (Array.isArray(data.warehouses)) state.warehouses = data.warehouses;
+      if (Array.isArray(data.warehouses)) state.warehouses = data.warehouses.slice(0, planLimit('maxWarehouses', 1));
       if (Array.isArray(data.locations)) state.locations = data.locations;
       if (Array.isArray(data.recentTransactions)) state.serverTransactions = data.recentTransactions;
       if (Array.isArray(data.inventoryMoves)) state.serverInventoryMoves = data.inventoryMoves;
       if (Array.isArray(data.visits)) state.visits = data.visits;
       if (Array.isArray(data.users)) state.users = data.users;
+      if (data.seatStatus) state.seatStatus = data.seatStatus;
       if (Array.isArray(data.ads)) state.ads = data.ads;
       if (data.dashboard) state.dashboard = data.dashboard;
       if (Object.prototype.hasOwnProperty.call(data, 'historyCursor')) state.historyCursor = data.historyCursor || '';
@@ -2655,7 +2692,7 @@
       state.inventoryMoves = state.serverInventoryMoves.map(item => ({ ...item, syncStatus: 'synced' }));
 
       const queue = getQueue()
-        .filter(item => sameCompany(item.company, state.session?.company?.name || state.session?.user?.company) && item.username === state.session?.user?.username && !item.failed)
+        .filter(item => queueBelongsToCurrent_(item) && item.username === state.session?.user?.username && !item.failed)
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
       queue.forEach(item => {
@@ -2727,7 +2764,7 @@
       if (!state.session?.token || !navigator.onLine) return;
       if (page === 'inventory' && !state.loaded.inventory) return loadModule('inventory');
       if (page === 'distribution' && !state.loaded.distribution) return loadModule('distribution');
-      if (page === 'dashboard' && isPremium() && !state.loaded.dashboard) return loadModule('dashboard');
+      if (page === 'dashboard' && hasEntitlement('basicDashboard') && !state.loaded.dashboard) return loadModule('dashboard');
       if (page === 'settings' && isManager() && !state.loaded.settings) return loadModule('settings');
     }
 
@@ -2756,6 +2793,8 @@
           }
           if (module === 'settings') {
             state.users = Array.isArray(data.users) ? data.users : [];
+            state.seatStatus = data.seatStatus || {used:state.users.length,max:planLimit('maxUsers',1),over:Math.max(0,state.users.length-planLimit('maxUsers',2))};
+            if(data.plan) state.session.plan=data.plan;
             state.loaded.settings = true;
           }
           rebuildOptimisticState();
@@ -2800,7 +2839,18 @@
       }
     }
 
-    function isPremium() { return state.session?.companyStatus !== 'Inactive'; }
+    function currentPlan() {
+      return state.session?.plan || state.session?.entitlements || {id:'Expired',name:'Туршилтын хугацаа дууссан',monthlyPriceMnt:0,ads:false,maxUsers:1,maxWarehouses:1,features:{}};
+    }
+    function hasEntitlement(feature) { return Boolean(currentPlan()?.features?.[feature]); }
+    function planLimit(key, fallback = 0) {
+      const value=Number(currentPlan()?.[key]); return Number.isFinite(value)&&value>0?value:fallback;
+    }
+    function planUpgradeMessage() {
+      const name=currentPlan()?.name||'Туршилтын хугацаа дууссан';
+      return name+' багцад энэ боломж ороогүй. Багцаа ахиулна уу.';
+    }
+    function isPremium() { return ['Trial','Business','Pro'].includes(currentPlan()?.id) && state.session?.companyStatus !== 'Inactive'; }
     function isManager() { return ['manager','admin'].includes(state.session?.user?.role); }
 
     function renderAll() {
@@ -2810,9 +2860,10 @@
       $('#companyTitle').textContent = company.name || user.company || 'Компани';
       $('#userTitle').textContent = `${user.fullName || user.username || ''} · ${roleLabel(user.role)}`;
       const status = state.session.companyStatus;
+      const plan = currentPlan();
       const topStatus = $('#topStatus');
-      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : 'ҮНЭГҮЙ · ЗАРТАЙ';
-      topStatus.className = `status-pill ${status === 'Inactive' ? 'inactive' : ''}`;
+      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ТУРШИЛТ ДУУССАН' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
+      topStatus.className = `status-pill ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
       $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
       renderSelects();
       renderSales();
@@ -2855,6 +2906,45 @@
       if (!select.value && items.length === 1) select.value = valueFn(items[0]);
     }
 
+    function openQuickProduct(name = '') {
+      if (!isManager()) return toast('Шинэ барааг менежер шуурхай нэмнэ.', 'error');
+      if (!hasEntitlement('inventory')) return toast(planUpgradeMessage(), 'error');
+      if (!navigator.onLine) return toast('Шинэ бараа бүртгэхэд интернет шаардлагатай.', 'error');
+      $('#quickProductForm').reset();
+      $('#quickProductName').value = name;
+      $('#quickProductUnit').value = 'ш';
+      $('#quickProductStock').value = '0';
+      $('#quickProductDialog').showModal();
+      window.setTimeout(() => (name ? $('#quickProductPrice') : $('#quickProductName')).focus(), 50);
+    }
+
+    async function handleQuickProductSave(event) {
+      event.preventDefault();
+      const button=$('#quickProductSave');
+      setButtonLoading(button,true,'Нэмж байна...');
+      try {
+        const payload={
+          action:'saveProduct',clientId:createClientId(),originalName:'',
+          name:$('#quickProductName').value.trim(),code:$('#quickProductCode').value.trim(),
+          unit:$('#quickProductUnit').value.trim()||'ш',price:numberValue($('#quickProductPrice').value),
+          stock:numberValue($('#quickProductStock').value),threshold:0
+        };
+        if(!payload.name)throw new Error('Барааны нэрийг оруулна уу.');
+        if(payload.price<0||payload.stock<0)throw new Error('Үнэ болон үлдэгдэл 0-ээс бага байж болохгүй.');
+        const data=await postAction(payload);
+        if(!data.success)throw new Error(data.message||'Бараа нэмэгдсэнгүй.');
+        state.serverProducts=Array.isArray(data.products)?data.products:state.serverProducts;
+        rebuildOptimisticState();
+        $('#quickProductDialog').close();
+        $('#saleProduct').value=payload.name;
+        $('#saleProduct').dataset.selectedValue=payload.name;
+        updateSaleProduct();
+        renderAll();saveCache();
+        toast('Бараа нэмэгдлээ. Борлуулалтаа үргэлжлүүлнэ үү.','success');
+      } catch(error){toast(error.message,'error');}
+      finally{setButtonLoading(button,false);}
+    }
+
     function updateSaleProduct() {
       const name = $('#saleProduct').value.trim();
       const product = state.products.find(x => x.name === name);
@@ -2894,9 +2984,16 @@
     function addCurrentSaleItemToCart() {
       try {
         const line = readCurrentSaleLine(true);
-        const existing = state.saleCart.find(item => item.product === line.product && numberValue(item.unitPrice) === line.unitPrice);
-        if (existing) existing.quantity = numberValue(existing.quantity) + line.quantity;
-        else state.saleCart.push(line);
+        const existing = state.saleCart.find(item =>
+          item.product === line.product &&
+          numberValue(item.unitPrice) === line.unitPrice &&
+          String(item.inputUnit || 'base') === String(line.inputUnit || 'base') &&
+          numberValue(item.inputUnitPrice ?? item.unitPrice) === numberValue(line.inputUnitPrice ?? line.unitPrice)
+        );
+        if (existing) {
+          existing.quantity = numberValue(existing.quantity) + line.quantity;
+          existing.inputQuantity = numberValue(existing.inputQuantity ?? existing.quantity) + numberValue(line.inputQuantity ?? line.quantity);
+        } else state.saleCart.push(line);
         $('#saleProduct').value = '';
         $('#saleProduct').dataset.selectedValue = '';
         $('#saleQty').value = '';
@@ -3156,6 +3253,7 @@
     }
 
     async function openDocumentPreview(type) {
+      if (!hasEntitlement('pdf')) { toast(planUpgradeMessage(), 'error'); window.open(PLANS_URL, '_blank', 'noopener'); return; }
       if (!navigator.onLine) return toast('Баримт урьдчилан харахад интернет шаардлагатай.', 'error');
       const isDistribution = type === 'DISTRIBUTION';
       if (!isDistribution && !state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
@@ -3215,6 +3313,7 @@
     }
 
     async function generateDocumentPdf(type = 'INVOICE', forceNewVersion = false, openAfter = false) {
+      if (!hasEntitlement('pdf')) { toast(planUpgradeMessage(), 'error'); window.open(PLANS_URL, '_blank', 'noopener'); return; }
       if (!navigator.onLine) return toast('PDF үүсгэхэд интернет шаардлагатай.', 'error');
       const isDistribution = type === 'DISTRIBUTION';
       if (!isDistribution && !state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
@@ -3249,6 +3348,7 @@
     }
 
     async function showDocumentHistory() {
+      if (!hasEntitlement('pdf')) { toast(planUpgradeMessage(), 'error'); window.open(PLANS_URL, '_blank', 'noopener'); return; }
       if (!state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
       if (!navigator.onLine) return toast('Баримтын түүх харахад интернет шаардлагатай.', 'error');
       showLoading('Баримтын түүх ачаалж байна...');
@@ -3351,7 +3451,7 @@
           <td class="num">${escapeHtml(formatNumber(product.stock))}</td>
           <td><div class="row-actions">
             <button class="btn btn-secondary" type="button" data-product-edit="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px">Засах</button>
-            <button class="btn btn-danger" type="button" data-product-delete="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px" ${numberValue(product.stock) !== 0 ? 'disabled title="Үлдэгдэл 0 болсон үед устгана"' : ''}>Устгах</button>
+            <button class="btn btn-danger" type="button" data-product-delete="${escapeHtml(product.name)}" style="min-height:40px;padding:7px 10px" ${numberValue(product.stock) !== 0 ? 'disabled title="Үлдэгдэл 0 болсон үед идэвхгүй болгоно"' : ''}>Идэвхгүй болгох</button>
           </div></td>
         </tr>`).join('')}</tbody></table>` : emptyHtml(query ? 'Хайлтад тохирох бараа олдсонгүй.' : 'Бараа бүртгэлгүй байна.');
     }
@@ -3427,19 +3527,19 @@
     async function deleteProduct(name) {
       const product = state.products.find(item => item.name === name);
       if (!product) return toast('Барааны мэдээлэл олдсонгүй.', 'error');
-      if (numberValue(product.stock) !== 0) return toast('Үлдэгдэлтэй барааг устгах боломжгүй. Эхлээд үлдэгдлийг 0 болгоно уу.', 'error');
-      if (!confirm(`“${name}” барааг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
+      if (numberValue(product.stock) !== 0) return toast('Үлдэгдэлтэй барааг идэвхгүй болгох боломжгүй. Эхлээд үлдэгдлийг 0 болгоно уу.', 'error');
+      if (!confirm(`“${name}” барааг идэвхгүй болгох уу? Өмнөх борлуулалт, хөдөлгөөний түүх хэвээр үлдэнэ.`)) return;
       try {
-        if (!navigator.onLine) throw new Error('Бараа устгахад интернет холболт шаардлагатай.');
-        showLoading('Бараа устгаж байна...');
+        if (!navigator.onLine) throw new Error('Барааг идэвхгүй болгоход интернет холболт шаардлагатай.');
+        showLoading('Барааг идэвхгүй болгож байна...');
         const data = await postAction({ action: 'deleteProduct', name });
-        if (!data.success) throw new Error(data.message || 'Бараа устгаж чадсангүй.');
+        if (!data.success) throw new Error(data.message || 'Барааг идэвхгүй болгож чадсангүй.');
         state.serverProducts = Array.isArray(data.products) ? data.products : state.serverProducts.filter(item => item.name !== name);
         rebuildOptimisticState();
         if ($('#productOriginalName').value === name) resetProductForm();
         renderAll();
         saveCache();
-        toast('Бараа устгагдлаа.', 'success');
+        toast('Бараа идэвхгүй боллоо.', 'success');
       } catch (error) {
         toast(error.message, 'error');
       } finally {
@@ -3801,12 +3901,18 @@
     function applyTierUi() {
       const active = state.session?.companyStatus !== 'Inactive';
       $('#saleLocationField').classList.toggle('hidden', !active || state.locations.length <= 1);
-      $('#transferOption').classList.toggle('hidden', !active || state.warehouses.length <= 1);
-      if ((!active || state.warehouses.length <= 1) && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
+      const canTransfer=active && planLimit('maxWarehouses',1)>1 && state.warehouses.length>1;
+      $('#transferOption').classList.toggle('hidden', !canTransfer);
+      if (!canTransfer && $('#invType').value === 'шилжүүлэг') $('#invType').value = 'орлого';
       updateInventoryFields();
       $('#dashboardPremiumWrap').classList.remove('locked');
       $('#dashboardLock').classList.add('hidden');
-      $('#routeCard').classList.toggle('hidden', !active);
+      $('#routeCard').classList.toggle('hidden', !active || !hasEntitlement('delivery'));
+      const expired=currentPlan().id==='Expired';
+      const visitForm=$('#visitForm'); if(visitForm) visitForm.classList.toggle('hidden', !hasEntitlement('delivery'));
+      const saleForm=$('#saleForm'); if(saleForm) saleForm.classList.toggle('hidden', expired);
+      const inventoryForm=$('#inventoryForm'); if(inventoryForm) inventoryForm.classList.toggle('hidden', expired);
+      const productManagement=$('#productManagementCard'); if(productManagement) productManagement.classList.toggle('hidden', expired || !isManager());
     }
 
     function renderSettings() {
@@ -3817,8 +3923,13 @@
         $('#subscriptionTitle').textContent = 'Эрх идэвхгүй';
         $('#subscriptionText').textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
       } else {
-        $('#subscriptionTitle').textContent = 'Үнэгүй · зарын дэмжлэгтэй';
-        $('#subscriptionText').textContent = 'Борлуулалт, агуулах, түгээлт, хяналтын самбар, олон байршил болон хэрэглэгчийн удирдлагын үндсэн боломжууд бүгд нээлттэй.';
+        const plan=currentPlan();
+        $('#subscriptionTitle').textContent = plan.id==='Trial' ? 'Business туршилт · эхний 1 сар үнэгүй' : plan.id==='Expired' ? 'Туршилтын хугацаа дууссан' : plan.name+' · '+money(plan.monthlyPriceMnt)+' / сар';
+        $('#subscriptionText').textContent = plan.id==='Trial'
+          ? 'Business-ийн бүх боломж 1 сар үнэгүй · '+plan.maxUsers+' хэрэглэгч · '+plan.maxWarehouses+' агуулах.'
+          : plan.id==='Expired'
+            ? 'Өгөгдөл тань хадгалагдсан. Шинэ гүйлгээ хийхийн тулд Business эсвэл Pro сонгоно уу.'
+            : 'Заргүй · '+plan.maxUsers+' хэрэглэгч хүртэл · '+plan.maxWarehouses+' агуулах хүртэл.';
       }
       const user = state.session.user;
       $('#profileInfo').innerHTML = [
@@ -3826,6 +3937,8 @@
         ['Username', user.username || ''],
         ['Роль', roleLabel(user.role)],
         ['Компани', user.company || ''],
+        ['Багц', currentPlan().name || 'Туршилтын хугацаа дууссан'],
+        ['Хэрэглэгчийн эрх', (state.seatStatus ? state.seatStatus.used : state.users.length) + ' / ' + planLimit('maxUsers',2)],
         ['Sync хүлээж буй', String(pendingQueueCount())]
       ].map(([label, value]) => `<div class="list-item"><div class="list-main"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div></div>`).join('');
       renderUserTable();
@@ -3838,9 +3951,9 @@
       if (!state.users.length) { wrap.innerHTML = emptyHtml('Хэрэглэгчийн мэдээлэл алга.'); return; }
       wrap.innerHTML = `<table><thead><tr><th>Нэр</th><th>Username</th><th>Роль</th><th>Үйлдэл</th></tr></thead><tbody>${state.users.map(user => `
         <tr>
-          <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(roleLabel(user.role))}</td>
+          <td>${escapeHtml(user.fullName)}${user.seatAllowed===false?'<br><small style="color:var(--danger)">Багцын суудлаас гадуур</small>':''}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(roleLabel(user.role))}</td>
           <td><button class="btn btn-secondary" style="min-height:40px;padding:7px 10px" type="button" onclick='editUser(${JSON.stringify(user).replace(/'/g, "&#39;")})'>Засах</button>
-          ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Устгах</button>` : ''}</td>
+          ${user.username !== state.session.user.username ? `<button class="btn btn-danger" style="min-height:40px;padding:7px 10px" type="button" onclick="deleteUser('${escapeJs(user.username)}')">Идэвхгүй болгох</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>`;
     }
 
@@ -3859,6 +3972,9 @@
       setButtonLoading(btn, true, 'Хадгалж байна...');
       try {
         if (!navigator.onLine) throw new Error('Хэрэглэгч удирдахад интернет шаардлагатай.');
+        const creating=!($('#userUsername').dataset.original || '');
+        const used=state.seatStatus?.used ?? state.users.length;
+        if(creating && used>=planLimit('maxUsers',2)) throw new Error(currentPlan().name+' багц '+planLimit('maxUsers',2)+' хэрэглэгч хүртэл. Багцаа ахиулна уу.');
         const payload = {
           action: 'saveUser',
           originalUsername: $('#userUsername').dataset.original || '',
@@ -3882,14 +3998,14 @@
     }
 
     window.deleteUser = async function(username) {
-      if (!confirm(`${username} хэрэглэгчийг устгах уу?`)) return;
+      if (!confirm(`${username} хэрэглэгчийг идэвхгүй болгох уу? Түүхэн гүйлгээ хэвээр хадгалагдана.`)) return;
       try {
-        if (!navigator.onLine) throw new Error('Хэрэглэгч устгахад интернет шаардлагатай.');
+        if (!navigator.onLine) throw new Error('Хэрэглэгчийн эрх идэвхгүй болгоход интернет шаардлагатай.');
         const data = await postAction({ action: 'deleteUser', username });
-        if (!data.success) throw new Error(data.message || 'Устгаж чадсангүй.');
+        if (!data.success) throw new Error(data.message || 'Хэрэглэгчийн эрхийг идэвхгүй болгож чадсангүй.');
         state.loaded.settings = false;
         await loadModule('settings');
-        toast('Хэрэглэгч устгагдлаа.', 'success');
+        toast('Хэрэглэгчийн эрх идэвхгүй боллоо.', 'success');
       } catch (error) {
         toast(error.message, 'error');
       }
@@ -3899,7 +4015,8 @@
       const item = {
         id: createClientId(),
         action,
-        company: state.session?.company?.name || state.session?.user?.company || '',
+        companyId: currentCompanyId_(),
+        company: currentCompanyName_(),
         username: state.session?.user?.username || '',
         createdAt: new Date().toISOString(),
         payload: { ...payload }
@@ -3921,8 +4038,7 @@
       const syncToken=state.session.token;
       let targetResult = { status: targetId ? 'queued' : 'done' };
       try {
-        const currentCompany = state.session?.company?.name || state.session?.user?.company || '';
-        const items = getQueue().filter(item => sameCompany(item.company, currentCompany) && item.username === state.session?.user?.username && !item.failed);
+        const items = getQueue().filter(item => queueBelongsToCurrent_(item) && item.username === state.session?.user?.username && !item.failed);
         for (const item of items) {
           if(state.session?.token!==syncToken) break;
           // Preserve queue order, including transactions entered before this one.
@@ -4013,18 +4129,53 @@
 
     function getQueue() {
       try {
-        const data = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+        const raw = localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]';
+        const data = JSON.parse(raw);
         return Array.isArray(data) ? data : [];
-      } catch (error) { return []; }
+      } catch (error) {
+        state.storageWarning = 'Offline бүртгэлийн хадгалалт гэмтсэн байна. Шинэ бүртгэл хийхээс өмнө DataLinx-тэй холбогдоно уу.';
+        return [];
+      }
     }
-    function saveQueue(queue) { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue)); }
+    function saveQueue(queue) {
+      try {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+        state.storageWarning = '';
+      } catch (error) {
+        state.storageWarning = 'Төхөөрөмжийн хадгалах зай хүрэлцэхгүй байна.';
+        throw new Error('Offline бүртгэлийг төхөөрөмжид хадгалж чадсангүй. Зай чөлөөлөөд дахин оролдоно уу.');
+      }
+    }
     function removeQueueItem(id) { saveQueue(getQueue().filter(item => item.id !== id)); }
+    function currentCompanyId_() { return String(state.session?.company?.id || state.session?.user?.companyId || '').trim(); }
+    function currentCompanyName_() { return String(state.session?.company?.name || state.session?.user?.company || '').trim(); }
+    function queueBelongsToCurrent_(item) {
+      const currentId = currentCompanyId_();
+      const itemId = String(item?.companyId || '').trim();
+      if (currentId && itemId) return itemId === currentId;
+      return sameCompany(item?.company, currentCompanyName_());
+    }
+    function migrateLocalIdentity_() {
+      const companyId = currentCompanyId_();
+      const companyName = currentCompanyName_();
+      const username = state.session?.user?.username || '';
+      if (!companyId || !companyName || !username) return;
+      const queue = getQueue();
+      let changed = false;
+      queue.forEach(item => {
+        if (!item.companyId && sameCompany(item.company, companyName) && (!item.username || item.username === username)) {
+          item.companyId = companyId;
+          changed = true;
+        }
+      });
+      if (changed) saveQueue(queue);
+    }
     function pendingQueueCount() {
-      const company = state.session?.company?.name || state.session?.user?.company || '';
-      return getQueue().filter(item => sameCompany(item.company, company) && item.username === state.session?.user?.username).length;
+      return getQueue().filter(item => queueBelongsToCurrent_(item) && item.username === state.session?.user?.username).length;
     }
     function createClientId() {
-      return `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      if (globalThis.crypto?.randomUUID) return 'web_' + globalThis.crypto.randomUUID();
+      return `web_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
     }
     function sameCompany(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
 
@@ -4067,9 +4218,13 @@
       const payload = {
         reliabilityVersion: state.reliabilityVersion||0,
         operationsVersion: typeof operationsUIActivated !== 'undefined' && operationsUIActivated ? 1 : 0,
+        backendRelease: state.backendRelease || '',
+        schemaVersion: state.schemaVersion || 0,
         user: state.session.user,
         company: state.session.company,
         companyStatus: state.session.companyStatus,
+        plan: state.session.plan || null,
+        entitlements: state.session.entitlements || null,
         expiresAt: state.session.expiresAt,
         products: state.serverProducts,
         customers: state.customers,
@@ -4079,18 +4234,26 @@
         inventoryMoves: state.serverInventoryMoves,
         visits: state.visits,
         users: state.users,
+        seatStatus: state.seatStatus,
         ads: state.ads,
         dashboard: state.dashboard,
         historyCursor: state.historyCursor,
         hasMoreTransactions: state.hasMoreTransactions,
         loaded: state.loaded
       };
-      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(payload)); }
+      catch (error) { console.warn('DataLinx cache write failed', error); }
     }
 
     function readCache() {
-      try { const cached=JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return cached && cached.user?.username === state.session?.user?.username && sameCompany(cached.user?.company,state.session?.user?.company) ? cached : null; }
-      catch (error) { return null; }
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+        if (!cached || cached.user?.username !== state.session?.user?.username) return null;
+        const currentId = currentCompanyId_();
+        const cachedId = String(cached.company?.id || cached.user?.companyId || '').trim();
+        if (currentId && cachedId) return currentId === cachedId ? cached : null;
+        return sameCompany(cached.user?.company, state.session?.user?.company) ? cached : null;
+      } catch (error) { return null; }
     }
 
     function setButtonLoading(button, loading, text = '') {
