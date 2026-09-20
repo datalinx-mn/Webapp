@@ -26,10 +26,10 @@ function upgradeSettingsDesign() {
     <div class="plan-icon" aria-hidden="true">DL</div>
     <div class="plan-copy">
       <span class="plan-eyebrow">DataLinx багц</span>
-      <h3 id="subscriptionTitle">Free · ₮0 / сар</h3>
-      <p id="subscriptionText">Үндсэн бүртгэл · зарын дэмжлэгтэй.</p>
+      <h3 id="subscriptionTitle">1 сарын үнэгүй туршилт</h3>
+      <p id="subscriptionText">Business-ийн бүх боломжийг эхний 1 сар үнэгүй.</p>
     </div>
-    <span id="settingsPlanBadge" class="plan-badge">FREE</span>
+    <span id="settingsPlanBadge" class="plan-badge">1 САР ҮНЭГҮЙ</span>
     <div class="plan-actions">
       <a id="upgradeNoAdsBtn" class="btn btn-primary" href="${PLANS_URL}" target="_blank" rel="noopener" style="text-decoration:none">Багц ахиулах</a>
       <a class="btn btn-secondary" href="${FACEBOOK_URL}" target="_blank" rel="noopener" style="text-decoration:none">Тусламж авах</a>
