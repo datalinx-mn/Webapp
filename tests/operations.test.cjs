@@ -80,6 +80,31 @@ test('cash close requires explanation for a real variance',()=>{
   const close=f.run({action:'closeCash',date:f.ctx.opsDay_(),openingCash:0,countedCash:900,reason:'100 төгрөгийн зөрүү шалгаж байна'},'accountant');
   assert.equal(close.difference,-100);
 });
+test('cash close subtracts supplier cash payments and daily expenses',()=>{
+  const f=fixture(),today=f.ctx.opsDay_();
+  f.sale({paymentType:'Бэлэн',initialPaymentMethod:'Бэлэн'});
+  const supplier=f.run({action:'saveSupplier',name:'Supply Co',paymentTermDays:0},'accountant');
+  f.run({action:'receivePurchase',supplierId:supplier.supplierId,invoiceNumber:'INV-1',date:today,warehouse:'Main',paidAmount:200,paymentMethod:'Бэлэн',items:[{product:'Bread',inputQuantity:2,inputUnit:'base',inputUnitCost:100}]},'accountant');
+  const expense=f.run({action:'addExpense',date:today,category:'Шатахуун',description:'Хүргэлтийн шатахуун',amount:150,method:'Бэлэн'},'accountant');
+  const movement=f.ctx.opsCashMovementForDay_(f.books.A,today);
+  assert.equal(movement.initialCashSales,1000);
+  assert.equal(movement.supplierCashPayments,200);
+  assert.equal(movement.otherCashExpenses,150);
+  assert.equal(movement.systemMovement,650);
+  const close=f.run({action:'closeCash',date:today,openingCash:500,countedCash:1150},'accountant');
+  assert.equal(close.expectedCash,1150);assert.equal(close.difference,0);
+  assert.ok(expense.expenseId);
+});
+test('expense reversal restores same-day cash movement without deleting audit history',()=>{
+  const f=fixture(),today=f.ctx.opsDay_();
+  const expense=f.run({action:'addExpense',date:today,category:'Оффис',description:'Хэрэгсэл',amount:100,method:'Бэлэн'},'accountant');
+  assert.equal(f.ctx.opsCashMovementForDay_(f.books.A,today).otherCashExpenses,100);
+  f.run({action:'reverseExpense',expenseId:expense.expenseId,reason:'Давхар бүртгэл'},'accountant');
+  assert.equal(f.ctx.opsCashMovementForDay_(f.books.A,today).otherCashExpenses,0);
+  const rows=f.ctx.opsRows_(f.books.A,'Зардал');
+  assert.equal(rows.length,2);assert.equal(rows[1].object.ReversalOf,expense.expenseId);
+  assert.throws(()=>f.run({action:'reverseExpense',expenseId:expense.expenseId,reason:'again'},'accountant'),/өмнө/);
+});
 test('pack sales retain both entered pack values and base-unit audit values',()=>{
   const f=fixture(),r=f.sale({items:[{product:'Bread',quantity:2,inputUnit:'pack',unitPrice:1200}]});
   const row=f.ctx.opsRows_(f.books.A,'Гүйлгээ').find(e=>e.object.SaleID===r.saleId).object;
