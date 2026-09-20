@@ -50,9 +50,49 @@ const LOGIN_WINDOW_SECONDS = 60;
 const SESSION_SECONDS = 21600;
 const INITIAL_HISTORY_DAYS = 60;
 const INITIAL_HISTORY_LIMIT = 100;
-const UPGRADE_URL = 'https://www.facebook.com/DataLinxMN';
-const DATALINX_BACKEND_RELEASE = '2026.09.20.1';
-const DATALINX_SCHEMA_VERSION = 2;
+const UPGRADE_URL = 'https://datalinx-business.netlify.app/plans.html';
+const DATALINX_BACKEND_RELEASE = '2026.09.20.2';
+const DATALINX_SCHEMA_VERSION = 3;
+const DATALINX_PLAN_CATALOG = {
+  Free: {
+    id:'Free', name:'Free', monthlyPriceMnt:0, ads:true, maxUsers:2, maxWarehouses:1,
+    features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:false,pdf:false,backup:false,csvImport:false,suppliers:false,cashClose:false,profitability:false,integrityAudit:false,advancedReports:false,prioritySupport:false}
+  },
+  Business: {
+    id:'Business', name:'Business', monthlyPriceMnt:24900, ads:false, maxUsers:5, maxWarehouses:2,
+    features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:true,pdf:true,backup:true,csvImport:true,suppliers:true,cashClose:true,profitability:false,integrityAudit:false,advancedReports:true,prioritySupport:false}
+  },
+  Pro: {
+    id:'Pro', name:'Pro', monthlyPriceMnt:59900, ads:false, maxUsers:20, maxWarehouses:10,
+    features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:true,pdf:true,backup:true,csvImport:true,suppliers:true,cashClose:true,profitability:true,integrityAudit:true,advancedReports:true,prioritySupport:true}
+  }
+};
+
+function normalizePlanId_(value) {
+  const v=clean_(value).toLowerCase();
+  if(v==='pro')return 'Pro';
+  if(['business','active','premium','идэвхтэй'].includes(v))return 'Business';
+  return 'Free';
+}
+function planEntitlements_(planId) {
+  const plan=DATALINX_PLAN_CATALOG[normalizePlanId_(planId)]||DATALINX_PLAN_CATALOG.Free;
+  return JSON.parse(JSON.stringify(plan));
+}
+function companyHasFeature_(company,feature) {
+  return Boolean(company&&company.entitlements&&company.entitlements.features&&company.entitlements.features[feature]);
+}
+function assertEntitlement_(auth,feature) {
+  const company=requireActiveCompany_(auth.companyId||auth.company);
+  if(!companyHasFeature_(company,feature)){
+    const current=company.entitlements?.name||'Free';
+    throw new Error(current+' багцад энэ боломж ороогүй. Багцаа ахиулна уу: '+UPGRADE_URL);
+  }
+  return company;
+}
+function publicPlan_(company) {
+  const p=company.entitlements;
+  return {id:p.id,name:p.name,monthlyPriceMnt:p.monthlyPriceMnt,ads:p.ads,maxUsers:p.maxUsers,maxWarehouses:p.maxWarehouses,features:p.features};
+}
 
 function doGet(e) {
   try {
@@ -137,11 +177,13 @@ function buildInitialPayload_(auth) {
     schemaVersion: DATALINX_SCHEMA_VERSION,
     backendRelease: DATALINX_BACKEND_RELEASE,
     user: { id: auth.userId || '', username: auth.username, fullName: auth.fullName, role: auth.role, company: company.name, companyId: company.id },
-    company: { id: company.id, name: company.name, phone: company.phone, email: company.email },
+    company: { id: company.id, name: company.name, phone: company.phone, email: company.email, planId:company.planId },
     companyStatus: company.status,
-    accessModel: 'FreeWithAds',
+    plan: publicPlan_(company),
+    entitlements: company.entitlements,
+    accessModel: 'PlanEntitlementsV1',
     expiresAt: company.expiresAt ? company.expiresAt.toISOString() : '',
-    ads: getActiveAds_(),
+    ads: company.entitlements.ads ? getActiveAds_() : [],
     products: getProducts_(companySs),
     customers: getCustomers_(companySs),
     warehouses: getWarehouses_(companySs),
@@ -230,7 +272,7 @@ function handleRegisterCompany_(p) {
     appendObjectRow_(companySheet, {
       'Компани нэр': companyName, 'Spreadsheet ID': newSheetId, 'Төлөв': 'Free',
       'Идэвхжүүлсэн огноо': new Date(), 'Хугацаа(сар)': 0, 'Утас': phone, 'Имэйл': email,
-      'Company ID': companyId
+      'Company ID': companyId, Plan:'Free', 'Plan Start':new Date(), 'Plan End':'', 'Billing Cycle':'free'
     });
     appendObjectRow_(userSheet, {
       Username: username, Password: passwordHash, 'Бүтэн нэр': managerName,
@@ -393,6 +435,9 @@ function handleSaveUser_(auth, p) {
       });
     } else {
       if (!password) throw new Error('Шинэ хэрэглэгчид нууц үг шаардлагатай.');
+      const company=requireActiveCompany_(auth.companyId||auth.company);
+      const activeUsers=getUsers_(company.id).length;
+      if(activeUsers>=company.entitlements.maxUsers)throw new Error(company.entitlements.name+' багц '+company.entitlements.maxUsers+' хэрэглэгч хүртэл. Багцаа ахиулна уу: '+UPGRADE_URL);
       appendObjectRow_(userSheet, {
         Username: username, Password: passwordHash, 'Бүтэн нэр': fullName,
         'Роль (manager/rep/admin/sales/warehouse/driver/accountant)': role,
@@ -442,29 +487,52 @@ function getCompany_(companyRef) {
   const explicitStatus = clean_(field_(row, ['Төлөв'])).toLowerCase();
   const activated = asDate_(field_(row, ['Идэвхжүүлсэн огноо']));
   const months = Number(field_(row, ['Хугацаа(сар)']) || 0);
-  let status = 'Free';
-  let expiresAt = null;
+  const configuredPlan = normalizePlanId_(field_(row, ['Plan']));
+  const planStart = asDate_(field_(row, ['Plan Start'])) || activated;
+  let expiresAt = asDate_(field_(row, ['Plan End']));
+  if (!expiresAt && configuredPlan!=='Free' && activated && months>0) expiresAt=addMonths_(activated,months);
+  let planId=configuredPlan;
+  let status='Free';
   if (explicitStatus === 'inactive' || explicitStatus === 'идэвхгүй') {
-    status = 'Inactive';
-  } else if (activated && months > 0) {
-    expiresAt = addMonths_(activated, months);
-    status = new Date().getTime() <= expiresAt.getTime() ? 'Active' : 'Free';
-  } else if (explicitStatus === 'active' || explicitStatus === 'premium' || explicitStatus === 'идэвхтэй') {
-    status = 'Active';
+    status='Inactive';
+  } else {
+    if(planId!=='Free' && expiresAt && expiresAt.getTime()<Date.now()) planId='Free';
+    status=planId==='Free'?'Free':'Active';
   }
+  const entitlements=planEntitlements_(planId);
   return {
     id: clean_(field_(row, ['Company ID','CompanyID'])),
     name: clean_(field_(row, ['Компани нэр'])),
     spreadsheetId: clean_(field_(row, ['Spreadsheet ID'])),
     status: status,
+    configuredPlanId: configuredPlan,
+    planId: planId,
+    entitlements: entitlements,
     activatedAt: activated,
+    planStart: planStart,
     months: months,
     expiresAt: expiresAt,
+    billingCycle: clean_(field_(row, ['Billing Cycle'])) || (planId==='Free'?'free':'monthly'),
     phone: clean_(field_(row, ['Утас'])),
     email: clean_(field_(row, ['Имэйл']))
   };
 }
 
+function setCompanyPlan(companyRef,planId,months) {
+  ensureMasterSheets_();
+  const plan=normalizePlanId_(planId),company=getCompany_(companyRef);
+  if(!company)throw new Error('Компани олдсонгүй.');
+  const sheet=masterSs_().getSheetByName(MASTER_SHEETS.COMPANIES);
+  const entry=sheetObjects_(sheet).rows.find(e=>clean_(e.object['Company ID'])===company.id);
+  if(!entry)throw new Error('Компани олдсонгүй.');
+  const now=new Date(),m=plan==='Free'?0:Math.max(1,Math.floor(Number(months||1)));
+  const end=plan==='Free'?'':addMonths_(now,m);
+  setObjectFields_(sheet,entry.rowNumber,{
+    Plan:plan,'Plan Start':now,'Plan End':end,'Billing Cycle':plan==='Free'?'free':'monthly',
+    'Төлөв':plan==='Free'?'Free':'Active','Идэвхжүүлсэн огноо':now,'Хугацаа(сар)':m
+  });
+  return {companyId:company.id,plan:plan,startsAt:now.toISOString(),expiresAt:end?end.toISOString():'',monthlyPriceMnt:DATALINX_PLAN_CATALOG[plan].monthlyPriceMnt};
+}
 function requireActiveCompany_(companyName) {
   const company = getCompany_(companyName);
   if (!company) throw new Error('Компанийн мэдээлэл олдсонгүй.');
@@ -871,7 +939,7 @@ function getActiveAds_() {
 
 function ensureMasterSheets_() {
   const ss = masterSs_();
-  const companySheet = ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл','Company ID']);
+  const companySheet = ensureSheet_(ss, MASTER_SHEETS.COMPANIES, ['Компани нэр','Spreadsheet ID','Төлөв','Идэвхжүүлсэн огноо','Хугацаа(сар)','Утас','Имэйл','Company ID','Plan','Plan Start','Plan End','Billing Cycle']);
   const userSheet = ensureSheet_(ss, MASTER_SHEETS.USERS, ['Username','Password','Бүтэн нэр','Роль (manager/rep/admin/sales/warehouse/driver/accountant)','Компани нэр'].concat(SECURITY_USER_HEADERS).concat(['User ID','Company ID','Идэвхтэй']));
   ensureSheet_(ss, MASTER_SHEETS.ADS, MASTER_AD_HEADERS);
   backfillMasterIds_(companySheet, userSheet);
@@ -922,6 +990,13 @@ function backfillMasterIds_(companySheet, userSheet) {
   const companyHeaders = getHeaders_(companySheet);
   const companyIdIndex = companyHeaders.indexOf('Company ID');
   const companyNameIndex = companyHeaders.indexOf('Компани нэр');
+  const planIndex = companyHeaders.indexOf('Plan');
+  const planStartIndex = companyHeaders.indexOf('Plan Start');
+  const planEndIndex = companyHeaders.indexOf('Plan End');
+  const billingIndex = companyHeaders.indexOf('Billing Cycle');
+  const statusIndex = companyHeaders.indexOf('Төлөв');
+  const activatedIndex = companyHeaders.indexOf('Идэвхжүүлсэн огноо');
+  const monthsIndex = companyHeaders.indexOf('Хугацаа(сар)');
   const companyIdsByName = {};
   if (companySheet.getLastRow() >= 2 && companyIdIndex >= 0 && companyNameIndex >= 0) {
     const rows = companySheet.getRange(2, 1, companySheet.getLastRow() - 1, companyHeaders.length).getValues();
@@ -930,6 +1005,17 @@ function backfillMasterIds_(companySheet, userSheet) {
       const name = clean_(row[companyNameIndex]);
       let id = clean_(row[companyIdIndex]);
       if (!id) { id = createMasterId_('CMP'); row[companyIdIndex] = id; changed = true; }
+      if (planIndex >= 0 && !clean_(row[planIndex])) {
+        const status=statusIndex>=0?clean_(row[statusIndex]).toLowerCase():'';
+        const activated=activatedIndex>=0?asDate_(row[activatedIndex]):null;
+        const months=monthsIndex>=0?Number(row[monthsIndex]||0):0;
+        const legacyEnd=activated&&months>0?addMonths_(activated,months):null;
+        const paid=['active','premium','идэвхтэй'].includes(status)||(legacyEnd&&legacyEnd.getTime()>=Date.now());
+        row[planIndex]=paid?'Business':'Free'; changed=true;
+        if(planStartIndex>=0&&paid&&activated&&!row[planStartIndex])row[planStartIndex]=activated;
+        if(planEndIndex>=0&&paid&&legacyEnd&&!row[planEndIndex])row[planEndIndex]=legacyEnd;
+        if(billingIndex>=0&&!clean_(row[billingIndex]))row[billingIndex]=paid?'monthly':'free';
+      }
       if (name) companyIdsByName[name.toLowerCase()] = id;
     });
     if (changed) companySheet.getRange(2, 1, rows.length, companyHeaders.length).setValues(rows);
