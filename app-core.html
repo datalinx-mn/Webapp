@@ -2849,9 +2849,10 @@
       $('#companyTitle').textContent = company.name || user.company || 'Компани';
       $('#userTitle').textContent = `${user.fullName || user.username || ''} · ${roleLabel(user.role)}`;
       const status = state.session.companyStatus;
+      const plan = currentPlan();
       const topStatus = $('#topStatus');
-      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : 'ҮНЭГҮЙ · ЗАРТАЙ';
-      topStatus.className = `status-pill ${status === 'Inactive' ? 'inactive' : ''}`;
+      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Free' ? 'FREE · ЗАРТАЙ' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
+      topStatus.className = `status-pill ${status === 'Inactive' ? 'inactive' : plan.id !== 'Free' ? 'premium' : ''}`;
       $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
       renderSelects();
       renderSales();
@@ -3202,6 +3203,7 @@
     }
 
     async function openDocumentPreview(type) {
+      if (!hasEntitlement('pdf')) { toast(planUpgradeMessage(), 'error'); window.open(PLANS_URL, '_blank', 'noopener'); return; }
       if (!navigator.onLine) return toast('Баримт урьдчилан харахад интернет шаардлагатай.', 'error');
       const isDistribution = type === 'DISTRIBUTION';
       if (!isDistribution && !state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
@@ -3261,6 +3263,7 @@
     }
 
     async function generateDocumentPdf(type = 'INVOICE', forceNewVersion = false, openAfter = false) {
+      if (!hasEntitlement('pdf')) { toast(planUpgradeMessage(), 'error'); window.open(PLANS_URL, '_blank', 'noopener'); return; }
       if (!navigator.onLine) return toast('PDF үүсгэхэд интернет шаардлагатай.', 'error');
       const isDistribution = type === 'DISTRIBUTION';
       if (!isDistribution && !state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
@@ -3295,6 +3298,7 @@
     }
 
     async function showDocumentHistory() {
+      if (!hasEntitlement('pdf')) { toast(planUpgradeMessage(), 'error'); window.open(PLANS_URL, '_blank', 'noopener'); return; }
       if (!state.selectedSale) return toast('Борлуулалт сонгоно уу.', 'error');
       if (!navigator.onLine) return toast('Баримтын түүх харахад интернет шаардлагатай.', 'error');
       showLoading('Баримтын түүх ачаалж байна...');
