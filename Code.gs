@@ -149,7 +149,7 @@ function doPost(e) {
     if(action==='logout')return json_(securityLogout_(auth,payload));
     if(action==='changePassword')return json_(securityChangePassword_(auth,payload));
     if(action==='issueRecovery')return json_(securityIssueRecovery_(auth,payload));
-    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash','approveReturn','reversePayment','cancelSale','importData','stocktake','closeCash','saveSupplier','receivePurchase','addSupplierPayment'].includes(action)) return json_(handleOperation_(auth, payload));
+    if (['addSale','addInventoryMove','addPayment','returnSale','receiveReturn','refundPayment','saveDelivery','remitCash','approveReturn','reversePayment','cancelSale','importData','stocktake','closeCash','saveSupplier','receivePurchase','addSupplierPayment','addExpense','reverseExpense'].includes(action)) return json_(handleOperation_(auth, payload));
     recoverOperations_(auth);
     if (action === 'saveProduct') return json_(handleSaveProduct_(auth, payload));
     if (action === 'deleteProduct') return json_(handleDeleteProduct_(auth, payload));
