@@ -1218,7 +1218,13 @@ function requireSession_(token) {
 function passwordMatches_(input, stored) {
   stored=String(stored||'');input=String(input||'');
   if(stored.startsWith('$2'))return !bcrypt.truncates(input)&&bcrypt.compareSync(input,stored);
-  if(/^[a-f0-9]{64}$/i.test(stored))return secureEqual_(stored.toLowerCase(),sha256_(input));
+  if(/^[a-f0-9]{64}$/i.test(stored)) {
+    // Legacy SHA-256 rows support both the original plaintext password and,
+    // for migration compatibility, the exact stored 64-character value.
+    // On successful login secureLogin_ immediately upgrades the credential
+    // to bcrypt using whatever the user actually entered.
+    return secureEqual_(stored.toLowerCase(),input.toLowerCase()) || secureEqual_(stored.toLowerCase(),sha256_(input));
+  }
   return !!stored && secureEqual_(stored,input); // Legacy plaintext is upgraded immediately on successful login.
 }
 
