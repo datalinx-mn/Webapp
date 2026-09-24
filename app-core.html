@@ -409,6 +409,75 @@
     .badge.up { background: #E2F5E5; color: #166522; }
     .badge.down { background: #FBE7E5; color: #9A261E; }
     .badge.flat { background: #ECEFEC; color: #4B544D; }
+    .badge.warn { background: #FFF2D8; color: #8A5A00; }
+    .badge.info { background: #E5F0FA; color: #23577C; }
+
+    .work-table-card { margin-bottom: 14px; }
+    .work-table-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .work-table-head h3 { margin-bottom: 4px; }
+    .work-table-head p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .status-table td.num, .status-table th.num { text-align: right; white-space: nowrap; }
+    .status-table td.status-actions { white-space: nowrap; }
+    .status-table .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .status-table tr[data-sale-row] { cursor: pointer; }
+    .status-table tr[data-sale-row]:hover td { background: #FAFCFA; }
+    .linked-sale-card {
+      display: grid;
+      gap: 9px;
+      padding: 12px 13px;
+      border: 1px solid #CDE0CF;
+      border-radius: 13px;
+      background: #F4FAF5;
+    }
+    .linked-sale-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .linked-sale-card strong { display: block; }
+    .linked-sale-card small { color: var(--muted); line-height: 1.45; }
+
+    @media (max-width: 720px) {
+      .work-table-head { align-items: stretch; flex-direction: column; }
+      .work-table-head .btn { width: 100%; }
+      .status-table { overflow: visible; border: 0; border-radius: 0; background: transparent; }
+      .status-table table, .status-table tbody, .status-table tr, .status-table td { display: block; width: 100%; min-width: 0; }
+      .status-table thead { display: none; }
+      .status-table table { background: transparent; }
+      .status-table tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 9px 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 3px 10px rgba(19,52,22,.04);
+      }
+      .status-table td { padding: 0; border: 0; text-align: left !important; white-space: normal !important; }
+      .status-table td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+      }
+      .status-table td.status-primary,
+      .status-table td.status-actions { grid-column: 1 / -1; }
+      .status-table td.status-primary strong { font-size: 15px; }
+      .status-table .row-actions .btn { flex: 1 1 130px; min-height: 42px !important; }
+    }
 
     .list { display: grid; gap: 9px; }
     .list-item {
@@ -1150,8 +1219,22 @@
       <section class="content" id="work-content" tabindex="-1">
         <section id="page-sales" class="page active">
           <div class="page-head">
-            <div><h2>Борлуулалт</h2><p>Өдөр тутмын борлуулалтаа хэдхэн алхмаар бүртгэнэ.</p></div>
+            <div><h2>Борлуулалт</h2><p>Өдөр тутмын борлуулалт, төлбөр, түгээлт, баримтын төлөвийг нэг дор харна.</p></div>
+            <button id="newSaleBtn" class="btn btn-primary" type="button">＋ Шинэ борлуулалт</button>
           </div>
+
+          <section class="card work-table-card">
+            <div class="work-table-head">
+              <div>
+                <h3>Борлуулалтын жагсаалт</h3>
+                <p>Мөр дээр дарахад дэлгэрэнгүй болон баримтын үйлдлүүд нээгдэнэ.</p>
+              </div>
+            </div>
+            <div id="salesStatusTable" class="table-wrap status-table"></div>
+            <div id="loadOlderWrap" class="load-more-wrap hidden">
+              <button id="loadOlderBtn" class="btn btn-secondary" type="button">Хуучин түүх ачаалах</button>
+            </div>
+          </section>
 
           <div class="micro-business-intro">
             <strong>Жижиг бизнест хэрэгтэй үндсэн зүйлс нэг дор</strong>
@@ -1255,11 +1338,8 @@
                 <div id="saleSuccessBody" class="summary-box"></div>
               </div>
               <div class="card">
-                <h3>Сүүлийн гүйлгээ</h3>
-                <div id="recentSalesList" class="list"></div>
-                <div id="loadOlderWrap" class="load-more-wrap hidden">
-                  <button id="loadOlderBtn" class="btn btn-secondary" type="button">Хуучин түүх ачаалах</button>
-                </div>
+                <h3>Дараагийн алхам</h3>
+                <p class="card-subtitle" style="margin:0">Дээрх жагсаалтаас борлуулалтаа сонгоод баримт, төлбөр эсвэл түгээлтийн үйлдлээ үргэлжлүүлнэ.</p>
               </div>
             </div>
           </div>
@@ -1267,7 +1347,8 @@
 
         <section id="page-inventory" class="page">
           <div class="page-head">
-            <div><h2>Агуулах</h2><p>Үлдэгдэл болон агуулахын хөдөлгөөн удирдана.</p></div>
+            <div><h2>Агуулах</h2><p>Барааны үлдэгдэл, анхаарах төлөв, сүүлийн хөдөлгөөнийг нэг дор харна.</p></div>
+            <button id="newInventoryMoveBtn" class="btn btn-primary" type="button">＋ Хөдөлгөөн нэмэх</button>
           </div>
           <div class="ad-slot" data-ad-placement="inventory"></div>
           <details id="productManagementCard" class="card manager-only simple-details" style="margin-bottom:14px">
@@ -1322,12 +1403,16 @@
           <div class="grid grid-main">
             <div class="grid">
               <div class="card">
-                <h3>Барааны үлдэгдэл</h3>
-                <div id="productStockList" class="list"></div>
+                <div class="work-table-head">
+                  <div><h3>Барааны үлдэгдэл</h3><p>Үлдэгдлийн төлөвийг өнгөөр ялгаж харуулна.</p></div>
+                </div>
+                <div id="inventoryStatusTable" class="table-wrap status-table"></div>
               </div>
               <div class="card">
-                <h3>Сүүлийн агуулахын хөдөлгөөн</h3>
-                <div id="recentInventoryList" class="list"></div>
+                <div class="work-table-head">
+                  <div><h3>Сүүлийн агуулахын хөдөлгөөн</h3><p>Орлого, зарлага, шилжүүлэг болон sync төлөв.</p></div>
+                </div>
+                <div id="inventoryMovementTable" class="table-wrap status-table"></div>
               </div>
             </div>
 
@@ -1378,19 +1463,35 @@
 
         <section id="page-distribution" class="page">
           <div class="page-head">
-            <div><h2>Түгээлт</h2><p>Харилцагч дээр очсон бүртгэл, GPS, зураг хадгална.</p></div>
+            <div><h2>Түгээлт</h2><p>Хүргэлтийн явц, харилцагч, жолооч, баримтын төлөвийг нэг дор харна.</p></div>
+            <button id="newVisitBtn" class="btn btn-primary" type="button">＋ Шинэ түгээлт</button>
           </div>
           <div class="ad-slot" data-ad-placement="distribution"></div>
+          <section class="card work-table-card">
+            <div class="work-table-head">
+              <div>
+                <h3>Түгээлтийн жагсаалт</h3>
+                <p>Төлөв өөрчлөгдөх бүрт хүснэгтээс шууд хянах боломжтой.</p>
+              </div>
+            </div>
+            <div id="distributionStatusTable" class="table-wrap status-table"></div>
+          </section>
           <div class="grid grid-main">
             <form id="visitForm" class="card form-grid">
               <h3>Шинэ түгээлт / айлчлал</h3>
               <p class="form-simple-note">Үндсэндээ харилцагч, төлөв, зураг/GPS болон тэмдэглэл хангалттай. Бусад мэдээллийг шаардлагатай үед нээнэ.</p>
-              <div class="field">
-                <label for="visitSaleId">Холбогдох борлуулалт</label>
-                <input id="visitSaleId" list="visitSaleList" placeholder="Sale ID сонгох" autocomplete="off">
-                <datalist id="visitSaleList"></datalist>
-                <small class="field-help">Түгээлтийн баримт үүсгэх бол борлуулалт заавал сонгоно.</small>
+              <input id="visitSaleId" type="hidden">
+              <div id="visitLinkedSaleCard" class="linked-sale-card hidden">
+                <div class="linked-sale-card-head">
+                  <div>
+                    <small>Холбогдсон борлуулалт</small>
+                    <strong id="visitLinkedSaleCustomer"></strong>
+                    <small id="visitLinkedSaleMeta"></small>
+                  </div>
+                  <button id="clearVisitSaleBtn" class="btn btn-neutral" type="button" style="min-height:38px;padding:7px 10px">Салгах</button>
+                </div>
               </div>
+              <p id="visitNoLinkedSaleHint" class="form-simple-note">Борлуулалттай холбох бол <strong>Борлуулалт</strong> цэсний хүснэгтээс “Түгээлт үүсгэх” дээр дарна. Энгийн айлчлал бол харилцагчаа шууд сонгож болно.</p>
               <div class="field">
                 <label for="visitCustomer">Харилцагч</label>
                 <input id="visitCustomer" list="visitCustomerList" placeholder="Харилцагч сонгох эсвэл бичих" required>
@@ -1483,8 +1584,8 @@
                 <a id="openRouteLink" class="btn btn-secondary btn-block" href="#" target="_blank" rel="noopener" style="margin-top:12px;text-decoration:none">Google Maps дээр маршрут нээх</a>
               </div>
               <div class="card">
-                <h3>Сүүлийн айлчлалууд</h3>
-                <div id="visitList" class="list"></div>
+                <h3>Түгээлтийн зөвлөмж</h3>
+                <p class="card-subtitle" style="margin:0">Борлуулалттай хүргэлтийг Борлуулалтын хүснэгтээс эхлүүлбэл харилцагч, дүн, агуулах автоматаар холбогдоно.</p>
               </div>
             </div>
           </div>
@@ -2012,6 +2113,10 @@
       $('#cancelProductEditBtn').addEventListener('click', resetProductForm);
       $('#productSearch').addEventListener('input', renderProductManagement);
       $('#productManagementTable').addEventListener('click', handleProductTableClick);
+      $('#newSaleBtn')?.addEventListener('click', () => $('#saleForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      $('#newInventoryMoveBtn')?.addEventListener('click', () => $('#inventoryForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      $('#newVisitBtn')?.addEventListener('click', () => { clearVisitSaleSelection(); $('#visitForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+      $('#clearVisitSaleBtn')?.addEventListener('click', clearVisitSaleSelection);
       $('#saleQty').addEventListener('input', updateSaleSummary);
       $('#salePrice').addEventListener('input', updateSaleSummary);
       $('#addSaleItemBtn').addEventListener('click', addCurrentSaleItemToCart);
@@ -2023,8 +2128,6 @@
       $('#gpsBtn').addEventListener('click', captureGps);
       $('#removePhotoBtn').addEventListener('click', clearPhoto);
       $('#regPhone').addEventListener('input', event => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 8); });
-      $('#visitSaleId').addEventListener('change', applyVisitSaleSelection);
-      $('#visitSaleId').addEventListener('input', applyVisitSaleSelection);
       $('#visitStatus').addEventListener('change', updateVisitStatusFields);
     }
 
@@ -2888,8 +2991,6 @@
       fillSelect($('#toWarehouse'), state.warehouses, item => item.name, item => item.name, 'Хүлээн авах агуулах');
       fillSelect($('#saleLocation'), state.locations, item => item.name, item => item.name, 'Үндсэн байршил');
       $('#visitCustomerList').innerHTML = state.customers.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
-      const visitSales = state.serverTransactions.filter(tx => transactionId(tx) && tx.syncStatus !== 'pending');
-      $('#visitSaleList').innerHTML = visitSales.slice(0, 300).map(tx => `<option value="${escapeHtml(transactionId(tx))}">${escapeHtml(tx.customer || '')} · ${escapeHtml(formatDate(tx.date))} · ${escapeHtml(money(tx.total))}</option>`).join('');
       const drivers = state.users.filter(user => ['driver','manager','admin'].includes(user.role));
       $('#visitDriverList').innerHTML = drivers.map(user => `<option value="${escapeHtml(user.fullName || user.username)}"></option>`).join('');
       fillSelect($('#visitWarehouse'), state.warehouses, item => item.name, item => item.name, 'Үндсэн агуулах');
@@ -3106,7 +3207,6 @@
       const productText = items.length === 1 ? items[0].product : `${items.length} төрлийн бараа`;
       $('#saleSuccessBody').innerHTML = [
         ['Төлөв', pending ? 'Утсанд хадгалсан' : 'Системд хадгалсан'],
-        ['Sale ID', effectiveId || 'Sync хийсний дараа үүснэ'],
         ['Бараа', productText],
         ['Нийт тоо', formatNumber(totalQty)],
         ['Нийт дүн', money(total)],
@@ -3126,18 +3226,122 @@
       $('#saleSuccess').classList.remove('hidden');
     }
 
-    function renderSales() {
-      const rows = state.recentTransactions.slice(0, 100);
-      $('#recentSalesList').innerHTML = rows.length ? rows.map(tx => {
+    function statusBadgeHtml_(label, kind) {
+      return '<span class="badge ' + (kind || 'flat') + '">' + escapeHtml(label || '') + '</span>';
+    }
+
+    function groupedSales_() {
+      const groups = new Map();
+      state.recentTransactions.forEach(tx => {
         const saleId = transactionId(tx);
-        return `<button class="list-item clickable-sale" type="button" data-sale-id="${escapeHtml(saleId)}" ${tx.syncStatus === 'pending' ? 'disabled title="Sync хийсний дараа баримт үүсгэнэ"' : ''}>
-          <div class="list-main">
-            <strong>${tx.syncStatus === 'pending' ? '<span class="pending-dot"></span>' : ''}${escapeHtml(tx.product || '')}</strong>
-            <small>${escapeHtml(tx.customer || '')} · ${escapeHtml(formatDate(tx.date))}${tx.syncStatus === 'pending' ? ' · <span class="sync-pending">Sync хүлээж байна</span>' : ` · ${escapeHtml(saleId)}`}</small>
-          </div>
-          <div class="amount">${money(tx.total)}</div>
-        </button>`;
-      }).join('') : emptyHtml('Одоогоор борлуулалтын гүйлгээ алга.');
+        if (!saleId) return;
+        let sale = groups.get(saleId);
+        if (!sale) {
+          sale = {
+            saleId: saleId,
+            date: tx.date,
+            customer: tx.customer || '',
+            paymentType: tx.paymentType || '',
+            warehouse: tx.warehouse || '',
+            rep: tx.rep || '',
+            notes: tx.notes || '',
+            status: tx.status || 'Approved',
+            invoiceNumber: tx.invoiceNumber || '',
+            invoicePdfUrl: tx.invoicePdfUrl || '',
+            distributionId: tx.distributionId || '',
+            dueDate: tx.dueDate || '',
+            syncStatus: tx.syncStatus || '',
+            total: 0,
+            paidAmount: 0,
+            quantity: 0,
+            itemCount: 0,
+            productNames: [],
+            rows: []
+          };
+          groups.set(saleId, sale);
+        }
+        sale.total += numberValue(tx.total);
+        sale.paidAmount += numberValue(tx.paidAmount);
+        sale.quantity += numberValue(tx.quantity);
+        sale.itemCount += 1;
+        sale.rows.push(tx);
+        if (tx.product && sale.productNames.indexOf(tx.product) < 0) sale.productNames.push(tx.product);
+        if (tx.invoiceNumber) sale.invoiceNumber = tx.invoiceNumber;
+        if (tx.invoicePdfUrl) sale.invoicePdfUrl = tx.invoicePdfUrl;
+        if (tx.distributionId) sale.distributionId = tx.distributionId;
+        if (tx.syncStatus === 'pending') sale.syncStatus = 'pending';
+        if (tx.status) sale.status = tx.status;
+      });
+      return Array.from(groups.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    function saleGroupById_(saleId) {
+      return groupedSales_().find(sale => sale.saleId === saleId) || null;
+    }
+
+    function paymentStatusForSale_(sale) {
+      const rawStatus = String(sale.status || '').toLowerCase();
+      if (['cancelled','цуцлагдсан'].includes(rawStatus)) return { label: 'Цуцлагдсан', kind: 'down' };
+      if (sale.syncStatus === 'pending') return { label: 'Sync хүлээж байна', kind: 'warn' };
+      const total = numberValue(sale.total);
+      const paid = numberValue(sale.paidAmount);
+      const credit = String(sale.paymentType || '').toLowerCase().includes('зээл');
+      if (credit && paid <= 0) return { label: 'Авлагатай', kind: 'warn' };
+      if (paid > 0 && paid < total) return { label: 'Хэсэгчлэн төлсөн', kind: 'warn' };
+      return { label: 'Төлсөн', kind: 'up' };
+    }
+
+    function saleOverallStatus_(sale) {
+      if (sale.syncStatus === 'pending') return { label: 'Sync хүлээж байна', kind: 'warn' };
+      const raw = String(sale.status || '').trim();
+      const lower = raw.toLowerCase();
+      if (['cancelled','цуцлагдсан'].includes(lower)) return { label: 'Цуцлагдсан', kind: 'down' };
+      if (!raw || lower === 'approved') return { label: 'Баталгаажсан', kind: 'up' };
+      if (['draft','ноорог'].includes(lower)) return { label: 'Ноорог', kind: 'flat' };
+      return { label: raw, kind: 'info' };
+    }
+
+    function distributionStatusForSale_(sale) {
+      const visit = state.visits.find(v => v.saleId === sale.saleId || (sale.distributionId && v.distributionId === sale.distributionId));
+      if (visit) return { label: visit.status || 'Үүссэн', kind: distributionStatusKind_(visit.status) };
+      if (sale.distributionId) return { label: 'Үүссэн', kind: 'info' };
+      return { label: 'Түгээлтгүй', kind: 'flat' };
+    }
+
+    function renderSales() {
+      const wrap = $('#salesStatusTable');
+      if (!wrap) return;
+      const rows = groupedSales_().slice(0, 100);
+      if (!rows.length) {
+        wrap.innerHTML = emptyHtml('Одоогоор борлуулалтын гүйлгээ алга.');
+      } else {
+        wrap.innerHTML = '<table><thead><tr><th>Огноо</th><th>Харилцагч</th><th class="num">Нийт дүн</th><th>Төлбөр</th><th>Түгээлт</th><th>Баримт</th><th>Төлөв</th><th>Үйлдэл</th></tr></thead><tbody>' +
+          rows.map(sale => {
+            const payment = paymentStatusForSale_(sale);
+            const distribution = distributionStatusForSale_(sale);
+            const overall = saleOverallStatus_(sale);
+            const hasDocument = Boolean(sale.invoiceNumber || sale.invoicePdfUrl);
+            const cancelled = overall.kind === 'down';
+            const canCreateDelivery = hasEntitlement('delivery') && sale.syncStatus !== 'pending' && !cancelled;
+            const deliveryButton = canCreateDelivery
+              ? '<button class="btn btn-secondary" type="button" data-sale-distribute="' + escapeHtml(sale.saleId) + '" style="min-height:38px;padding:7px 10px">' + (sale.distributionId ? 'Түгээлт харах' : 'Түгээлт үүсгэх') + '</button>'
+              : '';
+            return '<tr data-sale-row="' + escapeHtml(sale.saleId) + '">' +
+              '<td data-label="Огноо">' + escapeHtml(formatDate(sale.date)) + '</td>' +
+              '<td data-label="Харилцагч" class="status-primary"><strong>' + escapeHtml(sale.customer || '—') + '</strong><br><small>' + escapeHtml(sale.itemCount + ' мөр · ' + formatNumber(sale.quantity) + ' нийт тоо') + '</small></td>' +
+              '<td data-label="Нийт дүн" class="num"><strong>' + escapeHtml(money(sale.total)) + '</strong></td>' +
+              '<td data-label="Төлбөр">' + statusBadgeHtml_(payment.label, payment.kind) + '</td>' +
+              '<td data-label="Түгээлт">' + statusBadgeHtml_(distribution.label, distribution.kind) + '</td>' +
+              '<td data-label="Баримт">' + statusBadgeHtml_(hasDocument ? 'Бэлэн' : 'Үүсгээгүй', hasDocument ? 'up' : 'flat') + '</td>' +
+              '<td data-label="Төлөв">' + statusBadgeHtml_(overall.label, overall.kind) + '</td>' +
+              '<td data-label="Үйлдэл" class="status-actions"><div class="row-actions">' +
+                '<button class="btn btn-secondary" type="button" data-sale-open="' + escapeHtml(sale.saleId) + '" style="min-height:38px;padding:7px 10px">Дэлгэрэнгүй</button>' +
+                deliveryButton +
+              '</div></td>' +
+            '</tr>';
+          }).join('') +
+        '</tbody></table>';
+      }
       $('#loadOlderWrap').classList.toggle('hidden', !state.hasMoreTransactions);
     }
 
@@ -3184,11 +3388,23 @@
     }
 
     function bindDocumentUi() {
-      $('#recentSalesList').addEventListener('click', event => {
-        const button = event.target.closest('[data-sale-id]');
-        if (button && !button.disabled) openSaleDetail(button.dataset.saleId);
+      $('#salesStatusTable').addEventListener('click', event => {
+        const deliveryButton = event.target.closest('[data-sale-distribute]');
+        if (deliveryButton) {
+          event.stopPropagation();
+          startVisitFromSale(deliveryButton.dataset.saleDistribute);
+          return;
+        }
+        const openButton = event.target.closest('[data-sale-open]');
+        if (openButton) {
+          event.stopPropagation();
+          openSaleDetail(openButton.dataset.saleOpen);
+          return;
+        }
+        const row = event.target.closest('[data-sale-row]');
+        if (row && !event.target.closest('button,a')) openSaleDetail(row.dataset.saleRow);
       });
-      $('#visitList').addEventListener('click', event => {
+      $('#distributionStatusTable').addEventListener('click', event => {
         const button = event.target.closest('[data-distribution-print]');
         if (!button || button.disabled) return;
         openDistributionDetail(button.dataset.distributionPrint, button.dataset.saleId || '');
@@ -3224,26 +3440,28 @@
     }
 
     function openSaleDetail(saleId) {
+      const sale = saleGroupById_(saleId);
       const tx = state.recentTransactions.find(item => transactionId(item) === saleId) || state.serverTransactions.find(item => transactionId(item) === saleId);
-      if (!tx) return toast('Борлуулалтын мэдээлэл олдсонгүй.', 'error');
-      if (tx.syncStatus === 'pending') return toast('Офлайн бүртгэл sync хийсний дараа баримт үүсгэнэ.', 'error');
+      if (!sale || !tx) return toast('Борлуулалтын мэдээлэл олдсонгүй.', 'error');
+      if (sale.syncStatus === 'pending') return toast('Офлайн бүртгэл sync хийсний дараа баримт үүсгэнэ.', 'error');
       state.selectedSale = tx;
-      $('#saleDetailSubtitle').textContent = transactionId(tx);
+      $('#saleDetailSubtitle').textContent = (sale.customer || 'Борлуулалт') + ' · ' + formatDate(sale.date);
+      const payment = paymentStatusForSale_(sale);
       const fields = [
-        ['Sale ID', transactionId(tx)],
-        ['Огноо', formatDate(tx.date)],
-        ['Харилцагч', tx.customer],
-        ['Бараа', tx.product],
-        ['Тоо хэмжээ', formatNumber(tx.quantity)],
-        ['Нэгж үнэ', money(tx.unitPrice)],
-        ['Нийт дүн', money(tx.total)],
-        ['Төлбөрийн төрөл', tx.paymentType],
-        ['Агуулах', tx.warehouse || 'Үндсэн агуулах'],
-        ['Борлуулагч', tx.rep],
-        ['Төлөв', tx.status || 'Approved'],
-        ['Тэмдэглэл', tx.notes || '']
+        ['Огноо', formatDate(sale.date)],
+        ['Харилцагч', sale.customer],
+        ['Бараа', sale.productNames.map(name => name).join(', ')],
+        ['Нийт тоо', formatNumber(sale.quantity)],
+        ['Нийт дүн', money(sale.total)],
+        ['Төлбөрийн төлөв', payment.label],
+        ['Төлбөрийн төрөл', sale.paymentType],
+        ['Агуулах', sale.warehouse || 'Үндсэн агуулах'],
+        ['Борлуулагч', sale.rep],
+        ['Төлөв', saleOverallStatus_(sale).label],
+        ['Баримтын №', sale.invoiceNumber || 'Үүсгээгүй'],
+        ['Тэмдэглэл', sale.notes || '']
       ];
-      $('#saleDetailBody').innerHTML = fields.filter(([, value]) => value !== '').map(([label, value]) => `<div class="detail-item"><small>${escapeHtml(label)}</small><strong>${escapeHtml(String(value))}</strong></div>`).join('');
+      $('#saleDetailBody').innerHTML = fields.filter(([, value]) => value !== '').map(([label, value]) => '<div class="detail-item"><small>' + escapeHtml(label) + '</small><strong>' + escapeHtml(String(value)) + '</strong></div>').join('');
       $('#saleDetailModal').classList.remove('hidden');
     }
 
@@ -3547,24 +3765,69 @@
       }
     }
 
-    function renderInventory() {
-      $('#productStockList').innerHTML = state.products.length ? state.products.map(product => {
-        const low = numberValue(product.threshold) > 0 && numberValue(product.stock) <= numberValue(product.threshold);
-        return `<div class="list-item">
-          <div class="list-main"><strong>${escapeHtml(product.name)}</strong><small>Нэгж үнэ: ${money(product.price)} · Доод хязгаар: ${formatNumber(product.threshold || 0)}</small></div>
-          <div class="amount ${low ? 'stock-low' : 'stock-ok'}">${formatNumber(product.stock)}</div>
-        </div>`;
-      }).join('') : emptyHtml('Барааны мэдээлэл алга.');
+    function stockStatusForProduct_(product) {
+      const stock = numberValue(product.stock);
+      const threshold = numberValue(product.threshold);
+      if (stock <= 0) return { label: 'Дууссан', kind: 'down' };
+      if (threshold > 0 && stock <= threshold) return { label: 'Бага үлдэгдэл', kind: 'warn' };
+      return { label: 'Хэвийн', kind: 'up' };
+    }
 
-      const moves = state.inventoryMoves.slice(0, 30);
-      $('#recentInventoryList').innerHTML = moves.length ? moves.map(move => `
-        <div class="list-item">
-          <div class="list-main">
-            <strong>${move.syncStatus === 'pending' ? '<span class="pending-dot"></span>' : ''}${escapeHtml(move.product || '')}</strong>
-            <small>${escapeHtml(move.moveType || '')} · ${escapeHtml(formatDate(move.date))}${move.reason ? ` · ${escapeHtml(move.reason)}` : ''}${move.syncStatus === 'pending' ? ' · <span class="sync-pending">Sync хүлээж байна</span>' : ''}</small>
-          </div>
-          <div class="amount">${formatNumber(move.quantity)}</div>
-        </div>`).join('') : emptyHtml(state.loaded.inventory ? 'Агуулахын хөдөлгөөн алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+    function inventoryMoveStatus_(move) {
+      if (move.syncStatus === 'pending') return { label: 'Sync хүлээж байна', kind: 'warn' };
+      const type = String(move.moveType || '').toLowerCase();
+      if (type.includes('орлого')) return { label: 'Орлого', kind: 'up' };
+      if (type.includes('зарлага') || type.includes('хорогдол')) return { label: 'Зарлага', kind: 'down' };
+      if (type.includes('шилж')) return { label: 'Шилжүүлэг', kind: 'info' };
+      return { label: move.moveType || 'Хөдөлгөөн', kind: 'flat' };
+    }
+
+    function renderInventory() {
+      const stockWrap = $('#inventoryStatusTable');
+      if (stockWrap) {
+        const products = state.products.slice().sort((a, b) => {
+          const rank = item => stockStatusForProduct_(item).kind === 'down' ? 0 : stockStatusForProduct_(item).kind === 'warn' ? 1 : 2;
+          return rank(a) - rank(b) || String(a.name || '').localeCompare(String(b.name || ''), 'mn');
+        });
+        stockWrap.innerHTML = products.length
+          ? '<table><thead><tr><th>Бараа</th><th>Код / нэгж</th><th class="num">Үлдэгдэл</th><th class="num">Доод хязгаар</th><th class="num">Үнэ</th><th>Төлөв</th></tr></thead><tbody>' +
+            products.map(product => {
+              const status = stockStatusForProduct_(product);
+              return '<tr>' +
+                '<td data-label="Бараа" class="status-primary"><strong>' + escapeHtml(product.name || '') + '</strong></td>' +
+                '<td data-label="Код / нэгж">' + escapeHtml(product.code || '—') + '<br><small>' + escapeHtml(product.unit || 'ш') + '</small></td>' +
+                '<td data-label="Үлдэгдэл" class="num"><strong>' + escapeHtml(formatNumber(product.stock)) + '</strong></td>' +
+                '<td data-label="Доод хязгаар" class="num">' + escapeHtml(formatNumber(product.threshold || 0)) + '</td>' +
+                '<td data-label="Үнэ" class="num">' + escapeHtml(money(product.price)) + '</td>' +
+                '<td data-label="Төлөв">' + statusBadgeHtml_(status.label, status.kind) + '</td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody></table>'
+          : emptyHtml('Барааны мэдээлэл алга.');
+      }
+
+      const movementWrap = $('#inventoryMovementTable');
+      if (movementWrap) {
+        const moves = state.inventoryMoves.slice(0, 30);
+        movementWrap.innerHTML = moves.length
+          ? '<table><thead><tr><th>Огноо</th><th>Бараа</th><th>Агуулах</th><th class="num">Тоо</th><th>Төлөв</th><th>Тайлбар</th></tr></thead><tbody>' +
+            moves.map(move => {
+              const status = inventoryMoveStatus_(move);
+              const warehouse = move.moveType === 'шилжүүлэг'
+                ? (move.fromWarehouse || '—') + ' → ' + (move.toWarehouse || '—')
+                : (move.warehouse || 'Үндсэн агуулах');
+              return '<tr>' +
+                '<td data-label="Огноо">' + escapeHtml(formatDate(move.date)) + '</td>' +
+                '<td data-label="Бараа" class="status-primary"><strong>' + escapeHtml(move.product || '') + '</strong></td>' +
+                '<td data-label="Агуулах">' + escapeHtml(warehouse) + '</td>' +
+                '<td data-label="Тоо" class="num"><strong>' + escapeHtml(formatNumber(move.quantity)) + '</strong></td>' +
+                '<td data-label="Төлөв">' + statusBadgeHtml_(status.label, status.kind) + '</td>' +
+                '<td data-label="Тайлбар">' + escapeHtml(move.reason || '—') + '</td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody></table>'
+          : emptyHtml(state.loaded.inventory ? 'Агуулахын хөдөлгөөн алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+      }
     }
 
     function updateInventoryFields() {
@@ -3710,13 +3973,53 @@
       $('#fallbackCameraInput').value = '';
     }
 
+    function renderLinkedVisitSale_() {
+      const saleId = $('#visitSaleId').value.trim();
+      const sale = saleId ? saleGroupById_(saleId) : null;
+      const card = $('#visitLinkedSaleCard');
+      const hint = $('#visitNoLinkedSaleHint');
+      if (!sale) {
+        card?.classList.add('hidden');
+        hint?.classList.remove('hidden');
+        return;
+      }
+      $('#visitLinkedSaleCustomer').textContent = sale.customer || 'Харилцагч';
+      $('#visitLinkedSaleMeta').textContent = formatDate(sale.date) + ' · ' + money(sale.total) + ' · ' + sale.productNames.length + ' төрлийн бараа';
+      card?.classList.remove('hidden');
+      hint?.classList.add('hidden');
+    }
+
     function applyVisitSaleSelection() {
       const saleId = $('#visitSaleId').value.trim();
-      const tx = state.serverTransactions.find(item => transactionId(item) === saleId) || state.recentTransactions.find(item => transactionId(item) === saleId);
-      if (!tx) return;
-      $('#visitCustomer').value = tx.customer || '';
-      $('#visitWarehouse').value = tx.warehouse || $('#visitWarehouse').value;
-      $('#visitRemainingReceivable').value = Math.max(0, numberValue(tx.total));
+      const sale = saleId ? saleGroupById_(saleId) : null;
+      if (!sale) {
+        renderLinkedVisitSale_();
+        return;
+      }
+      $('#visitCustomer').value = sale.customer || '';
+      if (sale.warehouse) $('#visitWarehouse').value = sale.warehouse;
+      $('#visitRemainingReceivable').value = Math.max(0, numberValue(sale.total) - numberValue(sale.paidAmount));
+      renderLinkedVisitSale_();
+    }
+
+    function clearVisitSaleSelection() {
+      if ($('#visitSaleId')) $('#visitSaleId').value = '';
+      state.selectedSale = null;
+      renderLinkedVisitSale_();
+    }
+
+    function startVisitFromSale(saleId) {
+      const sale = saleGroupById_(saleId);
+      if (!sale) return toast('Борлуулалтын мэдээлэл олдсонгүй.', 'error');
+      if (sale.distributionId) {
+        showPage('distribution');
+        toast('Энэ борлуулалт түгээлттэй холбогдсон байна.', 'success');
+        return;
+      }
+      $('#visitSaleId').value = saleId;
+      applyVisitSaleSelection();
+      showPage('distribution');
+      window.setTimeout(() => $('#visitForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
     }
 
     function updateVisitStatusFields() {
@@ -3734,7 +4037,7 @@
       try {
         if (!navigator.onLine) throw new Error('Зурагтай түгээлтийн бүртгэлийг илгээхэд интернет шаардлагатай.');
         const saleId = $('#visitSaleId').value.trim();
-        const linkedSale = state.serverTransactions.find(item => transactionId(item) === saleId) || state.recentTransactions.find(item => transactionId(item) === saleId);
+        const linkedSale = saleId ? saleGroupById_(saleId) : null;
         const payload = {
           action: 'addVisit',
           saleId,
@@ -3771,10 +4074,11 @@
         };
         if (!payload.customer) throw new Error('Харилцагчийн нэр оруулна уу.');
         if (!payload.driver) throw new Error('Түгээлтийн жолоочийг оруулна уу.');
-        if (saleId && !linkedSale) throw new Error('Сонгосон Sale ID олдсонгүй.');
+        if (saleId && !linkedSale) throw new Error('Сонгосон борлуулалтын мэдээлэл олдсонгүй.');
         const data = await postAction(payload);
         if (!data.success) throw new Error(data.message || 'Түгээлт хадгалж чадсангүй.');
         $('#visitForm').reset();
+        clearVisitSaleSelection();
         state.gps = { lat: null, lng: null };
         $('#latText').textContent = '—';
         $('#lngText').textContent = '—';
@@ -3782,7 +4086,7 @@
         state.selectedDistribution = null;
         state.loaded.distribution = false;
         await loadModule('distribution');
-        toast(`Түгээлт хадгалагдлаа. ${data.distributionId || ''}`, 'success');
+        toast('Түгээлт хадгалагдлаа.', 'success');
       } catch (error) {
         toast(error.message, 'error');
       } finally {
@@ -3798,31 +4102,57 @@
       openDocumentPreview('DISTRIBUTION');
     }
 
+    function distributionStatusKind_(status) {
+      const value = String(status || '').toLowerCase();
+      if (value.includes('амжилтгүй')) return 'down';
+      if (value.includes('буцаалт') || value.includes('хэсэгчлэн')) return 'warn';
+      if (value.includes('хүргэгдсэн')) return 'up';
+      if (value.includes('гарсан')) return 'info';
+      return 'flat';
+    }
+
     function renderVisits() {
       const visits = state.visits.slice(0, isPremium() ? 30 : 10);
-      $('#visitList').innerHTML = visits.length ? visits.map(v => `
-        <div class="list-item">
-          <div class="list-main"><strong>${escapeHtml(v.customer || '')}</strong><small>${escapeHtml(v.distributionId || '')} · ${escapeHtml(v.status || 'Үүссэн')} · ${escapeHtml(v.driver || v.rep || '')} · ${escapeHtml(formatDate(v.date))}</small></div>
-          <div class="row-actions">
-            ${v.distributionId && v.saleId ? `<button class="btn btn-secondary" type="button" data-distribution-print="${escapeHtml(v.distributionId)}" data-sale-id="${escapeHtml(v.saleId)}" style="min-height:40px;padding:7px 10px">Баримт</button>` : '<span class="badge flat">Sale IDгүй</span>'}
-            ${v.latitude && v.longitude ? `<a class="btn btn-secondary" style="min-height:40px;padding:7px 10px;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(v.latitude)},${encodeURIComponent(v.longitude)}">Газрын зураг</a>` : '<span class="badge flat">GPSгүй</span>'}
-          </div>
-        </div>`).join('') : emptyHtml(state.loaded.distribution ? 'Түгээлтийн бүртгэл алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+      const wrap = $('#distributionStatusTable');
+      if (wrap) {
+        wrap.innerHTML = visits.length
+          ? '<table><thead><tr><th>Огноо</th><th>Харилцагч</th><th>Жолооч</th><th>Борлуулалт</th><th>Төлөв</th><th>GPS</th><th>Үйлдэл</th></tr></thead><tbody>' +
+            visits.map(v => {
+              const sale = v.saleId ? saleGroupById_(v.saleId) : null;
+              const saleLabel = sale ? money(sale.total) : (v.saleId ? 'Холбогдсон' : 'Холбоогүй');
+              const gpsReady = Boolean(v.latitude && v.longitude);
+              return '<tr>' +
+                '<td data-label="Огноо">' + escapeHtml(formatDate(v.date)) + '</td>' +
+                '<td data-label="Харилцагч" class="status-primary"><strong>' + escapeHtml(v.customer || '') + '</strong><br><small>' + escapeHtml(v.customerPhone || v.customerAddress || '') + '</small></td>' +
+                '<td data-label="Жолооч">' + escapeHtml(v.driver || v.rep || '—') + '</td>' +
+                '<td data-label="Борлуулалт">' + escapeHtml(saleLabel) + '</td>' +
+                '<td data-label="Төлөв">' + statusBadgeHtml_(v.status || 'Үүссэн', distributionStatusKind_(v.status)) + '</td>' +
+                '<td data-label="GPS">' + statusBadgeHtml_(gpsReady ? 'Бүртгэсэн' : 'Бүртгээгүй', gpsReady ? 'up' : 'flat') + '</td>' +
+                '<td data-label="Үйлдэл" class="status-actions"><div class="row-actions">' +
+                  (v.distributionId && v.saleId ? '<button class="btn btn-secondary" type="button" data-distribution-print="' + escapeHtml(v.distributionId) + '" data-sale-id="' + escapeHtml(v.saleId) + '" style="min-height:38px;padding:7px 10px">Баримт</button>' : '') +
+                  (gpsReady ? '<a class="btn btn-secondary" style="min-height:38px;padding:7px 10px;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + encodeURIComponent(v.latitude) + ',' + encodeURIComponent(v.longitude) + '">Газрын зураг</a>' : '') +
+                '</div></td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody></table>'
+          : emptyHtml(state.loaded.distribution ? 'Түгээлтийн бүртгэл алга.' : 'Энэ хэсгийг нээхэд мэдээлэл ачаална.');
+      }
 
       const points = visits.filter(v => Number(v.latitude) && Number(v.longitude));
       const map = $('#routeMap');
       map.innerHTML = points.length ? points.slice(0, 12).map((v, index) => {
         const left = 8 + ((index * 31) % 82);
         const top = 12 + ((index * 47) % 70);
-        return `<div class="route-pin" style="left:${left}%;top:${top}%" title="${escapeHtml(v.customer)}"><span>${index + 1}</span></div>`;
+        return '<div class="route-pin" style="left:' + left + '%;top:' + top + '%" title="' + escapeHtml(v.customer) + '"><span>' + (index + 1) + '</span></div>';
       }).join('') : '<div class="empty" style="margin:16px">GPS цэг бүртгэгдээгүй байна.</div>';
 
-      const route = points.slice().reverse().map(v => `${v.latitude},${v.longitude}`);
+      const route = points.slice().reverse().map(v => v.latitude + ',' + v.longitude);
       const origin = route.shift();
       const destination = route.pop() || origin;
       const waypoints = route.slice(0, 8).join('|');
-      $('#openRouteLink').href = origin ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ''}` : '#';
+      $('#openRouteLink').href = origin ? 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(origin) + '&destination=' + encodeURIComponent(destination) + (waypoints ? '&waypoints=' + encodeURIComponent(waypoints) : '') : '#';
       $('#openRouteLink').classList.toggle('hidden', !origin);
+      renderLinkedVisitSale_();
     }
 
     function renderDashboard() {
