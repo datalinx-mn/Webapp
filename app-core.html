@@ -4529,29 +4529,41 @@
       ensureUrl();
       const body = { ...payload };
       if (includeSession) body.token = state.session?.token || '';
+      const serialized = JSON.stringify(body);
 
-      const request = () => fetch(APP_SCRIPT_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body)
-      });
+      async function requestJson(url, attempts) {
+        let lastError = null;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              redirect: 'follow',
+              cache: 'no-store',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: serialized
+            });
+            return await parseResponse(response);
+          } catch (error) {
+            lastError = error;
+            const transportFailure = error?.code === 'NON_JSON_RESPONSE' || error instanceof TypeError;
+            if (!transportFailure) throw error;
+            if (attempt + 1 < attempts) await new Promise(resolve => setTimeout(resolve, 650));
+          }
+        }
+        throw lastError || new Error('Сервертэй холбогдож чадсангүй.');
+      }
 
       try {
-        return await parseResponse(await request());
-      } catch (error) {
-        if (error?.code !== 'NON_JSON_RESPONSE') throw error;
-
-        // Google Apps Script occasionally returns an HTML interstitial on the
-        // first request even though the web-app endpoint is healthy. Retry
-        // once instead of exposing raw Google HTML to the user.
-        await new Promise(resolve => setTimeout(resolve, 650));
+        return await requestJson(APP_SCRIPT_URL, 2);
+      } catch (proxyError) {
+        const proxyTransportFailure = proxyError?.code === 'NON_JSON_RESPONSE' || proxyError instanceof TypeError;
+        if (!proxyTransportFailure) throw proxyError;
         try {
-          return await parseResponse(await request());
-        } catch (retryError) {
-          if (retryError?.code !== 'NON_JSON_RESPONSE') throw retryError;
-          throw new Error('Сервер түр хариу өгөхгүй байна. 2–3 секунд хүлээгээд дахин оролдоно уу.');
+          return await requestJson(APP_SCRIPT_DIRECT_URL, 2);
+        } catch (directError) {
+          const directTransportFailure = directError?.code === 'NON_JSON_RESPONSE' || directError instanceof TypeError;
+          if (!directTransportFailure) throw directError;
+          throw new Error('Сервертэй холбогдож чадсангүй. Netlify API function deploy хийгдээгүй эсвэл Apps Script хариу өгөхгүй байна.');
         }
       }
     }
