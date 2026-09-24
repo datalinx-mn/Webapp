@@ -2396,6 +2396,9 @@
         const password = $('#loginPassword').value;
         if (!username) throw new Error('Хэрэглэгчийн нэрээ оруулна уу.');
         if (!password) throw new Error('Нууц үгээ оруулна уу.');
+        if (/^[a-f0-9]{64}$/i.test(password) || /^\$2[aby]\$\d{2}\$/.test(password)) {
+          throw new Error('Google Sheet-ийн Password баганад байгаа утга нь нууц үгийн хамгаалалттай hash юм. Тэр утгыг нууц үг болгон copy/paste хийхгүй. Өмнө ашиглаж байсан жинхэнэ нууц үгээ оруулах эсвэл “Нууц үг сэргээх”-ийг ашиглана уу.');
+        }
         if (!navigator.onLine) throw new Error('Анх нэвтрэхэд интернет холболт шаардлагатай.');
         ensureUrl();
         const data=await postAction({action:'login',username,password},false);
@@ -4528,19 +4531,41 @@
       ensureUrl();
       const body = { ...payload };
       if (includeSession) body.token = state.session?.token || '';
-      const response = await fetch(APP_SCRIPT_URL, {
+
+      const request = () => fetch(APP_SCRIPT_URL, {
         method: 'POST',
         redirect: 'follow',
+        cache: 'no-store',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(body)
       });
-      return parseResponse(response);
+
+      try {
+        return await parseResponse(await request());
+      } catch (error) {
+        if (error?.code !== 'NON_JSON_RESPONSE') throw error;
+
+        // Google Apps Script occasionally returns an HTML interstitial on the
+        // first request even though the web-app endpoint is healthy. Retry
+        // once instead of exposing raw Google HTML to the user.
+        await new Promise(resolve => setTimeout(resolve, 650));
+        try {
+          return await parseResponse(await request());
+        } catch (retryError) {
+          if (retryError?.code !== 'NON_JSON_RESPONSE') throw retryError;
+          throw new Error('Сервер түр хариу өгөхгүй байна. 2–3 секунд хүлээгээд дахин оролдоно уу.');
+        }
+      }
     }
 
     async function parseResponse(response) {
       const text = await response.text();
       try { return JSON.parse(text); }
-      catch (error) { throw new Error(`Серверийн хариу JSON биш байна. Deploy тохиргоо болон URL-ээ шалгана уу. (${text.slice(0, 90)})`); }
+      catch (error) {
+        const parsedError = new Error('Серверийн хариу буруу форматтай байна.');
+        parsedError.code = 'NON_JSON_RESPONSE';
+        throw parsedError;
+      }
     }
 
     function saveCache() {
