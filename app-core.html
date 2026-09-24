@@ -2396,9 +2396,6 @@
         const password = $('#loginPassword').value;
         if (!username) throw new Error('Хэрэглэгчийн нэрээ оруулна уу.');
         if (!password) throw new Error('Нууц үгээ оруулна уу.');
-        if (/^[a-f0-9]{64}$/i.test(password) || /^\$2[aby]\$\d{2}\$/.test(password)) {
-          throw new Error('Google Sheet-ийн Password баганад байгаа утга нь нууц үгийн хамгаалалттай hash юм. Тэр утгыг нууц үг болгон copy/paste хийхгүй. Өмнө ашиглаж байсан жинхэнэ нууц үгээ оруулах эсвэл “Нууц үг сэргээх”-ийг ашиглана уу.');
-        }
         if (!navigator.onLine) throw new Error('Анх нэвтрэхэд интернет холболт шаардлагатай.');
         ensureUrl();
         const data=await postAction({action:'login',username,password},false);
