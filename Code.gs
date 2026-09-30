@@ -51,8 +51,8 @@ const SESSION_SECONDS = 21600;
 const INITIAL_HISTORY_DAYS = 60;
 const INITIAL_HISTORY_LIMIT = 100;
 const UPGRADE_URL = 'https://datalinx-business.netlify.app/plans.html';
-const DATALINX_BACKEND_RELEASE = '2026.09.20.3';
-const DATALINX_SCHEMA_VERSION = 4;
+const DATALINX_BACKEND_RELEASE = '2026.09.29.1';
+const DATALINX_SCHEMA_VERSION = 5;
 const DATALINX_PLAN_CATALOG = {
   Trial: {
     id:'Trial', name:'1 сарын үнэгүй туршилт', monthlyPriceMnt:0, ads:false, maxUsers:5, maxWarehouses:2, trial:true,
@@ -67,7 +67,7 @@ const DATALINX_PLAN_CATALOG = {
     features:{sales:true,inventory:true,receivables:true,returns:true,basicDashboard:true,offline:true,delivery:true,pdf:true,backup:true,csvImport:true,suppliers:true,cashClose:true,profitability:true,integrityAudit:true,advancedReports:true,prioritySupport:true}
   },
   Expired: {
-    id:'Expired', name:'Туршилтын хугацаа дууссан', monthlyPriceMnt:0, ads:false, maxUsers:1, maxWarehouses:1, expired:true,
+    id:'Expired', name:'Эрхийн хугацаа дууссан', monthlyPriceMnt:0, ads:false, maxUsers:1, maxWarehouses:1, expired:true,
     features:{sales:false,inventory:false,receivables:false,returns:false,basicDashboard:false,offline:false,delivery:false,pdf:false,backup:false,csvImport:false,suppliers:false,cashClose:false,profitability:false,integrityAudit:false,advancedReports:false,prioritySupport:false}
   }
 };
@@ -96,14 +96,14 @@ function assertEntitlement_(auth,feature) {
 }
 function publicPlan_(company) {
   const p=company.entitlements;
-  return {id:p.id,name:p.name,monthlyPriceMnt:p.monthlyPriceMnt,ads:p.ads,maxUsers:p.maxUsers,maxWarehouses:p.maxWarehouses,features:p.features};
+  return {id:p.id,name:p.name,monthlyPriceMnt:p.monthlyPriceMnt,ads:p.ads,maxUsers:p.maxUsers,maxWarehouses:p.maxWarehouses,features:p.features,configuredPlanId:company.configuredPlanId};
 }
 
 function doGet(e) {
   try {
     ensureMasterSheets_();
     const action = clean_(e && e.parameter && e.parameter.action);
-    if(action==='capabilities')return json_({success:true,operationsVersion:1,reliabilityVersion:1,schemaVersion:DATALINX_SCHEMA_VERSION,backendRelease:DATALINX_BACKEND_RELEASE});
+    if(action==='capabilities')return json_({success:true,uxVersion:1,operationsVersion:1,reliabilityVersion:1,schemaVersion:DATALINX_SCHEMA_VERSION,backendRelease:DATALINX_BACKEND_RELEASE});
     if (action === 'login') throw new Error('Шинэ хувилбараа нээнэ үү. Нэвтрэхэд POST шаардлагатай.');
     if (action === 'bootstrap') {
       const auth = requireSession_(clean_(e.parameter.token));
@@ -133,10 +133,15 @@ function doPost(e) {
     const payload = parseBody_(e);
     const action = clean_(payload.action);
     if (action === 'login') return json_(handleLogin_(payload));
+    if (action === 'requestEmailRecovery') return json_(uxRequestRecovery_(payload));
     if (action === 'completeRecovery') return json_(securityCompleteRecovery_(payload));
     if (action === 'registerCompany') return json_(handleRegisterCompany_(payload));
 
     const auth = requireSession_(clean_(payload.token));
+    if(action==='uxRead')return json_(uxRead_(auth,payload));
+    if(action==='downloadPdf')return json_(uxDownloadPdf_(auth,payload));
+    if(action==='requestVerifyEmail'||action==='verifyEmail')return json_(uxEmail_(auth,payload));
+    if(['saveBusiness','saveWarehouse','saveCustomer','mergeCustomers','requestService','reopenCash'].includes(action))return json_(handleOperation_(auth,payload));
     if(action==='sponsorEvent')return json_(recordSponsorEvent_(auth,payload));
     if(action==='bootstrap')return json_(withOperationsRead_(auth,()=>buildInitialPayload_(auth)));
     if(action==='operations')return json_(loadOperations_(auth,payload));
@@ -175,10 +180,14 @@ function buildInitialPayload_(auth) {
   ensureCompanySheets_(companySs);
   const recent = getRecentTransactions_(companySs, INITIAL_HISTORY_DAYS, INITIAL_HISTORY_LIMIT);
   recent.items = recent.items.filter(tx => opsCanSeeSale_(auth, {object: {SaleID:tx.saleId,CreatedBy:tx.createdBy,'Рэп нэр':tx.rep}}, companySs));
+  uxEnrichTransactions_(companySs,auth,recent.items);
   return {
     success: true,
     operationsVersion: 1,
     reliabilityVersion: 1,
+    uxVersion: 1,
+    warehouseStocks: uxStocks_(companySs),
+    businessSettings: uxPublicSettings_(companySs),
     schemaVersion: DATALINX_SCHEMA_VERSION,
     backendRelease: DATALINX_BACKEND_RELEASE,
     user: { id: auth.userId || '', username: auth.username, fullName: auth.fullName, role: auth.role, company: company.name, companyId: company.id },
@@ -236,7 +245,7 @@ function loadOlderHistory_(auth, params) {
   }).reverse() : [];
   return {
     success: true,
-    transactions: items.filter(tx => opsCanSeeSale_(auth, {object:{SaleID:tx.saleId,CreatedBy:tx.createdBy,'Рэп нэр':tx.rep}}, companySs)),
+    transactions: uxEnrichTransactions_(companySs,auth,items.filter(tx => opsCanSeeSale_(auth, {object:{SaleID:tx.saleId,CreatedBy:tx.createdBy,'Рэп нэр':tx.rep}}, companySs))),
     historyCursor: startRow,
     hasMoreTransactions: startRow > 2
   };
@@ -758,7 +767,7 @@ function getCustomers_(companySs) {
   const found = {};
   sheetObjects_(companySs.getSheetByName(COMPANY_SHEETS.CUSTOMERS)).rows.forEach(function(entry) {
     const name = clean_(field_(entry.object, ['Харилцагчийн нэр']));
-    if (name) found[name] = true;
+    if (name && entry.object['Идэвхтэй']!=='Үгүй') found[name] = true;
   });
   const sales = companySs.getSheetByName(COMPANY_SHEETS.SALES);
   const data = sheetObjects_(sales);
@@ -783,12 +792,13 @@ function getLocations_(companySs) {
   return list.length ? list : [{ name: 'Үндсэн байршил' }];
 }
 
-function buildDashboard_(companySs) {
+function buildDashboard_(companySs, range) {
   const data = sheetObjects_(companySs.getSheetByName(COMPANY_SHEETS.SALES));
   const now = new Date();
-  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const windowRange=uxDateRange_(range||{});
+  const currentStart = new Date(windowRange.from+'T00:00:00+08:00');
+  const nextStart = new Date(new Date(windowRange.to+'T00:00:00+08:00').getTime()+86400000);
+  const previousStart = new Date(currentStart.getTime()-(nextStart-currentStart));
   let currentTotal = 0;
   let previousTotal = 0;
   let currentCount = 0;
@@ -829,11 +839,12 @@ function buildDashboard_(companySs) {
   });
 
   return {
+    dateFrom:windowRange.from,dateTo:windowRange.to,comparisonLabel:"Өмнөх ижил урттай хугацаатай харьцуулсан",
     currentTotal: currentTotal,
     previousTotal: previousTotal,
     currentCount: currentCount,
     creditTotal: creditTotal,
-    momPercent: previousTotal === 0 ? (currentTotal > 0 ? 100 : 0) : ((currentTotal - previousTotal) / previousTotal) * 100,
+    momPercent: previousTotal === 0 ? null : ((currentTotal - previousTotal) / previousTotal) * 100,
     byProduct: metricArray_(byProduct),
     byRep: metricArray_(byRep),
     creditByCustomer: metricArray_(creditByCustomer)

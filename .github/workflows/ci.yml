@@ -26,6 +26,8 @@ jobs:
       - run: npm run bundle:gas
       - name: Syntax check public scripts
         run: |
+          node --check experience-ui.js
+          node --check service-worker.js
           node --check operations-ui.js
           node --check reliability-ui.js
           node --check workspace-ui.js

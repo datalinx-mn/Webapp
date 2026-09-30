@@ -1,7 +1,7 @@
 'use strict';
 function parsePastedProducts(text){
   const lines=String(text||'').trim().split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  if(!lines.length||lines.length>50)throw new Error('1–50 мөр paste хийнэ үү.');
+  if(!lines.length||lines.length>5001)throw new Error('1–5000 мөр хуулж оруулна уу.');
   const cells=lines.map(line=>line.split('\t').map(v=>v.trim()));
   const aliases={name:['name','бараа','барааны нэр'],code:['code','barcode','баркод','код'],price:['price','үнэ','зарах үнэ'],stock:['stock','үлдэгдэл','эхний үлдэгдэл'],unit:['unit','нэгж','хэмжих нэгж']};
   const normalize=v=>String(v||'').toLowerCase().trim();
@@ -10,6 +10,7 @@ function parsePastedProducts(text){
   const mapped=first.map(findKey),hasHeader=mapped.includes('name')&&(mapped.includes('price')||mapped.includes('stock'));
   const headers=hasHeader?mapped:['name','code','price','stock','unit'].slice(0,Math.max(...cells.map(r=>r.length)));
   const data=hasHeader?cells.slice(1):cells;
+  if(data.length>5000)throw new Error('Нэг удаад 5000 хүртэл бараа оруулна уу.');
   if(!data.length)throw new Error('Барааны мөр алга.');
   return data.map((row,index)=>{
     const out={};headers.forEach((h,i)=>{if(h)out[h]=row[i]??'';});
@@ -33,7 +34,7 @@ function parseImportCsv(text){
   }
   if(quoted)throw new Error('CSV хашилт хаагдаагүй.');
   row.push(cell);if(row.some(x=>x!==''))rows.push(row);
-  if(rows.length<2||rows.length>51)throw new Error('Толгой мөрөөс гадна 1–50 мөр оруулна уу.');
+  if(rows.length<2||rows.length>5001)throw new Error('Толгой мөрөөс гадна 1–5000 мөр оруулна уу.');
   const headers=rows.shift().map(x=>x.trim());if(new Set(headers).size!==headers.length||headers.some(h=>!h))throw new Error('Баганын нэр хоосон эсвэл давхардсан.');
   return rows.map((r,i)=>{if(r.length!==headers.length)throw new Error((i+2)+'-р мөрийн баганын тоо зөрсөн.');return Object.fromEntries(headers.map((h,j)=>[h,r[j]]));});
 }
@@ -72,9 +73,9 @@ function parseImportCsv(text){
       ['Queue',String(pendingQueueCount())],
       ['Network',navigator.onLine?'Online':'Offline']
     ].map(([k,v])=>`<div class="info-row"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
-    settings.innerHTML=`<h3>Хамгаалалт ба мэдээлэл</h3><div class="ops-actions">${button('Нууц үг солих','password')}${button('Бүх төхөөрөмжөөс гарах','logout-all')}${manager()?button('Ажилтны нууц үг сэргээх','issue-recovery')+(hasEntitlement('csvImport')?button('CSV импорт','import'):'')+(hasEntitlement('backup')?button('Нөөцлөлт шалгах','backups'):''):''}</div><p>${hasEntitlement('pdf')?'PDF хувийн эрхээр үүснэ.':'PDF нь Business/Pro багцад нээгдэнэ.'}</p><details><summary>Системийн оношлогоо</summary><div class="info-box">${releaseInfo}</div>${state.storageWarning?`<p role="alert"><strong>${esc(state.storageWarning)}</strong></p>`:''}</details>`;
+    settings.innerHTML=`<h3>Хамгаалалт ба мэдээлэл</h3><div class="ops-actions">${button('Нууц үг солих','password')}${button('Бүх төхөөрөмжөөс гарах','logout-all')}${manager()?button('Ажилтны нууц үг сэргээх','issue-recovery')+(hasEntitlement('csvImport')?button('Файлаас мэдээлэл оруулах','import'):'')+(hasEntitlement('backup')?button('Нөөцлөлт шалгах','backups'):''):''}</div><p>${hasEntitlement('pdf')?'PDF хувийн эрхээр үүснэ.':'PDF нь Business/Pro багцад нээгдэнэ.'}</p><details><summary>Системийн оношлогоо</summary><div class="info-box">${releaseInfo}</div>${state.storageWarning?`<p role="alert"><strong>${esc(state.storageWarning)}</strong></p>`:''}</details>`;
     let panel=el('reliability-more');if(!panel&&el('ops-more')){panel=document.createElement('section');panel.id='reliability-more';panel.className='card';el('ops-more').appendChild(panel);}
-    if(panel)panel.innerHTML=`<h3>Бүртгэлээ шалгах</h3><div class="ops-actions">${button('Утасны бүртгэл шалгах','queue')}${button('Утасны бүртгэл татах','export-queue')}${manager()&&hasEntitlement('integrityAudit')?button('Өгөгдлийн бүрэн бүтэн байдал','integrity'):''}${manager()&&hasEntitlement('csvImport')?button('CSV импорт','import'):''}${['manager','admin','warehouse'].includes(state.session.user.role)?button('Тооллого тулгах','stocktake'):''}</div>`;
+    if(panel)panel.innerHTML=`<h3>Бүртгэлээ шалгах</h3><div class="ops-actions">${button('Утасны бүртгэл шалгах','queue')}${button('Утасны бүртгэл татах','export-queue')}${manager()&&hasEntitlement('integrityAudit')?button('Өгөгдлийн бүрэн бүтэн байдал','integrity'):''}${manager()&&hasEntitlement('csvImport')?button('Файлаас мэдээлэл оруулах','import'):''}${['manager','admin','warehouse'].includes(state.session.user.role)?button('Тооллого тулгах','stocktake'):''}</div>`;
     let credits=el('reliability-credits');if(!credits&&el('ops-money')){credits=document.createElement('section');credits.id='reliability-credits';credits.className='card';el('ops-money').appendChild(credits);}
     if(credits){credits.hidden=!finance();credits.innerHTML='<h3>Авлагаас хасах зөвшөөрөл</h3>'+((currentData?.pendingCredits||[]).map(r=>`<div class="ops-row"><div><strong>${esc(r['Бараа'])} · ${money(r['Дүн'])}</strong><small>${esc(r['Шалтгаан'])}</small></div>${button('Шийдвэрлэх','approve-return',r.ReturnID)}</div>`).join('')||'<p>Хүлээгдэж буй зөвшөөрөл алга.</p>');}
   };
@@ -107,7 +108,7 @@ function parseImportCsv(text){
     const action=b.dataset.reliable,id=b.dataset.id;
     try{
       if(action==='close'){dialog.close();return;}
-      if(action==='recovery')return modal('Нууц үг сэргээх','<p>Компанийн менежерээс нэг удаагийн код авна. Компанийн эзэн бол DataLinx-тэй холбогдоно.</p>'+field('Хэрэглэгчийн нэр','username','text','','required autocomplete="username"')+field('Сэргээх код','code','password','','required autocomplete="off"')+field('Шинэ нууц үг · 12+ тэмдэгт','newPassword','password','','required minlength="12" autocomplete="new-password"'),async v=>{await api({action:'completeRecovery',...v},false);done('Нууц үг шинэчлэгдлээ. Нэвтэрнэ үү.');});
+      if(action==='recovery')return modal('Нууц үг сэргээх','<p>Менежерээс код авах эсвэл баталгаажуулсан имэйл рүүгээ код илгээнэ.</p><button type="button" class="btn btn-secondary" data-ux="email-recovery">Имэйлээр код авах</button><p><a href="./contact.html" target="_blank" rel="noopener">Тусламж авах</a></p>'+field('Хэрэглэгчийн нэр','username','text','','required autocomplete="username"')+field('Сэргээх код','code','password','','required autocomplete="off"')+field('Шинэ нууц үг · 12+ тэмдэгт','newPassword','password','','required minlength="12" autocomplete="new-password"'),async v=>{await api({action:'completeRecovery',...v},false);done('Нууц үг шинэчлэгдлээ. Нэвтэрнэ үү.');});
       if(!state.reliabilityVersion)throw new Error('Серверийн шинэ хувилбар шаардлагатай.');
       if(action==='password')return modal('Нууц үг солих',field('Одоогийн нууц үг','currentPassword','password','','required autocomplete="current-password"')+field('Шинэ нууц үг · 12+ тэмдэгт','newPassword','password','','required minlength="12" autocomplete="new-password"'),async v=>{await api({action:'changePassword',...v});done('Нууц үг шинэчлэгдлээ.');logout();});
       if(action==='logout-all')return modal('Бүх төхөөрөмжөөс гарах','<p>Бүх төхөөрөмж дахин нэвтрэх шаардлагатай болно. Утсанд хадгалсан илгээгдээгүй бүртгэл үлдэнэ.</p>',async()=>{await api({action:'logout',all:true});logout();});
@@ -121,7 +122,7 @@ function parseImportCsv(text){
       }
       if(action==='stocktake')return modal('Тооллогын зөрүү тулгах',select('Бараа','product',state.products.map(p=>[p.name,p.name]))+select('Агуулах','warehouse',state.warehouses.map(w=>[w.name,w.name]))+field('Бүртгэлд байгаа үлдэгдэл','expected','number','','required min="0" step="any"')+field('Бодитоор тоолсон үлдэгдэл','counted','number','','required min="0" step="any"')+field('Нэмэгдэл барааны дуусах өдөр (мэдэгдэж байвал)','expiryDate','date')+field('Зөрүүний шалтгаан','reason','text','','required'),v=>operation('stocktake',v));
       if(action==='export-queue'){exportQueue();return;}
-      if(action==='queue')return modal('Утасны илгээгдээгүй бүртгэл',ownQueue().map(q=>`<section class="card"><strong>${esc(q.payload.customer||q.payload.product||q.action)}</strong><p>${esc(q.error||'Илгээхийг хүлээж байна')}</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(q.payload,null,2))}</pre><div class="ops-actions">${button('Засах','edit-queue',q.id)}${button('Цуцлах','cancel-queue',q.id)}</div></section>`).join('')||'<p>Илгээгдээгүй бүртгэл алга.</p>',null);
+      if(action==='queue')return modal('Утасны илгээгдээгүй бүртгэл',ownQueue().map(q=>`<section class="card"><strong>${esc(q.payload.customer||q.payload.product||q.action)}</strong><p>${esc(q.error||'Илгээхийг хүлээж байна')}</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc([q.payload.customer||q.payload.product||'',...(q.payload.items||[]).map(i=>i.product+' · '+i.quantity+' × '+i.unitPrice),q.payload.warehouse||''].join('\n'))}</pre><div class="ops-actions">${button('Засах','edit-queue',q.id)}${button('Цуцлах','cancel-queue',q.id)}</div></section>`).join('')||'<p>Илгээгдээгүй бүртгэл алга.</p>',null);
       if(action==='cancel-queue'||action==='edit-queue'){
         const item=ownQueue().find(q=>q.id===id);if(!item)throw new Error('Бүртгэл олдсонгүй.');
         let html=field('Шалтгаан','reason','text','','required');

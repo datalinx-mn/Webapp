@@ -4,7 +4,7 @@
   "private": true,
   "description": "Development checks for the static DataLinx app and Apps Script services",
   "scripts": {
-    "test": "node tests/reliability.test.cjs && node tests/dom.test.cjs",
+    "test": "node tests/reliability.test.cjs && node tests/dom.test.cjs && node tests/experience.test.cjs && node tests/experience-dom.test.cjs && node tests/service-worker.test.cjs",
     "build": "node scripts/build-static.cjs",
     "bundle:gas": "node scripts/bundle-apps-script.cjs"
   },

@@ -1188,7 +1188,7 @@
             </div>
           </div>
           <div id="registerError" class="form-error hidden" role="alert"></div>
-          <button id="registerBtn" class="btn btn-primary btn-block" type="submit">Үнэгүй эрхээр бүртгүүлэх</button>
+          <button id="registerBtn" class="btn btn-primary btn-block" type="submit">1 сарын туршилт эхлүүлэх</button>
         </form>
       </div>
     </div>
@@ -1249,7 +1249,7 @@
             <div class="quick-start-steps">
               <div id="quickStepProduct" class="quick-step">
                 <span class="quick-step-index">1</span>
-                <div><strong>Бараа оруулах</strong><small>Цөөн бол Quick Add, олон бол Excel/Sheets paste.</small></div>
+                <div><strong>Бараа оруулах</strong><small>Цөөн бол шуурхай нэмэх, олон бол Excel-ээс хуулж оруулах.</small></div>
                 <button id="quickProductBtn" class="btn btn-secondary" type="button">Бараа нэмэх</button>
               </div>
               <div id="quickStepCustomer" class="quick-step">
@@ -1410,7 +1410,7 @@
               </div>
               <div class="card">
                 <div class="work-table-head">
-                  <div><h3>Сүүлийн агуулахын хөдөлгөөн</h3><p>Орлого, зарлага, шилжүүлэг болон sync төлөв.</p></div>
+                  <div><h3>Сүүлийн агуулахын хөдөлгөөн</h3><p>Орлого, зарлага, шилжүүлэг болон илгээсэн төлөв.</p></div>
                 </div>
                 <div id="inventoryMovementTable" class="table-wrap status-table"></div>
               </div>
@@ -1608,14 +1608,14 @@
             <div class="premium-content grid">
               <div class="grid grid-3">
                 <div class="card metric">
-                  <small>Энэ сарын борлуулалт</small>
+                  <small>Тайлангийн хугацааны борлуулалт</small>
                   <strong id="dashTotalSales">0₮</strong>
-                  <div class="metric-footer"><span id="dashMoMBadge" class="badge flat">0%</span><span>өмнөх сараас</span></div>
+                  <div class="metric-footer"><span id="dashMoMBadge" class="badge flat">0%</span><span>өмнөх хугацаанаас</span></div>
                 </div>
                 <div class="card metric">
                   <small>Гүйлгээний тоо</small>
                   <strong id="dashSaleCount">0</strong>
-                  <div class="metric-footer"><span>Энэ сар</span></div>
+                  <div class="metric-footer"><span>Тайлангийн хугацаанд</span></div>
                 </div>
                 <div class="card metric">
                   <small>Зээлийн үлдэгдэл</small>
@@ -1852,7 +1852,7 @@
     const CACHE_KEY = 'datalinxLastPayloadV3';
     const WALKTHROUGH_KEY_PREFIX = 'datalinxWalkthroughDoneV1';
     const BARCODE_FALLBACK_URL = 'https://unpkg.com/@zxing/browser@0.2.1';
-    const DATALINX_FRONTEND_RELEASE = '2026.09.20.3';
+    const DATALINX_FRONTEND_RELEASE = '2026.09.29.1';
     const PLANS_URL = './plans.html';
 
     const state = {
@@ -1874,6 +1874,7 @@
       seatStatus: null,
       ads: [],
       saleCart: [],
+      uxVersion:0,warehouseStocks:[],businessSettings:{},
       dashboard: null,
       historyCursor: '',
       hasMoreTransactions: false,
@@ -2459,6 +2460,7 @@
         $('.auth-tab[data-auth-tab="login"]').click();
         $('#registerForm').reset();
         clearRegisterError();
+        await handleLogin({preventDefault(){}});
       } catch (error) {
         showRegisterError(error.message, error.fieldSelector);
         toast(error.message, 'error');
@@ -2515,7 +2517,7 @@
       state.ads = [];
       state.visits=[];state.users=[];state.seatStatus=null;state.customers=[];state.dashboard=null;
       state.selectedSale=null;state.selectedDistribution=null;
-      state.saleCart = [];
+      state.saleCart = [];state.warehouseStocks=[];state.businessSettings={};state.uxVersion=0;
       $('#appScreen').classList.add('hidden');
       $('#authScreen').classList.remove('hidden');
       $('#loginPassword').value = '';
@@ -2549,18 +2551,18 @@
         {
           page:'sales',selector:'#quickStartCard',title:'3 алхмаар эхэлнэ',
           text:manager
-            ? '1) Бараагаа Quick Add эсвэл Excel/Sheets paste-аар оруулна. 2) Харилцагчийн нэрийг борлуулалт дээр шууд нэмнэ. 3) Эхний борлуулалтаа хадгална.'
+            ? '1) Бараагаа шуурхай нэмэх эсвэл Excel/Sheets-ээс хуулж оруулна. 2) Харилцагчийн нэрийг борлуулалт дээр шууд нэмнэ. 3) Эхний борлуулалтаа хадгална.'
             : 'Бараа, харилцагч, тоо хэмжээ, төлбөрөө сонгоод борлуулалтаа хадгална.'
         },
         {
           page:'sales',selector:'#saleForm',title:'Өдөр тутмын үндсэн ажил',
-          text:'Харилцагч ба бараагаа хайж сонгоно. Байхгүй харилцагчийг нэрээр нь шууд нэмнэ. Менежер бүртгэлгүй барааг борлуулалтын дэлгэцээс Quick Add хийж болно.'
+          text:'Харилцагч ба бараагаа хайж сонгоно. Байхгүй харилцагчийг нэрээр нь шууд нэмнэ. Менежер бүртгэлгүй барааг борлуулалтын дэлгэцээс шуурхай нэмэх хийж болно.'
         }
       ];
       if(manager){
         steps.push({
           page:'inventory',selector:'#productManagementCard',title:'Олон барааг хурдан оруулах',
-          text:'Олон бараатай бол Excel эсвэл Google Sheets-ээс жагсаалтаа copy-paste хийнэ. Цөөн бараатай бол “Барааг шуурхай нэмэх” ашиглана. Нэг бүрчлэн урт form бөглөх шаардлагагүй.'
+          text:'Олон бараатай бол Excel эсвэл Google Sheets-ээс жагсаалтаа хуулж оруулна. Цөөн бараатай бол “Барааг шуурхай нэмэх” ашиглана. Нэг бүрчлэн урт маягт бөглөх шаардлагагүй.'
         });
       }
       if(hasEntitlement('delivery')){
@@ -2571,7 +2573,7 @@
       }
       steps.push({
         page:'dashboard',selector:'#dashboardPremiumWrap',title:'Хяналт',
-        text:'Өдрийн болон сарын борлуулалт, авлага, барааны хөдөлгөөнөө эндээс хянана. Pro багцад өртөг, ахиуц ашиг болон integrity audit нэмэгдэнэ.'
+        text:'Өдрийн болон сарын борлуулалт, авлага, барааны хөдөлгөөнөө эндээс хянана. Pro багцад өртөг, ахиуц ашиг болон мэдээллийн зөрүү шалгах боломж нэмэгдэнэ.'
       });
       steps.push({
         page:'settings',selector:'#subscriptionBanner',title:'Туршилтын хугацаа',
@@ -2756,6 +2758,9 @@
     }
 
     function applyPayload(data, resetModules = false) {
+      if(data.uxVersion!==undefined)state.uxVersion=Number(data.uxVersion);
+      if(data.warehouseStocks)state.warehouseStocks=data.warehouseStocks;
+      if(data.businessSettings)state.businessSettings=data.businessSettings;
       if (state.session) {
         if (data.user) state.session.user = data.user;
         if (data.company) state.session.company = data.company;
@@ -2868,7 +2873,7 @@
       if (!state.session?.token || !navigator.onLine) return;
       if (page === 'inventory' && !state.loaded.inventory) return loadModule('inventory');
       if (page === 'distribution' && !state.loaded.distribution) return loadModule('distribution');
-      if (page === 'dashboard' && hasEntitlement('basicDashboard') && !state.loaded.dashboard) return loadModule('dashboard');
+      if (page === 'dashboard' && !state.uxVersion && hasEntitlement('basicDashboard') && !state.loaded.dashboard) return loadModule('dashboard');
       if (page === 'settings' && isManager() && !state.loaded.settings) return loadModule('settings');
     }
 
@@ -2966,7 +2971,7 @@
       const status = state.session.companyStatus;
       const plan = currentPlan();
       const topStatus = $('#topStatus');
-      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ТУРШИЛТ ДУУССАН' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
+      topStatus.textContent = status === 'Inactive' ? 'ИДЭВХГҮЙ' : plan.id === 'Trial' ? '1 САР ҮНЭГҮЙ' : plan.id === 'Expired' ? 'ХУГАЦАА ДУУССАН' : plan.id.toUpperCase()+' · ЗАРГҮЙ';
       topStatus.className = `status-pill ${status === 'Inactive' || plan.id === 'Expired' ? 'inactive' : 'premium'}`;
       $$('.manager-only').forEach(el => el.classList.toggle('hidden', !isManager()));
       renderSelects();
@@ -3164,14 +3169,16 @@
           customer,
           paymentType: $('#salePayment').value,
           location: $('#saleLocation').value || state.locations[0]?.name || 'Үндсэн байршил',
-          warehouse: state.warehouses[0]?.name || 'Үндсэн агуулах'
+          warehouse: $('#ux-sale-warehouse')?.value || state.warehouses[0]?.name || 'Үндсэн агуулах'
         };
         if (!state.customers.some(name => name.toLocaleLowerCase('mn-MN') === customer.toLocaleLowerCase('mn-MN'))) {
           state.customers.push(customer);
           state.customers.sort((a, b) => a.localeCompare(b, 'mn-MN'));
         }
+        if(window.uxValidateSale)window.uxValidateSale(payload);
         const item = enqueueAction('addSale', payload);
         state.saleCart = [];
+        window.uxClearDraft?.();
         rebuildOptimisticState();
         renderAll();
         showSaleSuccess(payload, true);
@@ -3190,7 +3197,7 @@
           showSaleSuccess(payload, false, result.data?.saleId || result.data?.transaction?.saleId || '');
           toast('Борлуулалт амжилттай хадгалагдлаа.', 'success');
         } else {
-          toast('Сервертэй холбогдсонгүй. Борлуулалт sync хүлээж байна.', 'error');
+          toast('Сервертэй холбогдсонгүй. Борлуулалт илгээхийг хүлээж байна.', 'error');
         }
       } catch (error) {
         $('#saleSuccess').classList.add('hidden');
@@ -3204,7 +3211,7 @@
       const effectiveId = saleId || payload.saleId || '';
       const items = Array.isArray(payload.items) && payload.items.length ? payload.items : [payload];
       const totalQty = items.reduce((sum, item) => sum + numberValue(item.quantity), 0);
-      const total = items.reduce((sum, item) => sum + numberValue(item.quantity) * numberValue(item.unitPrice), 0);
+      const total = items.reduce((sum, item) => sum + numberValue(item.quantity) * numberValue(item.unitPrice), 0) - numberValue(payload.discount) + numberValue(payload.vat);
       const productText = items.length === 1 ? items[0].product : `${items.length} төрлийн бараа`;
       $('#saleSuccessBody').innerHTML = [
         ['Төлөв', pending ? 'Утсанд хадгалсан' : 'Системд хадгалсан'],
@@ -3225,6 +3232,7 @@
         $('#saleSuccess').appendChild(button);
       }
       $('#saleSuccess').classList.remove('hidden');
+      $('#saleSuccess h3').textContent=pending?'Төхөөрөмжид хадгаллаа':'Системд хадгаллаа';
     }
 
     function statusBadgeHtml_(label, kind) {
@@ -3273,6 +3281,7 @@
         if (tx.syncStatus === 'pending') sale.syncStatus = 'pending';
         if (tx.status) sale.status = tx.status;
       });
+      groups.forEach(sale=>{const summary=sale.rows.find(tx=>tx.saleSummary)?.saleSummary;if(summary)Object.assign(sale,summary);});
       return Array.from(groups.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
     }
 
@@ -3283,7 +3292,12 @@
     function paymentStatusForSale_(sale) {
       const rawStatus = String(sale.status || '').toLowerCase();
       if (['cancelled','цуцлагдсан'].includes(rawStatus)) return { label: 'Цуцлагдсан', kind: 'down' };
-      if (sale.syncStatus === 'pending') return { label: 'Sync хүлээж байна', kind: 'warn' };
+      if (sale.syncStatus === 'pending') return { label: 'Илгээхийг хүлээж байна', kind: 'warn' };
+      if(sale.ledgerComplete){
+        if(sale.refundDue>0)return {label:'Буцааж олгох',kind:'warn'};
+        if(sale.remaining<=0)return {label:sale.returned>0?'Тооцоо дууссан':'Төлсөн',kind:'up'};
+        return {label:sale.paidAmount>0?'Хэсэгчлэн төлсөн':'Авлагатай',kind:'warn'};
+      }
       const total = numberValue(sale.total);
       const paid = numberValue(sale.paidAmount);
       const credit = String(sale.paymentType || '').toLowerCase().includes('зээл');
@@ -3293,7 +3307,7 @@
     }
 
     function saleOverallStatus_(sale) {
-      if (sale.syncStatus === 'pending') return { label: 'Sync хүлээж байна', kind: 'warn' };
+      if (sale.syncStatus === 'pending') return { label: 'Илгээхийг хүлээж байна', kind: 'warn' };
       const raw = String(sale.status || '').trim();
       const lower = raw.toLowerCase();
       if (['cancelled','цуцлагдсан'].includes(lower)) return { label: 'Цуцлагдсан', kind: 'down' };
@@ -3303,6 +3317,7 @@
     }
 
     function distributionStatusForSale_(sale) {
+      if(sale.deliveryStatus)return {label:sale.deliveryStatus,kind:distributionStatusKind_(sale.deliveryStatus)};
       const visit = state.visits.find(v => v.saleId === sale.saleId || (sale.distributionId && v.distributionId === sale.distributionId));
       if (visit) return { label: visit.status || 'Үүссэн', kind: distributionStatusKind_(visit.status) };
       if (sale.distributionId) return { label: 'Үүссэн', kind: 'info' };
@@ -3312,7 +3327,7 @@
     function renderSales() {
       const wrap = $('#salesStatusTable');
       if (!wrap) return;
-      const rows = groupedSales_().slice(0, 100);
+      const rows = groupedSales_();
       if (!rows.length) {
         wrap.innerHTML = emptyHtml('Одоогоор борлуулалтын гүйлгээ алга.');
       } else {
@@ -3444,8 +3459,8 @@
       const sale = saleGroupById_(saleId);
       const tx = state.recentTransactions.find(item => transactionId(item) === saleId) || state.serverTransactions.find(item => transactionId(item) === saleId);
       if (!sale || !tx) return toast('Борлуулалтын мэдээлэл олдсонгүй.', 'error');
-      if (sale.syncStatus === 'pending') return toast('Офлайн бүртгэл sync хийсний дараа баримт үүсгэнэ.', 'error');
-      state.selectedSale = tx;
+      if (sale.syncStatus === 'pending') return toast('Төхөөрөмжид хадгалсан бүртгэлийг илгээсний дараа баримт үүсгэнэ.', 'error');
+      state.selectedSale = {...tx,distributionId:sale.distributionId};
       $('#saleDetailSubtitle').textContent = (sale.customer || 'Борлуулалт') + ' · ' + formatDate(sale.date);
       const payment = paymentStatusForSale_(sale);
       const fields = [
@@ -3591,7 +3606,7 @@
           <div class="detail-item" style="text-align:left;margin-top:8px">
             <strong>${escapeHtml(documentTypeLabel(doc.type))} № ${escapeHtml(doc.documentNumber || '')}</strong>
             <small>Хувилбар ${escapeHtml(String(doc.version || 1))} · ${escapeHtml(doc.status || '')} · ${escapeHtml(formatDate(doc.createdAt))}</small>
-            ${doc.pdfUrl ? `<a class="btn btn-secondary btn-block" style="margin-top:8px;text-decoration:none" href="${escapeHtml(doc.pdfUrl)}" target="_blank" rel="noopener">PDF нээх</a>` : ''}
+            ${state.uxVersion>=1 ? `<button type="button" class="btn btn-secondary btn-block" data-ux="pdf-history" data-value="${escapeHtml(doc.documentId)}">PDF татах</button>` : doc.pdfUrl ? `<a class="btn btn-secondary btn-block" style="margin-top:8px;text-decoration:none" href="${escapeHtml(doc.pdfUrl)}" target="_blank" rel="noopener">PDF нээх</a>` : ''}
           </div>`).join('') : 'Энэ борлуулалтад үүсгэсэн PDF баримт алга.';
         $('#documentResultActions').innerHTML = '';
         addResultAction('Хаах', 'btn btn-neutral', closeDocumentResult);
@@ -3683,6 +3698,7 @@
     }
 
     function editProduct(name) {
+      $('#productManagementCard').open=true;
       const product = state.products.find(item => item.name === name);
       if (!product) return toast('Барааны мэдээлэл олдсонгүй.', 'error');
       $('#productOriginalName').value = product.name || '';
@@ -3775,7 +3791,7 @@
     }
 
     function inventoryMoveStatus_(move) {
-      if (move.syncStatus === 'pending') return { label: 'Sync хүлээж байна', kind: 'warn' };
+      if (move.syncStatus === 'pending') return { label: 'Илгээхийг хүлээж байна', kind: 'warn' };
       const type = String(move.moveType || '').toLowerCase();
       if (type.includes('орлого')) return { label: 'Орлого', kind: 'up' };
       if (type.includes('зарлага') || type.includes('хорогдол')) return { label: 'Зарлага', kind: 'down' };
@@ -3786,7 +3802,8 @@
     function renderInventory() {
       const stockWrap = $('#inventoryStatusTable');
       if (stockWrap) {
-        const products = state.products.slice().sort((a, b) => {
+        const query=($('#productSearch')?.value||'').toLocaleLowerCase('mn-MN');
+        const products = state.products.filter(p=>!query||`${p.name} ${p.code||''}`.toLocaleLowerCase('mn-MN').includes(query)).sort((a, b) => {
           const rank = item => stockStatusForProduct_(item).kind === 'down' ? 0 : stockStatusForProduct_(item).kind === 'warn' ? 1 : 2;
           return rank(a) - rank(b) || String(a.name || '').localeCompare(String(b.name || ''), 'mn');
         });
@@ -3800,7 +3817,7 @@
                 '<td data-label="Үлдэгдэл" class="num"><strong>' + escapeHtml(formatNumber(product.stock)) + '</strong></td>' +
                 '<td data-label="Доод хязгаар" class="num">' + escapeHtml(formatNumber(product.threshold || 0)) + '</td>' +
                 '<td data-label="Үнэ" class="num">' + escapeHtml(money(product.price)) + '</td>' +
-                '<td data-label="Төлөв">' + statusBadgeHtml_(status.label, status.kind) + '</td>' +
+                '<td data-label="Төлөв">' + statusBadgeHtml_(status.label, status.kind) + (isManager()&&currentPlan().id!=='Expired'?'<div class="row-actions"><button type="button" class="btn btn-secondary" data-product-edit="'+escapeHtml(product.name)+'">Засах</button><button type="button" class="btn btn-secondary" data-product-delete="'+escapeHtml(product.name)+'" '+(Number(product.stock)!==0?'disabled':'')+'>Идэвхгүй болгох</button></div>':'') + '</td>' +
               '</tr>';
             }).join('') +
           '</tbody></table>'
@@ -3809,7 +3826,7 @@
 
       const movementWrap = $('#inventoryMovementTable');
       if (movementWrap) {
-        const moves = state.inventoryMoves.slice(0, 30);
+        const moves = state.inventoryMoves;
         movementWrap.innerHTML = moves.length
           ? '<table><thead><tr><th>Огноо</th><th>Бараа</th><th>Агуулах</th><th class="num">Тоо</th><th>Төлөв</th><th>Тайлбар</th></tr></thead><tbody>' +
             moves.map(move => {
@@ -3875,7 +3892,7 @@
         const result = await syncOfflineQueue(item.id);
         if (result.status === 'rejected') throw new Error(result.message || 'Хөдөлгөөнийг сервер хүлээж авсангүй.');
         if (result.status === 'synced') toast('Агуулахын хөдөлгөөн хадгалагдлаа.', 'success');
-        else toast('Сервертэй холбогдсонгүй. Хөдөлгөөн sync хүлээж байна.', 'error');
+        else toast('Сервертэй холбогдсонгүй. Хөдөлгөөн илгээхийг хүлээж байна.', 'error');
       } catch (error) {
         toast(error.message, 'error');
       } finally {
@@ -4163,7 +4180,7 @@
       $('#dashCreditTotal').textContent = money(dash.creditTotal);
       const mom = numberValue(dash.momPercent);
       const badge = $('#dashMoMBadge');
-      badge.textContent = `${mom > 0 ? '+' : ''}${mom.toFixed(1)}%`;
+      badge.textContent = dash.momPercent===null?'Өмнөх үед борлуулалтгүй':`${mom > 0 ? '+' : ''}${mom.toFixed(1)}%`;
       badge.className = `badge ${mom > 0 ? 'up' : mom < 0 ? 'down' : 'flat'}`;
       renderBars($('#productBars'), dash.byProduct || [], 'name', 'total');
       renderBars($('#repBars'), dash.byRep || [], 'name', 'total');
@@ -4255,7 +4272,7 @@
         $('#subscriptionText').textContent = 'Систем ашиглах эрх хаалттай. DataLinx-тэй холбогдоно уу.';
       } else {
         const plan=currentPlan();
-        $('#subscriptionTitle').textContent = plan.id==='Trial' ? 'Business туршилт · эхний 1 сар үнэгүй' : plan.id==='Expired' ? 'Туршилтын хугацаа дууссан' : plan.name+' · '+money(plan.monthlyPriceMnt)+' / сар';
+        $('#subscriptionTitle').textContent = plan.id==='Trial' ? 'Business туршилт · эхний 1 сар үнэгүй' : plan.id==='Expired' ? 'Эрхийн хугацаа дууссан' : plan.name+' · '+money(plan.monthlyPriceMnt)+' / сар';
         $('#subscriptionText').textContent = plan.id==='Trial'
           ? 'Business-ийн бүх боломж 1 сар үнэгүй · '+plan.maxUsers+' хэрэглэгч · '+plan.maxWarehouses+' агуулах.'
           : plan.id==='Expired'
@@ -4265,12 +4282,12 @@
       const user = state.session.user;
       $('#profileInfo').innerHTML = [
         ['Нэр', user.fullName || ''],
-        ['Username', user.username || ''],
-        ['Роль', roleLabel(user.role)],
+        ['Нэвтрэх нэр', user.username || ''],
+        ['Ажлын эрх', roleLabel(user.role)],
         ['Компани', user.company || ''],
         ['Багц', currentPlan().name || 'Туршилтын хугацаа дууссан'],
         ['Хэрэглэгчийн эрх', (state.seatStatus ? state.seatStatus.used : state.users.length) + ' / ' + planLimit('maxUsers',2)],
-        ['Sync хүлээж буй', String(pendingQueueCount())]
+        ['Илгээгдээгүй', String(pendingQueueCount())]
       ].map(([label, value]) => `<div class="list-item"><div class="list-main"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div></div>`).join('');
       renderUserTable();
     }
@@ -4522,7 +4539,7 @@
       const pending = pendingQueueCount();
       const banner = $('#offlineBanner');
       banner.classList.toggle('hidden', !offline);
-      banner.textContent = `Сүлжээгүй горим${pending ? ` · ${pending} бүртгэл sync хүлээж байна` : ''} · холболт сэргэхэд автоматаар илгээгдэнэ.`;
+      banner.textContent = `Сүлжээгүй горим${pending ? ` · ${pending} бүртгэл илгээхийг хүлээж байна` : ''} · холболт сэргэхэд автоматаар илгээгдэнэ.`;
     }
 
     async function postAction(payload, includeSession = true) {
@@ -4563,7 +4580,7 @@
         } catch (directError) {
           const directTransportFailure = directError?.code === 'NON_JSON_RESPONSE' || directError instanceof TypeError;
           if (!directTransportFailure) throw directError;
-          throw new Error('Сервертэй холбогдож чадсангүй. Netlify API function deploy хийгдээгүй эсвэл Apps Script хариу өгөхгүй байна.');
+          throw new Error('Сервертэй холбогдож чадсангүй. Холболтоо шалгаад дахин оролдоно уу. Хүлээгдэж буй бүртгэлээ Бусад хэсгээс шалгаж болно.');
         }
       }
     }
@@ -4581,6 +4598,9 @@
     function saveCache() {
       if (!state.session) return;
       const payload = {
+        uxVersion: state.uxVersion||0,
+        warehouseStocks: state.warehouseStocks,
+        businessSettings: state.businessSettings,
         reliabilityVersion: state.reliabilityVersion||0,
         operationsVersion: typeof operationsUIActivated !== 'undefined' && operationsUIActivated ? 1 : 0,
         backendRelease: state.backendRelease || '',

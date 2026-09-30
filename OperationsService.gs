@@ -13,7 +13,8 @@ const OPS_SCHEMA = {
   'Эхний авлага': ['OpeningID','Харилцагч','CustomerID','Дүн','Огноо','DueDate','CreatedBy','Reference','Status'],
   'Засварын журнал': ['CorrectionID','Type','ReferenceID','Reason','CreatedBy','CreatedAt'],
   'Мөнгө тушаалт': ['RemittanceID','Driver','Дүн','Огноо','CreatedBy','Тэмдэглэл'],
-  'Касс хаалт': ['CloseID','Date','OpeningCash','InitialCashSales','DirectCashPayments','DriverRemittances','CashRefundsAndReversals','SupplierCashPayments','OtherCashExpenses','SystemMovement','ExpectedCash','CountedCash','Difference','Reason','CreatedBy','CreatedAt','LegacyAmbiguousCount'],
+  'Касс хаалт': ['CloseID','Date','OpeningCash','InitialCashSales','DirectCashPayments','DriverRemittances','CashRefundsAndReversals','SupplierCashPayments','OtherCashExpenses','SystemMovement','ExpectedCash','CountedCash','Difference','Reason','CreatedBy','CreatedAt','LegacyAmbiguousCount','Status'],
+  'Үйлчилгээний хүсэлт':['RequestID','Type','Plan','Amount','Months','Message','Contact','Status','Response','CreatedBy','CreatedAt'],
   'Зардал': ['ExpenseID','Date','Category','Description','Amount','Method','Reference','Status','ReversalOf','CreatedBy','CreatedAt'],
   'Нийлүүлэгч': ['SupplierID','Name','RegistrationNumber','Phone','Email','Address','PaymentTermDays','Active','CreatedBy','CreatedAt'],
   'Худалдан авалт': ['PurchaseID','SupplierID','SupplierName','InvoiceNumber','Date','Warehouse','Status','Total','Notes','CreatedBy','CreatedAt'],
@@ -158,6 +159,7 @@ function opsReplay_(ss, entry) {
   const plan=JSON.parse(serialized);
   plan.forEach(c => ss.getSheetByName(c.sheet).getRange(c.row,1,1,c.values.length).setValues([c.values]));
   SpreadsheetApp.flush();
+  if(plan.some(c=>c.sheet===COMPANY_SHEETS.SETTINGS))CacheService.getScriptCache().remove('settings:'+ss.getId());
   setObjectFields_(ss.getSheetByName('Үйлдлийн журнал'),entry.rowNumber,{Status:'Done',Plan:''});
   if(requestId)opsClearPlanParts_(ss,requestId);
 }
@@ -180,7 +182,7 @@ function opsFeatureForAction_(action) {
     addSale:'sales',addInventoryMove:'inventory',addPayment:'receivables',returnSale:'returns',receiveReturn:'returns',
     refundPayment:'returns',approveReturn:'returns',reversePayment:'receivables',cancelSale:'sales',stocktake:'inventory',
     saveDelivery:'delivery',remitCash:'delivery',closeCash:'cashClose',saveSupplier:'suppliers',receivePurchase:'suppliers',
-    addSupplierPayment:'suppliers',addExpense:'cashClose',reverseExpense:'cashClose',importData:'csvImport'
+    addSupplierPayment:'suppliers',addExpense:'cashClose',reverseExpense:'cashClose',importData:'csvImport',saveBusiness:'inventory',saveWarehouse:'inventory',saveCustomer:'sales',mergeCustomers:'sales',reopenCash:'cashClose'
   })[action]||'';
 }
 function opsPlanCompany_(auth){return requireActiveCompany_(auth.companyId||auth.company);}
@@ -209,6 +211,7 @@ function handleOperation_(auth,p) {
     }
     if(opsRows_(ss,'Цуцалсан хүсэлт').some(e=>e.object.RequestID===requestId))throw new Error('Энэ хүсэлтийг цуцалсан. Шинэ бүртгэл үүсгэнэ үү.');
     const tx=opsPlan_(ss);
+    uxAssertCashOpen_(auth,p,ss);
     if (p.action === 'addSale') {
       const legacy = opsRows_(ss,COMPANY_SHEETS.SALES).find(e=>e.object['Client ID']===requestId);
       if(legacy) { const sale=opsSale_(ss,saleRowIdentifier_(legacy),auth); return {success:true,duplicate:true,saleId:sale.id,total:sale.total,remainingStocks:getSaleStockMap_(ss,p),transaction:{saleId:sale.id,date:sale.date,total:sale.total,customer:sale.customer}}; }
@@ -217,7 +220,7 @@ function handleOperation_(auth,p) {
       const legacy=opsRows_(ss,COMPANY_SHEETS.INVENTORY_MOVES).find(e=>e.object['Client ID']===requestId);
       if(legacy)return {success:true,duplicate:true,stock:Number(opsProduct_(ss,p.product).object['Одоогийн үлдэгдэл']),date:iso_(legacy.object['Огноо'])};
     }
-    const routes={addSale:opsAddSale_, addInventoryMove:opsInventory_, addPayment:opsPayment_, returnSale:opsReturn_, receiveReturn:opsReceiveReturn_, refundPayment:opsRefund_, saveDelivery:opsDelivery_, remitCash:opsRemit_,approveReturn:opsApproveReturn_,reversePayment:opsReversePayment_,cancelSale:opsCancelSale_,importData:dataImport_,stocktake:opsStocktake_,closeCash:opsCloseCash_,saveSupplier:opsSaveSupplier_,receivePurchase:opsReceivePurchase_,addSupplierPayment:opsSupplierPayment_,addExpense:opsAddExpense_,reverseExpense:opsReverseExpense_};
+    const routes={addSale:opsAddSale_, addInventoryMove:opsInventory_, addPayment:opsPayment_, returnSale:opsReturn_, receiveReturn:opsReceiveReturn_, refundPayment:opsRefund_, saveDelivery:opsDelivery_, remitCash:opsRemit_,approveReturn:opsApproveReturn_,reversePayment:opsReversePayment_,cancelSale:opsCancelSale_,importData:dataImport_,stocktake:opsStocktake_,closeCash:opsCloseCash_,saveSupplier:opsSaveSupplier_,receivePurchase:opsReceivePurchase_,addSupplierPayment:opsSupplierPayment_,addExpense:opsAddExpense_,reverseExpense:opsReverseExpense_,saveBusiness:uxSaveBusiness_,saveWarehouse:uxSaveWarehouse_,saveCustomer:uxSaveCustomer_,mergeCustomers:uxMergeCustomers_,requestService:uxRequestService_,reopenCash:uxReopenCash_};
     if(!routes[p.action])throw new Error('Үйлдэл олдсонгүй.');
     const result=Object.assign({success:true},routes[p.action](auth,p,ss,tx));
     const serialized=JSON.stringify(tx.changes());
@@ -385,10 +388,12 @@ function opsAddSale_(auth,p,ss,tx) {
   });
   const gross=opsMoney_(items.reduce((s,i)=>s+i.quantity*i.unitPrice,0));
   const discount=nonNegativeNumber_(p.discount||0,'Хөнгөлөлт'),vat=nonNegativeNumber_(p.vat||0,'НӨАТ');
+  if(discount>0){opsAssertRole_(auth,['manager','admin']);if(!uxText_(p.discountReason,200))throw new Error('Хөнгөлөлтийн шалтгаан бичнэ үү.');}
   if(discount>gross)throw new Error('Хөнгөлөлт борлуулалтын дүнгээс их байна.');
   const total=opsMoney_(gross-discount+vat),paymentType=p.paymentType==='Зээл'?'Зээл':'Бэлэн';
   const paid=(p.paidAmount===undefined||p.paidAmount==='')?(paymentType==='Бэлэн'?total:0):opsMoney_(nonNegativeNumber_(p.paidAmount,'Төлсөн дүн'));
   if(paid>total)throw new Error('Төлсөн дүн нийт дүнгээс их байна.');
+  if(clean_(p.customer)==='Энгийн худалдан авагч'&&paid<total)throw new Error('Үлдэгдэл төлбөртэй борлуулалтад харилцагчийн нэр оруулна уу.');
   let initialPaymentMethod=paid>0?clean_(p.initialPaymentMethod):'';
   if(paid>0&&!initialPaymentMethod)initialPaymentMethod=paymentType==='Бэлэн'?'Бэлэн':'Тодорхойгүй';
   if(paid>0&&!['Бэлэн','Банк','Тодорхойгүй'].includes(initialPaymentMethod))throw new Error('Одоо төлсөн дүнгийн арга буруу байна.');
@@ -407,7 +412,7 @@ function opsAddSale_(auth,p,ss,tx) {
     const lineRevenueExVat=opsMoney_(item.quantity*item.unitPrice-ld);
     const cogs=item.costKnown?opsMoney_(item.quantity*item.averageCost):'';
     const grossProfit=item.costKnown?opsMoney_(lineRevenueExVat-cogs):'';
-    tx.add(COMPANY_SHEETS.SALES,{'Огноо':now,'Рэп нэр':auth.fullName||auth.username,'Бараа':item.product,ProductID:item.productId,'Тоо':item.quantity,'Үнэ':item.unitPrice,'Нийт дүн':opsMoney_(item.quantity*item.unitPrice-ld+lv),'Харилцагч':clean_(p.customer),'Төлбөрийн төрөл':paymentType,'Байршил':clean_(p.location)||firstLocation_(ss),'Client ID':p.clientId,SaleID:id,LineID:id+'-'+index,Status:'Approved',Warehouse:warehouse,CustomerID:customerId,Discount:ld,VAT:lv,PaidAmount:index===0?paid:0,InitialPaymentMethod:index===0?initialPaymentMethod:'',DueDate:due,CreatedBy:auth.username,BatchAllocations:JSON.stringify(allocations),InputUnit:item.inputUnit,InputQuantity:item.inputQuantity,InputUnitPrice:item.inputUnitPrice,UnitCostAtSale:item.costKnown?item.averageCost:'',COGS:cogs,GrossProfit:grossProfit,CostKnownAtSale:item.costKnown?'Тийм':'Үгүй'});
+    tx.add(COMPANY_SHEETS.SALES,{'Огноо':now,'Рэп нэр':auth.fullName||auth.username,'Бараа':item.product,ProductID:item.productId,'Тоо':item.quantity,'Үнэ':item.unitPrice,'Нийт дүн':opsMoney_(item.quantity*item.unitPrice-ld+lv),'Харилцагч':clean_(p.customer),'Төлбөрийн төрөл':paymentType,'Байршил':clean_(p.location)||firstLocation_(ss),'Client ID':p.clientId,SaleID:id,LineID:id+'-'+index,Status:'Approved',Warehouse:warehouse,CustomerID:customerId,Notes:discount>0?'Хөнгөлөлт: '+uxText_(p.discountReason,200):'',Discount:ld,VAT:lv,PaidAmount:index===0?paid:0,InitialPaymentMethod:index===0?initialPaymentMethod:'',DueDate:due,CreatedBy:auth.username,BatchAllocations:JSON.stringify(allocations),InputUnit:item.inputUnit,InputQuantity:item.inputQuantity,InputUnitPrice:item.inputUnitPrice,UnitCostAtSale:item.costKnown?item.averageCost:'',COGS:cogs,GrossProfit:grossProfit,CostKnownAtSale:item.costKnown?'Тийм':'Үгүй'});
     opsMove_(tx,auth,{'Бараа':item.product,ProductID:item.productId,'Хөдөлгөөний төрөл (орлого/зарлага/шилжүүлэг)':'зарлага','Тоо':item.quantity,'Агуулах':warehouse,'SaleID':id,'Client ID':p.clientId,'Шалтгаан':'Борлуулалт '+id,'Нэгж үнэ':item.unitPrice,'Нийт дүн':opsMoney_(item.quantity*item.unitPrice)});
   });
   return {saleId:id,date:now,total,remainingStocks,transaction:{saleId:id,date:now,customer:clean_(p.customer),product:items.length===1?items[0].product:items.length+' төрлийн бараа',quantity:items.reduce((s,i)=>s+i.quantity,0),total,paymentType,paidAmount:paid,initialPaymentMethod,dueDate:due,warehouse}};
@@ -597,7 +602,7 @@ function opsCashMovementForDay_(ss,date) {
 function opsCloseCash_(auth,p,ss,tx) {
   opsAssertRole_(auth,['manager','admin','accountant']);
   const date=opsDate_(p.date||opsDay_(),true);
-  if(tx.rows('Касс хаалт').some(e=>e.object.Date===date))throw new Error('Энэ өдрийн касс хаалт өмнө бүртгэгдсэн байна.');
+  if(tx.rows('Касс хаалт').some(e=>e.object.Date===date&&e.object.Status!=='Reopened'))throw new Error('Энэ өдрийн касс хаалт өмнө бүртгэгдсэн байна.');
   const opening=opsMoney_(nonNegativeNumber_(p.openingCash,'Эхний касс'));
   const counted=opsMoney_(nonNegativeNumber_(p.countedCash,'Тоолсон касс'));
   const movement=opsCashMovementForDay_(ss,date),expected=opsMoney_(opening+movement.systemMovement),difference=opsMoney_(counted-expected);
@@ -627,7 +632,7 @@ function loadOperations_(auth,p) {
     const batches=canManageInventory_(auth)?opsRows_(ss,'Цуврал').filter(e=>Number(e.object['Үлдэгдэл'])>0).map(e=>e.object):[];
     const finance=isManagerRole_(auth.role)||auth.role==='accountant';
     const cashMovement=finance&&plan.features.cashClose?opsCashMovementForDay_(ss,today):null;
-    const cashCloses=finance&&plan.features.cashClose?opsRows_(ss,'Касс хаалт').map(e=>e.object).sort((a,b)=>String(b.Date).localeCompare(String(a.Date))).slice(0,14):[];
+    const cashCloses=finance&&plan.features.cashClose?opsRows_(ss,'Касс хаалт').filter(e=>e.object.Status!=='Reopened').map(e=>e.object).sort((a,b)=>String(b.Date).localeCompare(String(a.Date))).slice(0,14):[];
     const expenses=finance&&plan.features.cashClose?opsRows_(ss,'Зардал').map(e=>e.object).sort((a,b)=>String(b.Date||b.CreatedAt).localeCompare(String(a.Date||a.CreatedAt))).slice(0,30):[];
     const salesOnly=active.filter(s=>s.recordType!=='opening');
     const revenueForCost=opsMoney_(salesOnly.reduce((sum,s)=>sum+Number(s.net||0),0));
@@ -644,6 +649,7 @@ function loadOperations_(auth,p) {
       pendingCredits:(isManagerRole_(auth.role)||auth.role==='accountant')?opsRows_(ss,'Буцаалт').filter(e=>e.object.CreditStatus==='Pending').map(e=>e.object):[],
       expenses,receivables:auth.role==='warehouse'?[]:active.filter(s=>s.remaining>0||s.refundDue>0).map(s=>{const copy=Object.assign({},s);delete copy.items;delete copy.payments;delete copy.returns;return copy;}),receivableAging:auth.role==='warehouse'||!plan.features.advancedReports?null:opsReceivableAging_(active,today),pendingReturns:canManageInventory_(auth)?opsRows_(ss,'Буцаалт').filter(e=>e.object.Restock==='Үгүй').map(e=>e.object):[],deliveries,cash,cashMovement,cashCloses,drivers:isDriverRole_(auth.role)?drivers.filter(u=>u.username===auth.username):drivers,batches,
       todayTotal:opsMoney_(active.filter(s=>s.recordType!=='opening'&&opsDay_(s.date)===today).reduce((s,x)=>s+x.net,0)),todayCount:active.filter(s=>s.recordType!=='opening'&&opsDay_(s.date)===today).length,
+      warehouseStocks:uxStocks_(ss),
       lowStock:getProducts_(ss).filter(p=>p.stock<=p.threshold),
       profitability:plan.features.profitability?{revenue:revenueForCost,grossProfitKnown,costCoveragePct,grossProfit:costCoveragePct>=99.999?grossProfitKnown:null}:null,
       suppliers,purchases,supplierPayables,supplierPayableTotal:opsMoney_(supplierPayables.reduce((sum,x)=>sum+x.payable,0)),

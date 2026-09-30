@@ -16,11 +16,11 @@
   <script>
     (async function loadDataLinx() {
       try {
-        const response = await fetch('./app-core.html?v=20260912', { cache: 'no-cache' });
+        const response = await fetch('./app-core.html?v=20260929r1', { cache: 'no-cache' });
         if (!response.ok) throw new Error('Үндсэн апп ачаалсангүй.');
         let html = await response.text();
-        html = html.replace('</head>', '<meta name="robots" content="noindex,nofollow,noarchive"><link rel="stylesheet" href="./premium-ads.css?v=20260912"><link rel="stylesheet" href="./operations-ui.css?v=20260912"><link rel="stylesheet" href="./brand.css?v=20260912ux"><link rel="stylesheet" href="./workspace-ui.css?v=20260912ux"><link rel="icon" href="./brand-mark.svg"><script src="./ads-config.js?v=20260912"><\/script></head>');
-        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260912"><\/script><script src="./operations-ui.js?v=20260912"><\/script><script src="./sponsor-metrics.js?v=20260912"><\/script><script src="./reliability-ui.js?v=20260912"><\/script><script src="./brand.js?v=20260912ux"><\/script><script src="./workspace-ui.js?v=20260912ux"><\/script><script src="./app-route.js?v=20260912"><\/script></body>');
+        html = html.replace('</head>', '<meta name="robots" content="noindex,nofollow,noarchive"><link rel="stylesheet" href="./premium-ads.css?v=20260929r1"><link rel="stylesheet" href="./operations-ui.css?v=20260929r1"><link rel="stylesheet" href="./brand.css?v=20260929r1"><link rel="stylesheet" href="./workspace-ui.css?v=20260929r1"><link rel="stylesheet" href="./experience-ui.css?v=20260929"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./brand-mark.svg"><script src="./ads-config.js?v=20260929r1"><\/script></head>');
+        html = html.replace('</body>', '<script src="./premium-ads.js?v=20260929r1"><\/script><script src="./operations-ui.js?v=20260929r1"><\/script><script src="./sponsor-metrics.js?v=20260929r1"><\/script><script src="./reliability-ui.js?v=20260929r1"><\/script><script src="./brand.js?v=20260929r1"><\/script><script src="./workspace-ui.js?v=20260929r1"><\/script><script src="./experience-ui.js?v=20260929"><\/script><script src="./app-route.js?v=20260929r1"><\/script></body>');
         document.open();
         document.write(html);
         document.close();
