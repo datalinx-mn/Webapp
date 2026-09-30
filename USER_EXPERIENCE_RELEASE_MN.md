@@ -76,7 +76,7 @@
 7. Frontend-ийг Netlify-ийн одоогийн `datalinx-business` төсөлд `npm ci && npm run build` командаар бэлтгэж `dist`-ийг нийтэлнэ. `netlify/functions/api.mts` проксиг хамт deploy хийнэ. `dist` дангаар drag-and-drop хийж проксиг алга болгохгүй.
 8. Нэвтрэх хуудсыг дахин ачаалж нэвтэрнэ. Тохиргоо → Системийн оношлогоонд frontend/backend release-ийг тулгана.
 
-Хуучин сервертэй үед шинэ frontend үндсэн хуучин урсгалыг хадгална. Сервер шаардах шинэ товч нь шинэчлэл шаардлагатайг тайлбарлана. Олон агуулахтай хуучин сервер дээр буруу агуулахаас борлуулахаас хамгаалж шинэ серверийг шаардана.
+Хуучин сервертэй үед шинэ frontend үндсэн хуучин урсгалыг хадгална. Сервер шаардах шинэ товч нь шинэчлэл шаардлагатайг тайлбарлана. Хуучин сервертэй үед барааны нийт үлдэгдэл гэдгийг тодруулж харуулна; сонгосон агуулахын үлдэгдлийг хадгалах үед сервер шалгана.
 
 ## Үйлчилгээний хүсэлтийг оператор шийдэх
 
@@ -86,7 +86,7 @@ Apps Script редактороос `listServiceRequests(companyRef)`-ээр ха
 
 ## Шалгалт ба хязгаар
 
-`npm test`: 101 ялгаатай автомат шалгалт. Үүнд 24 шинэ regression шалгалт, өмнөх ажиллагааны шалгалтууд багтана. Apps Script нь Spreadsheet/Drive/Mail mock-той; DOM нь JSDOM. `npm run build`, `npm run bundle:gas`, JavaScript syntax, production HTML script parsing, backend файл public build-д ороогүйг шалгана.
+`npm test`: 102 ялгаатай автомат шалгалт. Үүнд 25 шинэ regression шалгалт, өмнөх ажиллагааны шалгалтууд багтана. Apps Script нь Spreadsheet/Drive/Mail mock-той; DOM нь JSDOM. `npm run build`, `npm run bundle:gas`, JavaScript syntax, production HTML script parsing, backend файл public build-д ороогүйг шалгана.
 
 Бодит банк, имэйл, Google Drive, камер, хэвлэгч дээр эдгээр автомат тест бизнесийн гүйлгээ үүсгээгүй. Android Chrome/iPhone Safari дээр жижиг дэлгэц, том үсэг, урт нэр, камер; тусдаа төхөөрөмжийн зэрэгцээ борлуулалт; сүлжээ тасарсны дараах илгээлт; Google-д нэвтрээгүй үед PDF таталтыг deployment дараа туршилтын компанид шалгана.
 

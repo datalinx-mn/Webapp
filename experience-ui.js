@@ -62,7 +62,6 @@ function uxImportTable(rows){
   window.uxValidateSale=function(payload){
     if(!draftReady)throw new Error('Өмнөх нооргоо үргэлжлүүлэх эсвэл арилгах сонголтоо хийнэ үү.');
     if(payload.customer==='Энгийн худалдан авагч'&&el('salePayment').value==='Зээл')throw new Error('Дараа төлөх борлуулалтад харилцагчийн нэрийг сонгоно уу.');
-    if(!supported()&&state.warehouses.length>1)throw new Error('Олон агуулахаас борлуулахын өмнө серверийн шинэчлэл шаардлагатай.');
     const quantities={};payload.items.forEach(i=>quantities[i.product]=(quantities[i.product]||0)+Number(i.quantity));
     Object.entries(quantities).forEach(([name,qty])=>{const product=state.products.find(p=>p.name===name);if(!product||qty>available(product)+0.000001)throw new Error(name+' сонгосон агуулахад хүрэлцэхгүй. Барааны үлдэгдлээ шинэчилнэ үү.');});
     const total=payload.items.reduce((n,i)=>n+Number(i.quantity)*Number(i.unitPrice),0),discount=Number(el('ux-discount')?.value||0);
@@ -101,7 +100,7 @@ function uxImportTable(rows){
     if(!el('ux-payment-summary'))return;const subtotal=state.saleCart.reduce((n,i)=>n+i.quantity*i.unitPrice,0)+Number(el('saleQty').value||0)*Number(el('salePrice').value||0),total=Math.max(0,subtotal-Number(el('ux-discount').value||0));
     const input=el('ops-sale-paid'),paid=input?.value!==''&&input?Number(input.value):(el('salePayment').value==='Зээл'?0:total);
     el('ux-payment-summary').textContent='Нийт '+money(total)+' · Одоо төлсөн '+money(paid)+' · Үлдсэн '+money(Math.max(0,total-paid))+' · '+(el('ops-sale-initial-method')?.value||'Бэлэн');
-    el('saleTotal').textContent=money(total);const p=state.products.find(p=>p.name===el('saleProduct').value);if(p){el('saleStock').textContent=formatNumber(available(p))+' '+p.unit;el('saleProductHint').textContent='Сонгосон агуулах: '+formatNumber(available(p))+' '+p.unit+' · Үнэ: '+money(p.price);}
+    el('saleTotal').textContent=money(total);const p=state.products.find(p=>p.name===el('saleProduct').value);if(p){el('saleStock').textContent=formatNumber(available(p))+' '+p.unit;el('saleProductHint').textContent=(supported()?'Сонгосон агуулах: ':'Бүх агуулахын нийлбэр: ')+formatNumber(available(p))+' '+p.unit+' · Үнэ: '+money(p.price)+(supported()?'':' · Сонгосон агуулахын үлдэгдлийг хадгалах үед шалгана.');}
   }
   function subscription(){
     let box=el('ux-subscription');if(!box){box=document.createElement('section');box.id='ux-subscription';box.className='ux-notice';document.querySelector('.content')?.prepend(box);}
