@@ -16,7 +16,10 @@ export default async (req: Request) => {
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body,
-      signal: AbortSignal.timeout(25_000)
+      // Apps Script can take 30+ seconds on a cold start. Keep this below
+      // Netlify's synchronous function limit while allowing valid responses
+      // to finish instead of returning a misleading retry error at 25s.
+      signal: AbortSignal.timeout(55_000)
     });
 
     const text = await upstream.text();
