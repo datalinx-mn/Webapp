@@ -729,8 +729,8 @@ function planSeatAllowed_(company, username) {
     const sameName=clean_(field_(row,['Компани нэр'])).toLowerCase()===company.name.toLowerCase();
     return (sameId||sameName) && !['үгүй','inactive','false','0'].includes(active);
   }).sort(function(a,b){
-    const roleA=normalizeRole_(field_(a.object,['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
-    const roleB=normalizeRole_(field_(b.object,['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
+    const roleA=masterUserRole_(a.object);
+    const roleB=masterUserRole_(b.object);
     const priority=function(role){ return role==='admin'?0:role==='manager'?1:2; };
     return priority(roleA)-priority(roleB) || a.rowNumber-b.rowNumber;
   });
@@ -757,7 +757,7 @@ function getUsers_(companyRef) {
       id: clean_(field_(row, ['User ID','UserID'])),
       username: username,
       fullName: clean_(field_(row, ['Бүтэн нэр'])),
-      role: normalizeRole_(field_(row, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)'])),
+      role: masterUserRole_(row),
       seatAllowed: planSeatAllowed_(company,username)
     };
   });
@@ -1220,7 +1220,7 @@ function requireSession_(token) {
   auth.company = company.name;
   auth.companyId = company.id;
   auth.userId = clean_(field_(user, ['User ID','UserID']));
-  auth.role = normalizeRole_(field_(user, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
+  auth.role = masterUserRole_(user);
   auth.fullName = clean_(field_(user, ['Бүтэн нэр']));
   cache.put('session:' + token, JSON.stringify(auth), SESSION_SECONDS);
   return auth;
@@ -1260,6 +1260,14 @@ function normalizeRole_(value) {
     'driver': 'driver', 'accountant': 'accountant'
   };
   return aliases[role] || 'rep';
+}
+function masterUserRole_(row) {
+  const canonical = clean_(field_(row, ['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']));
+  const legacy = clean_(field_(row, ['Роль (manager/rep)']));
+  const supported = ['manager','admin','company admin','rep','sales','sales employee','warehouse','warehouse employee','driver','accountant'];
+  if (supported.includes(canonical.toLowerCase())) return normalizeRole_(canonical);
+  if (supported.includes(legacy.toLowerCase())) return normalizeRole_(legacy);
+  return normalizeRole_(canonical || legacy);
 }
 
 function isManagerRole_(role) { return ['manager','admin'].indexOf(normalizeRole_(role)) > -1; }

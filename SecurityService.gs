@@ -42,7 +42,7 @@ function secureLogin_(p) {
       userId:clean_(field_(current.object,['User ID','UserID'])),
       username:current.object.Username,
       fullName:current.object['Бүтэн нэр'],
-      role:normalizeRole_(current.object['Роль (manager/rep/admin/sales/warehouse/driver/accountant)']),
+      role:masterUserRole_(current.object),
       company:company.name,
       companyId:company.id,
       sessionVersion:Number(current.object.SessionVersion||0),
