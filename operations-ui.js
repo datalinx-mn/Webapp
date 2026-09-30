@@ -56,7 +56,7 @@ function installOperations() {
   opsEl('invProduct').addEventListener('change',opsInventoryUnits);
   const pack=document.createElement('div');pack.className='form-grid two';pack.innerHTML='<label class="field">Савлагааны нэр<input id="ops-pack-name" value="Хайрцаг" maxlength="30"></label><label class="field">Нэг савлагаанд хэдэн үндсэн нэгж вэ?<input id="ops-pack-size" type="number" value="1" min="1" step="any"></label><label class="field">Дундаж / эхний өртөг<input id="ops-product-cost" type="number" min="0" step="0.01" placeholder="Мэдэж байвал оруулна"></label></div><p class="field-hint">Өртөг хоосон бол систем ашиг зохиож харуулахгүй. Өртөг нь энэ мөчөөс хойших борлуулалтын тооцоонд хэрэглэгдэнэ.</p>';
   opsEl('saveProductBtn').before(pack);
-  const payments=document.createElement('details');payments.className='simple-details';payments.innerHTML='<summary>Төлбөрийн нэмэлт мэдээлэл</summary><div class="form-grid two"><label class="field">Одоо төлсөн дүн<input id="ops-sale-paid" type="number" min="0" step="0.01" placeholder="Хоосон бол төлбөрийн төрлөөр"></label><label class="field">Одоо төлсөн мөнгөний арга<select id="ops-sale-initial-method"><option value="Бэлэн">Бэлэн</option><option value="Банк">Банканд орсон</option></select></label><label class="field">Үлдэгдэл төлөх өдөр<input id="ops-sale-due" type="date"></label></div><p class="field-hint">Зээлээр борлуулахдаа урьдчилгаа авсан бол дүн болон мөнгө орсон аргыг хоёуланг нь сонгоно.</p>';
+  const payments=document.createElement('details');payments.className='simple-details';payments.id='ux-payment-details';payments.open=true;payments.innerHTML='<summary>Төлбөрийн дүн ба арга</summary><div class="form-grid two"><label class="field">Одоо төлсөн дүн<input id="ops-sale-paid" type="number" min="0" step="0.01" placeholder="Хоосон бол төлбөрийн төрлөөр"></label><label class="field">Одоо төлсөн мөнгөний арга<select id="ops-sale-initial-method"><option value="Бэлэн">Бэлэн</option><option value="Банк">Банк</option></select></label><label class="field">Үлдэгдэл төлөх өдөр<input id="ops-sale-due" type="date"></label></div><p class="field-hint">Зээлээр борлуулахдаа урьдчилгаа авсан бол дүн болон мөнгө орсон аргыг хоёуланг нь сонгоно.</p>';
   opsEl('saleBtn').before(payments);
   const repeat=document.createElement('button');repeat.type='button';repeat.className='btn btn-secondary';repeat.textContent='Дахин захиалах';repeat.dataset.ops='repeat-selected';
   opsEl('saleDetailBody').after(repeat);
@@ -78,6 +78,7 @@ async function loadOperations(force=false) {
       if(owner!==opsIdentity())return;
       if(!result.success||!result.operations)throw new Error(result.message||'Өдөр тутмын мэдээлэл одоогоор бэлэн болоогүй байна.');
       operations.data=result.operations;
+      window.uxOperationsUpdated?.(operations.data);
     } catch(error){if(owner===opsIdentity())operations.error=error.message;}
     finally {if(owner===opsIdentity()){operations.loading=null;renderOperations();}}
   })();operations.loading=promise;return promise;
@@ -96,7 +97,7 @@ function opsPurchaseLineMarkup(index,item={}) {
   const product=products.find(p=>p.name===selected)||products[0];
   const productOptions=products.map(p=>opsOption(p.name,p.name,p.name===selected)).join('');
   const unitOptions=opsOption('base','Үндсэн нэгж',item.inputUnit!=='pack')+opsOption('pack','Савлагаа',item.inputUnit==='pack');
-  return `<fieldset class="ops-purchase-line"><legend>Бараа ${index+1}</legend><div class="form-grid two">${opsSelect('Бараа',`purchaseProduct-${index}`,productOptions)}${opsField('Тоо',`purchaseQty-${index}`,'number',item.quantity||'',`required min="0.000001" step="any"`)}${opsSelect('Оруулах нэгж',`purchaseUnit-${index}`,unitOptions)}${opsField('Өртөг (сонгосон нэгжээр)',`purchaseCost-${index}`,'number',item.unitCost||'',`required min="0" step="0.01"`)}${opsField('Дуусах огноо',`purchaseExpiry-${index}`,'date',item.expiryDate||'')}${opsField('Цуврал / batch',`purchaseBatch-${index}`,'text',item.batchCode||'')}</div>${operations.purchaseDraft.length>1?opsButton('Энэ мөрийг хасах','purchase-remove',String(index)):''}</fieldset>`;
+  return `<fieldset class="ops-purchase-line"><legend>Бараа ${index+1}</legend><div class="form-grid two">${opsSelect('Бараа',`purchaseProduct-${index}`,productOptions)}${opsField('Тоо',`purchaseQty-${index}`,'number',item.quantity||'',`required min="0.000001" step="any"`)}${opsSelect('Оруулах нэгж',`purchaseUnit-${index}`,unitOptions)}${opsField('Өртөг (сонгосон нэгжээр)',`purchaseCost-${index}`,'number',item.unitCost||'',`required min="0" step="0.01"`)}${opsField('Дуусах огноо',`purchaseExpiry-${index}`,'date',item.expiryDate||'')}${opsField('Цувралын дугаар',`purchaseBatch-${index}`,'text',item.batchCode||'')}</div>${operations.purchaseDraft.length>1?opsButton('Энэ мөрийг хасах','purchase-remove',String(index)):''}</fieldset>`;
 }
 function opsRenderPurchaseLines() {
   const box=opsEl('ops-purchase-lines');if(!box)return;
@@ -123,7 +124,7 @@ function renderOperations() {
   }
   if(opsFinance()&&opsFeature('profitability')&&d.profitability){
     const p=d.profitability,profitText=p.grossProfit===null?`Өртөг мэдэгдэж буй хэсгийн ашиг: ${money(p.grossProfitKnown)}`:`Ахиуц ашиг: ${money(p.grossProfit)}`;
-    opsEl('ops-money').insertAdjacentHTML('beforeend',`<section class="card"><h3>Өртөг ба ахиуц ашиг</h3><div class="ops-row"><div><strong>${profitText}</strong><small>Өртгийн хамралт ${formatNumber(p.costCoveragePct)}%</small></div><span>${p.grossProfit===null?'Бүрэн ашиг харуулахгүй':'Бүрэн хамрагдсан'}</span></div>${p.grossProfit===null?'<p class="ops-notice">Өртөггүй хуучин/эхний үлдэгдэл байгаа тул нийт ашгийг зохиож харуулаагүй.</p>':''}</section>`);
+    opsEl('ops-money').insertAdjacentHTML('beforeend',`<section class="card"><h3>Бүх хугацааны өртөг ба ахиуц ашиг</h3><p>Хүссэн хугацааны ашгийг Тайлан хэсгээс харна.</p><div class="ops-row"><div><strong>${profitText}</strong><small>Өртгийн хамралт ${formatNumber(p.costCoveragePct)}%</small></div><span>${p.grossProfit===null?'Бүрэн ашиг харуулахгүй':'Бүрэн хамрагдсан'}</span></div>${p.grossProfit===null?'<p class="ops-notice">Өртөггүй хуучин/эхний үлдэгдэл байгаа тул нийт ашгийг зохиож харуулаагүй.</p>':''}</section>`);
   }
   if(opsFinance()&&opsFeature('suppliers')){
     const payableRows=(d.supplierPayables||[]).map(x=>`<div class="ops-row"><div><strong>${opsEsc(x.supplier)}</strong><small>${opsEsc(x.invoiceNumber||x.id)} · ${opsEsc(x.date)} · Нийт ${money(x.total)} · Төлсөн ${money(x.paid)}</small></div><div><strong>${money(x.payable)}</strong>${opsButton('Төлөх','supplier-payment',x.id)}</div></div>`).join('');
@@ -139,7 +140,7 @@ function renderOperations() {
 function opsModal(title,html,action,values={}) {
   operations.formAction=action;operations.formValues=values;operations.requestId=createClientId();operations.formOwner=opsIdentity();
   opsEl('ops-dialog-title').textContent=title;opsEl('ops-dialog-body').innerHTML=html;opsEl('ops-form-error').textContent='';
-  opsEl('ops-save').hidden=!action;opsEl('ops-save').disabled=false;opsEl('ops-dialog').showModal();
+  opsEl('ops-save').hidden=!action;opsEl('ops-save').disabled=false;opsEl('ops-dialog').showModal();window.uxOperationModal?.(action);
 }
 async function handleOperationsClick(event) {
   const button=event.target.closest('[data-ops]');if(!button||button.disabled)return;
@@ -173,7 +174,7 @@ async function handleOperationsClick(event) {
       const supplierOptions=operations.data.suppliers.map(s=>opsOption(s.SupplierID,s.Name)).join('');
       const warehouses=(state.warehouses||[]).map(w=>typeof w==='string'?w:(w.name||w['Агуулахын нэр']||'')).filter(Boolean);
       const warehouseOptions=warehouses.map(w=>opsOption(w,w)).join('');
-      const paymentFields=opsFinance()?opsField('Одоо төлсөн дүн','paidAmount','number','0','min="0" step="0.01"')+opsSelect('Төлбөрийн арга','paymentMethod',opsOption('Банк','Банканд орсон')+opsOption('Бэлэн','Бэлэн')):'';
+      const paymentFields=opsFinance()?opsField('Одоо төлсөн дүн','paidAmount','number','0','min="0" step="0.01"')+opsSelect('Төлбөрийн арга','paymentMethod',opsOption('Банк','Банк')+opsOption('Бэлэн','Бэлэн')):'';
       opsModal('Татан авалт хүлээн авах',opsSelect('Нийлүүлэгч','supplierId',supplierOptions)+opsField('Нэхэмжлэх / баримтын №','invoiceNumber')+opsField('Огноо','date','date',operations.data.today,'required')+opsSelect('Агуулах','warehouse',warehouseOptions)+'<div id="ops-purchase-lines"></div><div class="ops-actions">'+opsButton('Барааны мөр нэмэх','purchase-add-line')+'</div>'+paymentFields+opsField('Тэмдэглэл','notes'),'receivePurchase');
       opsRenderPurchaseLines();return;
     }
@@ -190,7 +191,7 @@ async function handleOperationsClick(event) {
       if(!opsFinance())throw new Error('Нийлүүлэгчийн төлбөр бүртгэх эрх хүрэлцэхгүй байна.');
       const purchase=(operations.data.supplierPayables||[]).find(x=>x.id===id)||(operations.data.purchases||[]).find(x=>x.id===id);
       if(!purchase||purchase.payable<=0)throw new Error('Төлөх өглөг олдсонгүй.');
-      return opsModal('Нийлүүлэгчийн төлбөр',`<p>${opsEsc(purchase.supplier)} · ${opsEsc(purchase.invoiceNumber||purchase.id)} · Үлдэгдэл <strong>${money(purchase.payable)}</strong></p>${opsField('Төлөх дүн','amount','number',purchase.payable,`required min="0.01" max="${purchase.payable}" step="0.01"`)}${opsSelect('Төлбөрийн арга','method',opsOption('Банк','Банканд орсон')+opsOption('Бэлэн','Бэлэн'))}${opsField('Тэмдэглэл','notes')}`,'addSupplierPayment',{purchaseId:purchase.id});
+      return opsModal('Нийлүүлэгчийн төлбөр',`<p>${opsEsc(purchase.supplier)} · ${opsEsc(purchase.invoiceNumber||purchase.id)} · Үлдэгдэл <strong>${money(purchase.payable)}</strong></p>${opsField('Төлөх дүн','amount','number',purchase.payable,`required min="0.01" max="${purchase.payable}" step="0.01"`)}${opsSelect('Төлбөрийн арга','method',opsOption('Банк','Банк')+opsOption('Бэлэн','Бэлэн'))}${opsField('Тэмдэглэл','notes')}`,'addSupplierPayment',{purchaseId:purchase.id});
     }
     if(action==='expense'){
       opsRequireFeature('cashClose');
@@ -240,7 +241,7 @@ async function handleOperationsClick(event) {
     }
     if(action==='payment'||action==='refund'){
       const max=action==='payment'?sale.remaining:sale.refundDue;
-      opsModal(action==='payment'?'Төлөлт бүртгэх':'Мөнгө буцааж олгох',`<p>${opsEsc(sale.customer)} · Үлдэгдэл ${money(max)}</p>${opsField('Дүн','amount','number','',`required min="0.01" max="${max}" step="0.01"`)}${opsSelect('Төлбөрийн арга','method',opsOption('Бэлэн','Бэлэн')+opsOption('Банк','Банканд орсон'))}${opsField('Тэмдэглэл','notes')}` ,action==='payment'?'addPayment':'refundPayment',{saleId:sale.id});return;
+      opsModal(action==='payment'?'Төлөлт бүртгэх':'Мөнгө буцааж олгох',`<p>${opsEsc(sale.customer)} · Үлдэгдэл ${money(max)}</p>${opsField('Дүн','amount','number','',`required min="0.01" max="${max}" step="0.01"`)}${opsSelect('Төлбөрийн арга','method',opsOption('Бэлэн','Бэлэн')+opsOption('Банк','Банк'))}${opsField('Тэмдэглэл','notes')}` ,action==='payment'?'addPayment':'refundPayment',{saleId:sale.id});return;
     }
     if(action==='return'){
       const items=sale.items.filter(i=>i.quantity>i.returned);
@@ -332,6 +333,7 @@ enqueueAction=function(action,payload){
     payload.paidAmount=opsEl('ops-sale-paid').value;
     payload.initialPaymentMethod=opsEl('ops-sale-initial-method').value;
     payload.dueDate=opsEl('ops-sale-due').value;
+    if(window.uxPrepareSale)window.uxPrepareSale(payload);
   }
   if(action==='addInventoryMove'){
     payload.inputUnit=opsEl('ops-inv-unit').value||'base';

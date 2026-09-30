@@ -82,7 +82,8 @@
     ];
 
     links.forEach(([href, label]) => {
-      if (infoGroup.querySelector(`a[href="${href}"]`)) return;
+      const normalized=value=>new URL(value,location.href).pathname.replace(/\.html$/,'').replace(/\/$/,'');
+      if (Array.from(infoGroup.querySelectorAll('a')).some(a=>normalized(a.href)===normalized(href))) return;
       const link = document.createElement('a');
       link.href = href;
       link.textContent = label;

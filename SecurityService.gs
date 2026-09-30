@@ -1,5 +1,5 @@
 'use strict';
-const SECURITY_USER_HEADERS = ['SessionVersion','RecoveryHash','RecoveryExpires','RecoveryIssuedBy'];
+const SECURITY_USER_HEADERS = ['SessionVersion','RecoveryHash','RecoveryExpires','RecoveryIssuedBy','VerifiedEmail'];
 function secureRandomBytes_(length) {
   const bytes=[];
   while(bytes.length<length) Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,Utilities.getUuid()+Utilities.getUuid(),Utilities.Charset.UTF_8).forEach(b=>bytes.push((b+256)%256));
