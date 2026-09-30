@@ -101,9 +101,9 @@ function publicPlan_(company) {
 
 function doGet(e) {
   try {
-    ensureMasterSheets_();
     const action = clean_(e && e.parameter && e.parameter.action);
     if(action==='capabilities')return json_({success:true,uxVersion:1,operationsVersion:1,reliabilityVersion:1,schemaVersion:DATALINX_SCHEMA_VERSION,backendRelease:DATALINX_BACKEND_RELEASE});
+    ensureMasterSheets_();
     if (action === 'login') throw new Error('Шинэ хувилбараа нээнэ үү. Нэвтрэхэд POST шаардлагатай.');
     if (action === 'bootstrap') {
       const auth = requireSession_(clean_(e.parameter.token));
